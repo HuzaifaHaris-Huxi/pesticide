@@ -15,7 +15,8 @@ from django.utils import timezone
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.edit import FormView
-from django.views.generic import ListView
+from django.views.generic import ListView, DeleteView
+from django.db import transaction
 
 from .forms import CashOutForm
 from .models import Payment, Business, Party
@@ -223,3 +224,20 @@ class CashOutPrintView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": str(e)}, status=400)
         except Exception as e:
             return JsonResponse({"ok": False, "error": f"Unexpected error: {e}"}, status=500)
+
+class CashOutDeleteView(LoginRequiredMixin, View):
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        payment = get_object_or_404(
+            Payment,
+            pk=kwargs.get("pk"),
+            direction=Payment.OUT,
+            payment_method=Payment.PaymentMethod.CASH
+        )
+        party_name = payment.party.display_name
+        payment.delete()
+        messages.success(request, f"Cash Out for {party_name} deleted.")
+        return redirect("cash_out_list")
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)

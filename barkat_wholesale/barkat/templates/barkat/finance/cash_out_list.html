@@ -121,7 +121,7 @@
   function confirmDelete(pk) {
     if (confirm("Are you sure you want to delete this payment record?")) {
       // For now just redirect to delete or handle via AJAX
-      window.location.href = `/finance/receipts/${pk}/delete/`; // Reusing existing delete logic if applicable
+      window.location.href = `/finance/cash-out/${pk}/delete/`;
     }
   }
 </script>

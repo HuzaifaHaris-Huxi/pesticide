@@ -148,6 +148,9 @@ urlpatterns = [
     path("finance/cash-out/print/", 
          from_cash_out.CashOutPrintView.as_view(), 
          name="cash_out_print"),
+    path("finance/cash-out/<int:pk>/delete/", 
+         from_cash_out.CashOutDeleteView.as_view(), 
+         name="cash_out_delete"),
 
     #Sales
      # lists
