@@ -381,52 +381,52 @@
           <td class="px-4 py-2 text-right font-mono text-blue-700 font-bold">
             {% if user.settings.protect_receivables and user.settings.cancellation_password %}
               <div class="flex items-center justify-end gap-2">
-                <span class="protected-value" data-secret="Rs. {{ b.summary.total_receivables|intcomma|default:'0.00' }}">******</span>
+                <span class="protected-value" data-secret="Rs. {{ b.live_summary.total_receivables|intcomma|default:'0.00' }}">******</span>
                 <button onclick="requestReveal(this)" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-blue-600">
                   <i data-feather="eye" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             {% else %}
-              Rs. {{ b.summary.total_receivables|intcomma|default:"0.00" }}
+              Rs. {{ b.live_summary.total_receivables|intcomma|default:"0.00" }}
             {% endif %}
           </td>
           <td class="px-4 py-2 text-right font-mono text-rose-700 font-bold">
             {% if user.settings.protect_payables and user.settings.cancellation_password %}
               <div class="flex items-center justify-end gap-2">
-                <span class="protected-value" data-secret="Rs. {{ b.summary.total_payables|intcomma|default:'0.00' }}">******</span>
+                <span class="protected-value" data-secret="Rs. {{ b.live_summary.total_payables|intcomma|default:'0.00' }}">******</span>
                 <button onclick="requestReveal(this)" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-rose-600">
                   <i data-feather="eye" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             {% else %}
-              Rs. {{ b.summary.total_payables|intcomma|default:"0.00" }}
+              Rs. {{ b.live_summary.total_payables|intcomma|default:"0.00" }}
             {% endif %}
           </td>
           <td class="px-4 py-2 text-right font-mono text-emerald-700 font-bold">
             {% if user.settings.protect_cash_in_hand and user.settings.cancellation_password %}
               <div class="flex items-center justify-end gap-2">
-                <span class="protected-value" data-secret="Rs. {{ b.summary.cash_in_hand|intcomma|default:'0.00' }}">******</span>
+                <span class="protected-value" data-secret="Rs. {{ b.live_summary.cash_in_hand|intcomma|default:'0.00' }}">******</span>
                 <button onclick="requestReveal(this)" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-emerald-600">
                   <i data-feather="eye" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             {% else %}
-              Rs. {{ b.summary.cash_in_hand|intcomma|default:"0.00" }}
+              Rs. {{ b.live_summary.cash_in_hand|intcomma|default:"0.00" }}
             {% endif %}
           </td>
           <td class="px-4 py-2 text-right font-mono text-indigo-700 font-bold">
-            Rs. {{ b.summary.bank_balance|intcomma|default:"0.00" }}
+            Rs. {{ b.live_summary.bank_balance|intcomma|default:"0.00" }}
           </td>
           <td class="px-4 py-2 text-right font-mono text-amber-700 font-bold">
             {% if user.settings.protect_inventory and user.settings.cancellation_password %}
               <div class="flex items-center justify-end gap-2">
-                <span class="protected-value" data-secret="Rs. {{ b.summary.inventory_value|intcomma|default:'0.00' }}">******</span>
+                <span class="protected-value" data-secret="Rs. {{ b.live_summary.inventory_value|intcomma|default:'0.00' }}">******</span>
                 <button onclick="requestReveal(this)" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-amber-600">
                   <i data-feather="eye" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             {% else %}
-              Rs. {{ b.summary.inventory_value|intcomma|default:"0.00" }}
+              Rs. {{ b.live_summary.inventory_value|intcomma|default:"0.00" }}
             {% endif %}
           </td>
 

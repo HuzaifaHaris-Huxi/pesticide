@@ -1848,47 +1848,25 @@ class BusinessesView(ListView):
             date_to=date_to,
         )
 
-        # 1. Live Receivables & Payables (Global)
-        all_parties = get_party_balances(Party.objects.filter(is_deleted=False))
-        total_rec = Decimal("0.00")
-        total_pay = Decimal("0.00")
-        for p in all_parties:
-            nb = p.net_balance or Decimal("0.00")
-            if nb > 0: total_rec += nb
-            elif nb < 0: total_pay += abs(nb)
-
-        # 2. Live Cash in Hand (Global)
-        from .models import CashFlow, BankAccount
-        cash_in_hand = CashFlow.objects.filter(
-            Q(bank_account__isnull=True) | Q(bank_account__account_type=BankAccount.CASH)
-        ).aggregate(
-            t=Sum(Case(
-                When(flow_type=CashFlow.IN, then=F('amount')),
-                When(flow_type=CashFlow.OUT, then=-F('amount')),
-                default=Decimal('0.00')
-            ))
-        )['t'] or Decimal('0.00')
+        # 1. Unified Financial Metrics (Global and Per-Business)
+        from barkat.services.financial_logic import get_business_financials
         
-        cash_acc_opening = BankAccount.objects.filter(
-            account_type=BankAccount.CASH,
-            is_active=True,
-            is_deleted=False
-        ).aggregate(s=Sum('opening_balance'))['s'] or Decimal('0.00')
-        cash_in_hand += cash_acc_opening
+        # Global Totals
+        global_stats = get_business_financials()
+        ctx["total_receivables"] = global_stats["total_receivables"]
+        ctx["total_payables"] = global_stats["total_payables"]
+        ctx["cash_in_hand"] = global_stats["cash_in_hand"]
+        ctx["total_inventory_valuation"] = global_stats["inventory_value"]
+        ctx["global_net_worth"] = global_stats["net_worth"]
 
-        # 3. Live Inventory Valuation (Global)
-        from .models import Product
-        total_inventory_valuation = Product.objects.filter(is_deleted=False, is_active=True).aggregate(
-            total=Sum(F('purchase_price') * F('stock_qty'), output_field=DecimalField())
-        )['total'] or Decimal("0.00")
+        # Enrich per-business stats for the table (Live data)
+        # Note: 'businesses' is the paged queryset from ListView
+        businesses = ctx.get('businesses', [])
+        for b in businesses:
+            b.live_summary = get_business_financials(b.id)
 
         today = timezone.now().date()
         ctx["today_date"] = today
-        ctx["total_receivables"] = max(Decimal("0.00"), total_rec)
-        ctx["total_payables"] = max(Decimal("0.00"), total_pay)
-        ctx["cash_in_hand"] = cash_in_hand
-        ctx["total_inventory_valuation"] = max(Decimal("0.00"), total_inventory_valuation)
-        ctx["global_net_worth"] = ctx["total_receivables"] + ctx["cash_in_hand"] + ctx["total_inventory_valuation"] - ctx["total_payables"]
         
         ctx["csrf_token"] = get_token(self.request)
         ctx["party_kind"] = party_kind

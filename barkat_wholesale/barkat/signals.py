@@ -372,88 +372,17 @@ def update_business_summary(business_id):
     if not business_id:
         return
 
-    from barkat.models import BusinessSummary, CashFlow, Product, Party
-    from django.db.models import Q
-    from barkat.models import BusinessSummary, CashFlow, Product, Party, BankAccount
-    from barkat.services.balance_service import get_party_balances
+    from barkat.models import BusinessSummary
+    from barkat.services.financial_logic import get_business_financials
 
     summary, created = BusinessSummary.objects.get_or_create(business_id=business_id)
+    stats = get_business_financials(business_id)
     
-    # Unified Cash/Bank Calculation from CashFlow
-    # 1. Cash In Hand (Physical Cash + CASH-type BankAccounts)
-    cash_in_hand_qs = CashFlow.objects.filter(
-        Q(business_id=business_id),
-        Q(bank_account__isnull=True) | Q(bank_account__account_type=BankAccount.CASH)
-    ).filter(is_deleted=False)
-    cash_in_hand = cash_in_hand_qs.aggregate(
-        t=Sum(Case(
-            When(flow_type=CashFlow.IN, then=F('amount')),
-            When(flow_type=CashFlow.OUT, then=-F('amount')),
-            default=Decimal('0.00'),
-            output_field=DecimalField()
-        ))
-    )['t'] or Decimal('0.00')
-    summary.cash_in_hand = cash_in_hand
-
-    # 2. Bank Balance (Only BANK-type BankAccounts)
-    bank_balance_qs = CashFlow.objects.filter(
-        business_id=business_id, 
-        bank_account__isnull=False,
-        bank_account__account_type=BankAccount.BANK
-    ).filter(is_deleted=False)
-    bank_balance = bank_balance_qs.aggregate(
-        t=Sum(Case(
-            When(flow_type=CashFlow.IN, then=F('amount')),
-            When(flow_type=CashFlow.OUT, then=-F('amount')),
-            default=Decimal('0.00'),
-            output_field=DecimalField()
-        ))
-    )['t'] or Decimal('0.00')
-    summary.bank_balance = bank_balance
-
-    # Add opening balances of BankAccounts linked to this business
-    bank_acc_opening = BankAccount.objects.filter(
-        business_id=business_id,
-        account_type=BankAccount.BANK,
-        is_active=True,
-        is_deleted=False
-    ).aggregate(s=Sum('opening_balance'))['s'] or Decimal('0.00')
-    summary.bank_balance += bank_acc_opening
-
-    cash_acc_opening = BankAccount.objects.filter(
-        business_id=business_id,
-        account_type=BankAccount.CASH,
-        is_active=True,
-        is_deleted=False
-    ).aggregate(s=Sum('opening_balance'))['s'] or Decimal('0.00')
-    summary.cash_in_hand += cash_acc_opening
-
-    # 3. Inventory Value
-    val = Product.objects.filter(
-        business_id=business_id, 
-        is_deleted=False,
-        is_active=True
-    ).aggregate(
-        val=Sum(F('stock_qty') * F('purchase_price'))
-    )['val'] or Decimal('0.00')
-    summary.inventory_value = val
-
-    # 4. Receivables & Payables (Reconciled)
-    # We use get_party_balances for ALL parties and sum by Net Balance
-    all_balances = get_party_balances(Party.objects.all(), business_id=business_id)
-    
-    # Receivables = Sum of positive net_balances (Dr)
-    # Payables = Sum of negative net_balances (Cr)
-    # Note: net_balance in service is final_dr - final_cr.
-    # Positive -> Customer owes us (Receivable).
-    # Negative -> We owe Supplier (Payable).
-    agg = all_balances.aggregate(
-        recv=Sum(Case(When(net_balance__gt=0, then=F('net_balance')), default=0, output_field=DecimalField())),
-        pay=Sum(Case(When(net_balance__lt=0, then=-F('net_balance')), default=0, output_field=DecimalField()))
-    )
-    
-    summary.total_receivables = agg['recv'] or Decimal('0.00')
-    summary.total_payables = agg['pay'] or Decimal('0.00')
+    summary.cash_in_hand = stats['cash_in_hand']
+    summary.bank_balance = stats['bank_balance']
+    summary.inventory_value = stats['inventory_value']
+    summary.total_receivables = stats['total_receivables']
+    summary.total_payables = stats['total_payables']
 
     summary.save()
 
