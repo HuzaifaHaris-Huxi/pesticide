@@ -1,0 +1,116 @@
+<div id="ledger-table" hx-swap="outerHTML">
+  <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+    <thead class="bg-slate-50">
+      <tr class="text-left">
+        <th class="px-3 py-2">#</th>
+
+        {# Dynamic column label by tab #}
+        <th class="px-3 py-2">
+          {% if kind == 'customer' %}
+            Customer
+          {% elif kind == 'supplier' %}
+            Supplier
+          {% else %}
+            Staff
+          {% endif %}
+        </th>
+
+        <th class="px-3 py-2">
+          {% if kind == 'staff' %}Phone / CNIC{% else %}Phone / Email{% endif %}
+        </th>
+
+        <th class="px-3 py-2 text-right">Balance</th>
+        <th class="px-3 py-2 w-32">Action</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for obj in page_obj %}
+        <tr class="border-t hover:bg-slate-50">
+          <td class="px-3 py-2">{{ forloop.counter }}</td>
+
+          <td class="px-3 py-2">
+            {% if kind == 'staff' %}
+              {{ obj.full_name }}
+            {% else %}
+              {{ obj.display_name }}
+            {% endif %}
+          </td>
+
+          <td class="px-3 py-2 text-slate-600">
+            {% if kind == 'staff' %}
+              {{ obj.phone }}{% if obj.cnic %} · {{ obj.cnic }}{% endif %}
+            {% else %}
+              {{ obj.phone }}{% if obj.email %} · {{ obj.email }}{% endif %}
+            {% endif %}
+          </td>
+
+          <td class="px-3 py-2 text-right">
+            <span class="font-semibold 
+              {% if obj.bal_side == 'Dr' %}text-blue-700
+              {% elif obj.bal_side == 'Cr' %}text-emerald-700
+              {% else %}text-slate-400 font-normal{% endif %}">
+              {{ obj.bal_amount|default:"0.00"|floatformat:2 }} {{ obj.bal_side|default:"" }}
+            </span>
+          </td>
+
+          <td class="px-3 py-2">
+            {% if kind == 'staff' %}
+              <a class="text-indigo-700 hover:underline"
+                 href="{% url 'ledger_detail' 'staff' obj.id %}?{% if business %}business={{ business.id }}{% else %}business=all{% endif %}">
+                View
+              </a>
+            {% elif kind == 'supplier' %}
+              <a class="text-indigo-700 hover:underline"
+                 href="{% url 'ledger_detail' 'supplier' obj.id %}?{% if business %}business={{ business.id }}{% else %}business=all{% endif %}">
+                View
+              </a>
+            {% else %}
+              <a class="text-indigo-700 hover:underline"
+                 href="{% url 'ledger_detail' 'customer' obj.id %}?{% if business %}business={{ business.id }}{% else %}business=all{% endif %}">
+                View
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="px-3 py-6 text-center text-slate-500">No records</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="flex justify-between items-center mt-3">
+    <div class="text-sm text-slate-600">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a
+          href="?kind={{ kind }}{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&page={{ page_obj.previous_page_number }}"
+          hx-get="?kind={{ kind }}{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&page={{ page_obj.previous_page_number }}"
+          hx-target="#ledger-table"
+          hx-push-url="true"
+          class="px-3 py-1 border rounded hover:bg-slate-50">
+          Prev
+        </a>
+      {% else %}
+        <span class="px-3 py-1 border rounded opacity-50">Prev</span>
+      {% endif %}
+
+      {% if page_obj.has_next %}
+        <a
+          href="?kind={{ kind }}{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&page={{ page_obj.next_page_number }}"
+          hx-get="?kind={{ kind }}{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&page={{ page_obj.next_page_number }}"
+          hx-target="#ledger-table"
+          hx-push-url="true"
+          class="px-3 py-1 border rounded hover:bg-slate-50">
+          Next
+        </a>
+      {% else %}
+        <span class="px-3 py-1 border rounded opacity-50">Next</span>
+      {% endif %}
+    </div>
+  </div>
+</div>

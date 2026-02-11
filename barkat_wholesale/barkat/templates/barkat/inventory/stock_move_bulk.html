@@ -1,0 +1,234 @@
+{# templates/barkat/inventory/stock_move_bulk.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Stock Move — {{ source_wh.code }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">Stock Move</h1>
+    <a href="{% url 'warehouse_detail' source_wh.id %}" class="text-slate-700 hover:underline">
+      Back to {{ source_wh.code }}
+    </a>
+  </div>
+
+  {# Business tabs (copied style) #}
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      <a
+        href="{% url 'stock_move_bulk' %}?source_warehouse={{ source_wh.id }}&dest_type={{ dest_type }}"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+               {% if not business %}bg-slate-700 text-white border-slate-700 shadow-md{% else %}text-slate-600 border-slate-300 hover:bg-slate-200{% endif %}">
+        All
+      </a>
+
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        {% if business and b.id == business.id %}
+          <a
+            href="{% url 'stock_move_bulk' %}?business={{ b.id }}&source_warehouse={{ source_wh.id }}&dest_type={{ dest_type }}"
+            aria-current="page" data-tint="{{ color }}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                   bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+            {{ b.name }}
+          </a>
+        {% else %}
+          <a
+            href="{% url 'stock_move_bulk' %}?business={{ b.id }}&source_warehouse={{ source_wh.id }}&dest_type={{ dest_type }}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                   text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+            {{ b.name }}
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# SEARCH (kept outside POST form so it doesn't swallow submit) #}
+  <form method="get" class="mb-3 flex gap-2">
+    {% if business %}<input type="hidden" name="business" value="{{ business.id }}">{% endif %}
+    <input type="hidden" name="source_warehouse" value="{{ source_wh.id }}">
+    <input type="hidden" name="dest_type" value="{{ dest_type }}">
+    <input
+      name="q"
+      value="{{ query }}"
+      type="search"
+      placeholder="Search product or SKU…"
+      class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+    />
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">Filter</button>
+    <a
+      href="{% url 'stock_move_bulk' %}?{% if business %}business={{ business.id }}&{% endif %}source_warehouse={{ source_wh.id }}&dest_type={{ dest_type }}"
+      class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50"
+    >Reset</a>
+  </form>
+
+  {# MAIN POST FORM #}
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+    {% if business %}<input type="hidden" name="business" value="{{ business.id }}">{% endif %}
+    <input type="hidden" name="source_warehouse" value="{{ source_wh.id }}">
+
+    <!-- Top: source + destination selectors -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 grid md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Source Warehouse</label>
+        <div class="rounded-md border border-slate-200 px-3 py-2 bg-slate-50">
+          {{ source_wh.code }} — {{ source_wh.name }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Destination Type</label>
+        <div class="flex items-center gap-6">
+          <label class="inline-flex items-center gap-2">
+            <input type="radio" name="dest_type" value="warehouse" {% if dest_type != 'business' %}checked{% endif %}/>
+            <span>Warehouse</span>
+          </label>
+          <label class="inline-flex items-center gap-2">
+            <input type="radio" name="dest_type" value="business" {% if dest_type == 'business' %}checked{% endif %}/>
+            <span>Business</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="destWarehouseWrap" {% if dest_type == 'business' %}class="hidden"{% endif %}>
+        <label class="block text-sm mb-1">Destination Warehouse</label>
+        <select name="dest_warehouse" id="id_dest_warehouse"
+                class="w-full rounded-md border border-slate-300 px-3 py-2" {% if dest_type != 'business' %}required{% endif %}>
+          <option value="">— Select —</option>
+          {% for w in warehouses %}
+            {% if w.id != source_wh.id %}
+              <option value="{{ w.id }}"
+                {% if dest_warehouse and dest_warehouse.id == w.id %}selected{% endif %}>
+                {{ w.code }} — {{ w.name }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+
+      <div id="destBusinessWrap" class="{% if dest_type != 'business' %}hidden{% endif %}">
+        <label class="block text-sm mb-1">Destination Business</label>
+        <div class="rounded-md border border-slate-200 px-3 py-2 bg-slate-50">
+          {% if business %}{{ business.name }}{% else %}<span class="text-slate-500">Select a business tab</span>{% endif %}
+        </div>
+        {% if business %}
+          <input type="hidden" name="dest_business" value="{{ business.id }}">
+          <p class="text-xs text-slate-500 mt-1">
+            Only products of {{ business.name }} are listed below.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Items table -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-medium">
+          Items{% if business %} ({{ business.name }}){% endif %}
+        </h2>
+        <div class="flex gap-2">
+          <label class="text-sm text-slate-600">
+            Reference:
+            <input name="reference" class="ml-2 rounded-md border border-slate-300 px-2 py-1" placeholder="Optional note">
+          </label>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="moveTable">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-2 text-left">SKU</th>
+              <th class="px-4 py-2 text-left">Product</th>
+              <th class="px-4 py-2 text-left">UOM</th>
+              <th class="px-4 py-2 text-right">Current ({{ source_wh.code }})</th>
+              <th class="px-4 py-2 text-right">Move Qty</th>
+            </tr>
+          </thead>
+          <tbody id="moveBody">
+            {% for p in products %}
+              <tr class="border-t">
+                <td class="px-4 py-2 font-mono">{{ p.sku }}</td>
+                <td class="px-4 py-2">{{ p.name }}</td>
+                <td class="px-4 py-2">{{ p.uom.code|default:"—" }}</td>
+                <td class="px-4 py-2 text-right font-semibold">{{ p.wh_qty|floatformat:6 }}</td>
+                <td class="px-4 py-2 text-right">
+                  <input
+                    type="number"
+                    step="0.000001"
+                    min="0"
+                    name="qty_{% firstof p.id p.pk %}"
+                    class="w-32 rounded-md border border-slate-300 px-2 py-1 text-right"
+                    placeholder="0.000000"
+                  />
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+                  {% if business %}
+                    No products found for {{ business.name }}.
+                  {% else %}
+                    Select a business tab to list products.
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <button type="submit"
+              class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800">
+        Post Moves
+      </button>
+    </div>
+  </form>
+</div>
+
+{% block all_scripts %}
+<script>
+  (function () {
+    const typeRadios = document.querySelectorAll('input[name="dest_type"]');
+    const wrapWh = document.getElementById("destWarehouseWrap");
+    const wrapBiz = document.getElementById("destBusinessWrap");
+    const destWh = document.getElementById("id_dest_warehouse");
+
+    function sync() {
+      const v = Array.from(typeRadios).find(r => r.checked)?.value || "warehouse";
+      if (v === "business") {
+        wrapWh.classList.add("hidden");
+        wrapBiz.classList.remove("hidden");
+        if (destWh) destWh.removeAttribute("required");
+      } else {
+        wrapBiz.classList.add("hidden");
+        wrapWh.classList.remove("hidden");
+        if (destWh) destWh.setAttribute("required", "required");
+      }
+    }
+    typeRadios.forEach(r => r.addEventListener("change", sync));
+    sync();
+
+    // Optional: tint tbody based on active business tab color (like your PO page)
+    (function () {
+      const activeTab = document.querySelector('[aria-current="page"][data-tint]');
+      const tint = activeTab ? activeTab.getAttribute("data-tint") : null;
+      const tblBody = document.getElementById("moveBody");
+      if (!tblBody) return;
+      const map = {
+        indigo: "bg-indigo-50",
+        emerald: "bg-emerald-50",
+        rose: "bg-rose-50",
+        amber: "bg-amber-50"
+      };
+      Object.values(map).forEach(c => tblBody.classList.remove(c));
+      if (tint && map[tint]) tblBody.classList.add(map[tint]);
+    })();
+  })();
+</script>
+{% endblock %}
+{% endblock %}

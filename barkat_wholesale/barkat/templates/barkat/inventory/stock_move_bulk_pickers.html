@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Stock Move — Choose Business & Source{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto p-6">
+  <h1 class="text-2xl font-semibold mb-4">Stock Move</h1>
+  <form method="get" class="space-y-4 bg-white p-6 rounded-xl border border-slate-200">
+    <div>
+      <label class="block text-sm mb-1">Business</label>
+      <select name="business" class="w-full rounded-md border border-slate-300 px-3 py-2">
+        <option value="">— Select —</option>
+        {% for b in businesses %}
+          <option value="{{ b.id }}">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Source Warehouse</label>
+      <select name="source_warehouse" class="w-full rounded-md border border-slate-300 px-3 py-2">
+        <option value="">— Select —</option>
+        {% for w in warehouses %}
+          <option value="{{ w.id }}">{{ w.code }} — {{ w.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="pt-2">
+      <button class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800">Continue</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

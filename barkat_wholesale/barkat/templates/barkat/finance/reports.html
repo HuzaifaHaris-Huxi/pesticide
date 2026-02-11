@@ -1,0 +1,1797 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block head %}
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-dark: #4338ca;
+    --success: #10b981;
+    --danger: #ef4444;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    --bg-gray: #f9fafb;
+    --bg-white: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+  }
+
+  .page-header h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .page-header .meta {
+    margin-top: 0.5rem;
+    opacity: 0.95;
+    font-size: 0.875rem;
+  }
+
+  .card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+  }
+
+  .card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .card-body {
+    padding: 0;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .kpi-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+  }
+
+  .kpi-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  .kpi-value.positive {
+    color: var(--success);
+  }
+
+  .kpi-value.negative {
+    color: var(--danger);
+  }
+
+  .kpi-subgrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    margin-top: 0.75rem;
+  }
+
+  .kpi-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .kpi-row span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg-white);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-gray);
+    z-index: 10;
+  }
+
+  thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr:hover {
+    background-color: var(--bg-gray);
+  }
+
+  tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .nested-table {
+    background: var(--bg-gray);
+    padding: 0.5rem;
+  }
+
+  .nested-table table {
+    font-size: 0.75rem;
+  }
+
+  .nested-table th,
+  .nested-table td {
+    padding: 0.375rem 0.5rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: var(--bg-gray);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .badge.primary {
+    background: rgba(79, 70, 229, 0.1);
+    color: var(--primary);
+    border-color: rgba(79, 70, 229, 0.2);
+  }
+
+  .filter-form {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.375rem;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-dark);
+  }
+
+  .btn-secondary {
+    background: var(--bg-white);
+    color: var(--text-primary);
+    border-color: var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-gray);
+  }
+
+  .btn-print {
+    background: white;
+    color: var(--primary);
+    border: 2px solid white;
+  }
+
+  .summary-row-container {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+  }
+
+  .summary-row-container > div {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  /* Only stack on small mobile */
+  @media (max-width: 500px) {
+    .summary-row-container {
+      flex-wrap: wrap !important;
+    }
+    .summary-row-container > div {
+      flex: 1 1 100% !important;
+    }
+  }
+
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .text-left { text-align: left; }
+  .nowrap { white-space: nowrap; }
+  .text-xs { font-size: 0.75rem; }
+  .text-muted { color: var(--text-muted); }
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .gap-2 { gap: 0.5rem; }
+  .mb-2 { margin-bottom: 0.5rem; }
+  .mb-6 { margin-bottom: 1.5rem; }
+  .mt-1 { margin-top: 0.25rem; }
+
+  .print-header {
+    display: none;
+  }
+
+  .empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  tfoot tr {
+    background: var(--bg-gray);
+    font-weight: 600;
+  }
+
+  /* helpers for print */
+  .print-only {
+    display: none;
+  }
+  .print-hide {
+    /* Removed display: block because it overrides grid/flex containers */
+  }
+
+  @media print {
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.4;
+      color: #000;
+      background: white;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+
+    .no-print,
+    .no-print * {
+      display: none !important;
+    }
+
+    nav,
+    aside,
+    header:not(.print-header),
+    footer {
+      display: none !important;
+    }
+
+    .print-header {
+      display: block !important;
+      margin-bottom: 10mm;
+      padding-bottom: 4mm;
+      border-bottom: 1pt solid #4f46e5;
+    }
+
+    .print-header h1 {
+      font-size: 16pt;
+      margin: 0 0 4mm 0;
+      color: #000;
+    }
+
+    .print-meta {
+      display: flex;
+      gap: 10mm;
+      font-size: 9pt;
+      color: #444;
+    }
+
+    .print-meta strong {
+      color: #000;
+    }
+
+    .container {
+      max-width: 100% !important;
+      width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: block !important;
+    }
+
+    .container * {
+      visibility: visible !important;
+    }
+
+    thead {
+      display: table-header-group !important;
+      background: #f9fafb !important;
+    }
+
+    tbody {
+      display: table-row-group !important;
+    }
+
+    tr {
+      page-break-inside: avoid !important;
+      page-break-after: auto;
+    }
+
+    th, td {
+      font-size: 8pt !important;
+    }
+
+    thead th {
+      background: #f9fafb !important;
+      padding: 2mm !important;
+      color: #000 !important;
+      border-bottom: 1pt solid #ddd !important;
+    }
+
+    tbody td {
+      padding: 1.5mm 2mm !important;
+      color: #000 !important;
+      border-bottom: 0.5pt solid #eee !important;
+    }
+
+    .nested-table {
+      background: #f9fafb !important;
+      padding: 2mm !important;
+      page-break-inside: avoid;
+    }
+
+    .nested-table table {
+      font-size: 7pt !important;
+    }
+
+    .nested-table th,
+    .nested-table td {
+      padding: 1mm !important;
+    }
+
+    .kpi-grid {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 3mm !important;
+      page-break-inside: avoid;
+      margin-bottom: 4mm !important;
+    }
+
+    .kpi-card {
+      border: 1pt solid #ddd !important;
+      padding: 3mm !important;
+      page-break-inside: avoid;
+      box-shadow: none !important;
+    }
+
+    .kpi-label {
+      font-size: 7pt !important;
+      color: #444 !important;
+    }
+
+    .kpi-value {
+      font-size: 10pt !important;
+      color: #000 !important;
+    }
+
+    .card {
+      border: 1pt solid #ddd !important;
+      box-shadow: none !important;
+      margin-bottom: 5mm !important;
+    }
+
+    .card-header {
+      padding: 2mm 3mm !important;
+      background: #f9fafb !important;
+      border-bottom: 1pt solid #ddd !important;
+      page-break-after: avoid;
+    }
+
+    .card-title {
+      font-size: 10pt !important;
+      font-weight: bold !important;
+      color: #000 !important;
+    }
+
+    .table-container {
+      max-height: none !important;
+      overflow: visible !important;
+      border: none !important;
+    }
+
+    .grid-2 {
+      display: block !important;
+      gap: 0 !important;
+    }
+
+    .grid-2 .card {
+      margin-bottom: 8mm !important;
+    }
+
+    .badge {
+      font-size: 7pt !important;
+      padding: 0.5mm 2mm !important;
+      border: 0.5pt solid #ddd !important;
+      background: #f9fafb !important;
+      color: #444 !important;
+    }
+
+    tfoot tr {
+      background: #f9fafb !important;
+      font-weight: bold !important;
+    }
+
+    tfoot td {
+      padding: 2mm !important;
+      border-top: 1pt solid #ddd !important;
+    }
+
+    .text-muted {
+      color: #666 !important;
+    }
+
+    .text-xs {
+      font-size: 7pt !important;
+    }
+
+    * {
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+
+    @page {
+      margin: 15mm;
+      size: A4;
+    }
+
+    .container > * {
+      margin-bottom: 6mm;
+    }
+
+    .container > *:last-child {
+      margin-bottom: 0;
+    }
+
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    .container {
+      height: auto !important;
+      min-height: auto !important;
+    }
+
+    .mb-6 {
+      margin-bottom: 5mm !important;
+    }
+
+    /* allow cards and tables to break so there is no big empty space */
+    .card,
+    .table-container,
+    table {
+      page-break-inside: auto !important;
+      break-inside: auto !important;
+    }
+
+    /* print helpers */
+    .print-only {
+      display: block !important;
+    }
+    .print-hide {
+      display: none !important;
+    }
+
+    /* compact period summary table */
+    .period-summary section {
+      padding: 4mm 5mm !important;
+      margin-bottom: 4mm !important;
+    }
+    .period-summary-table th,
+    .period-summary-table td {
+      padding: 1.5mm 2mm !important;
+      font-size: 8pt !important;
+    }
+    .period-summary-table thead th {
+      background: #f3f4f6 !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Print Header, only for print -->
+  <div class="print-header">
+    <h1>Reports & Analytics</h1>
+    <div class="print-meta">
+      <div><strong>Business:</strong> {% if business %}{{ business.code }} - {{ business.name }}{% else %}All Businesses{% endif %}</div>
+      <div><strong>Period:</strong> {{ from }} to {{ to }}</div>
+      <div><strong>Generated:</strong> {% now "Y-m-d H:i" %}</div>
+    </div>
+  </div>
+
+  <!-- Page Header, screen only -->
+  <div class="page-header no-print">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1>Reports & Analytics</h1>
+        <div class="meta">
+          <strong>Business:</strong> {% if business %}{{ business.code }} - {{ business.name }}{% else %}All Businesses{% endif %} | 
+          <strong>Period:</strong> {{ from }} - {{ to }}
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="alternativePrint()" class="btn btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 0.5rem;">
+            <path d="M18 7V2H6v5H3v8h3v5h12v-5h3V7h-3zM8 4h8v3H8V4zm8 14H8v-4h8v4zm2-6H6V9h12v3z"/>
+          </svg>
+           Print
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Form, screen only -->
+  <form method="get" class="filter-form no-print">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="datetime-local" name="from" value="{{ from }}" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="datetime-local" name="to" value="{{ to }}" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Business</label>
+        <select name="business" class="form-control">
+          <option value="">All Businesses</option>
+          {% for b in businesses %}
+            <option value="{{ b.id }}" {% if business and business.id == b.id %}selected{% endif %}>
+              {{ b.code }} - {{ b.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Quick range buttons + actions -->
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-secondary btn-range" data-range="today">Today</button>
+        <button type="button" class="btn btn-secondary btn-range" data-range="yesterday">Yesterday</button>
+        <button type="button" class="btn btn-secondary btn-range" data-range="this_week">This Week</button>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        <a href="{% url request.resolver_match.url_name %}" class="btn btn-secondary">Reset</a>
+      </div>
+    </div>
+  </form>
+
+<!-- KPI Cards / Period summary -->
+<div class="mb-6 period-summary">
+  <section class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+        💰 Period summary
+      </h2>
+      <button type="button" onclick="printPeriodSummary()" class="btn btn-secondary no-print">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 0.5rem;">
+          <path d="M18 7V2H6v5H3v8h3v5h12v-5h3V7h-3zM8 4h8v3H8V4zm8 14H8v-4h8v4zm2-6H6V9h12v3z"/>
+        </svg>
+        Print Period Summary
+      </button>
+    </div>
+
+    {# PRINT TABLE VIEW. ONLY PRINT #}
+    <div class="print-only">
+      <table class="period-summary-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; border-bottom:1px solid #e5e7eb;">Metric</th>
+            <th style="text-align:right; border-bottom:1px solid #e5e7eb;">Amount (₨)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Total sales (Revenue)</td>
+            <td class="text-right">{{ kpi_revenue|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Total COGS (Cost of Goods Sold)</td>
+            <td class="text-right">{{ kpi_cogs|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Gross Profit</td>
+            <td class="text-right" style="font-weight: bold;">{{ kpi_gross_profit|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Operating Expenses (Non-PO)</td>
+            <td class="text-right">{{ kpi_operating_expenses|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Landed PO Expenses</td>
+            <td class="text-right">{{ kpi_landed_po_expenses|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold;">Net Profit</td>
+            <td class="text-right" style="font-weight: bold;">{{ kpi_net_profit|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash Sale Profit</td>
+            <td class="text-right">{{ kpi_cash_sale_profit|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Total Receipts</td>
+            <td class="text-right">{{ receipt_count|default:0 }}</td>
+          </tr>
+          <tr>
+            <td>Receipt Series</td>
+            <td class="text-right">{{ receipt_series|default:"No receipts" }}</td>
+          </tr>
+          <tr>
+            <td>Total Cancelled Receipts</td>
+            <td class="text-right">{{ cancelled_receipt_count|default:0 }}</td>
+          </tr>
+          {% if cancelled_receipt_count > 0 %}
+          <tr>
+            <td>Cancelled Receipt Numbers</td>
+            <td class="text-right">{{ cancelled_receipt_numbers }}</td>
+          </tr>
+          {% endif %}
+          <tr>
+            <td>Cash via Sales</td>
+            <td class="text-right">{{ kpi_sales_cash|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash via Receipts</td>
+            <td class="text-right">{{ kpi_receipts_cash|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash Out - Purchase Orders</td>
+            <td class="text-right">{{ kpi_cash_out_po|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash Out - Sale Return Refunds</td>
+            <td class="text-right">{{ kpi_cash_out_sr_refund|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash Out - General Payments</td>
+            <td class="text-right">{{ kpi_cash_out_general|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cash In Hand</td>
+            <td class="text-right">{{ kpi_cash_in_hand|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Landed PO Expenses</td>
+            <td class="text-right">{{ kpi_landed_po_expenses|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Total amount in</td>
+            <td class="text-right">{{ amount_in_total|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Amount in . Cash</td>
+            <td class="text-right">{{ amount_in_cash|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Amount in . Cheques deposited</td>
+            <td class="text-right">{{ amount_in_cheque_deposited|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Amount in . Bank cash in</td>
+            <td class="text-right">{{ amount_in_bank_cash|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cheques in hand (pending)</td>
+            <td class="text-right">{{ kpi_cheque_in_hand_pending|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Cheques deposited</td>
+            <td class="text-right">{{ kpi_cheque_in_hand_deposited|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Bank sales</td>
+            <td class="text-right">{{ kpi_bank_revenue|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Bank deposited</td>
+            <td class="text-right">{{ kpi_bank_deposited|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td>Bank net movement</td>
+            <td class="text-right">{{ kpi_bank_amount|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          {% for bank in bank_summaries %}
+          <tr>
+            <td colspan="2" style="font-weight: bold; padding-top: 10px;">Bank: {{ bank.bank_name }}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">Bank Sales Amount</td>
+            <td class="text-right">{{ bank.bank_sales|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">Bank Deposited Amount (Cash)</td>
+            <td class="text-right">{{ bank.bank_deposited_cash|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">Cheque Deposited</td>
+            <td class="text-right">{{ bank.cheque_deposited|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">Total Deposited Amount</td>
+            <td class="text-right">{{ bank.total_deposited|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">Total Bank Amount</td>
+            <td class="text-right">{{ bank.total_bank_amount|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td style="font-weight: bold; padding-top: 10px;">Grand Total of All Banks</td>
+            <td class="text-right" style="font-weight: bold;">{{ grand_total_banks|default:"0.00"|floatformat:2 }}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <!-- Signature Section (Print Only) -->
+      <div style="margin-top: 120px; page-break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+          <!-- Accountant Signature (Left) -->
+          <div style="width: 40%; text-align: center;">
+            <div style="border-top: 2px solid #000; padding-top: 8px; margin-bottom: 4px;">
+              <span style="font-size: 10pt; font-weight: bold;">Accountant</span>
+            </div>
+            <div style="font-size: 8pt; color: #666;">Signature & Date</div>
+          </div>
+          
+          <!-- Owner Signature (Right) -->
+          <div style="width: 40%; text-align: center;">
+            <div style="border-top: 2px solid #000; padding-top: 8px; margin-bottom: 4px;">
+              <span style="font-size: 10pt; font-weight: bold;">Owner</span>
+            </div>
+            <div style="font-size: 8pt; color: #666;">Signature & Date</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 1: Profit & Loss Summary -->
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 print-hide">Profit & Loss Summary</p>
+    <div class="summary-row-container print-hide" style="display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 1rem; width: 100%; margin-bottom: 2rem;">
+      <!-- Total Sales Card -->
+      <div class="relative rounded-xl border border-emerald-200 bg-emerald-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-emerald-700 uppercase">Total Sales</p>
+        <p class="mt-2 text-xl font-bold text-emerald-700">₨ {{ kpi_revenue|default:0|floatformat:2 }}</p>
+        <div class="mt-2 pt-2 border-t border-emerald-300/50">
+          <p class="text-[10px] text-emerald-700/90"><strong>Total Receipts:</strong> {{ receipt_count|default:0 }}</p>
+          <p class="text-[10px] text-emerald-700/90"><strong>Receipt Series:</strong> {{ receipt_series|default:"—" }}</p>
+          {% if cancelled_receipt_count > 0 %}
+          <p class="text-[10px] text-rose-700/90 mt-0.5"><strong>Cancelled:</strong> {{ cancelled_receipt_count }} ({{ cancelled_receipt_numbers }})</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Expenses Card -->
+      <div class="relative rounded-xl border border-rose-200 bg-rose-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-rose-700 uppercase">Total Expenses</p>
+        <p class="mt-2 text-xl font-bold text-rose-600">₨ {{ kpi_expenses|default:0|floatformat:2 }}</p>
+        <div class="mt-2 pt-2 border-t border-rose-200/50">
+          <p class="text-[10px] text-rose-700/90"><strong>Landed PO:</strong> ₨ {{ kpi_landed_po_expenses|default:0|floatformat:2 }}</p>
+          <p class="text-[10px] text-rose-700/90 mt-0.5"><strong>Operating:</strong> ₨ {{ kpi_operating_expenses|default:0|floatformat:2 }}</p>
+        </div>
+      </div>
+
+      <!-- Net Profit Card -->
+      <div class="relative rounded-xl border border-indigo-200 bg-indigo-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-indigo-700 uppercase">Net Profit</p>
+        <p class="mt-2 text-xl font-bold {% if kpi_net_profit < 0 %}text-rose-600{% else %}text-indigo-700{% endif %}">₨ {{ kpi_net_profit|default:0|floatformat:2 }}</p>
+        <div class="mt-2 pt-2 border-t border-indigo-200/50">
+          <p class="text-[10px] text-indigo-700/90"><strong>Gross Profit:</strong> ₨ {{ kpi_gross_profit|default:0|floatformat:2 }}</p>
+          <p class="text-[10px] text-indigo-700/90"><strong>Cash Sale Profit:</strong> ₨ {{ kpi_cash_sale_profit|default:0|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Cash Inflow -->
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 print-hide">Cash Inflow Details</p>
+    <div class="summary-row-container print-hide" style="display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 1rem; width: 100%; margin-bottom: 2rem;">
+      <div class="relative rounded-xl border border-emerald-200 bg-emerald-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-emerald-700 uppercase">Cash Via Sales</p>
+        <p class="mt-2 text-xl font-bold text-emerald-700">₨ {{ kpi_sales_cash|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-sky-200 bg-sky-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-sky-700 uppercase">Cash Via Receipts</p>
+        <p class="mt-2 text-xl font-bold text-sky-700">₨ {{ kpi_receipts_cash|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-amber-200 bg-amber-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-amber-700 uppercase">Total Cash In</p>
+        <p class="mt-2 text-xl font-bold text-amber-700">₨ {{ amount_in_cash|default:0|floatformat:2 }}</p>
+      </div>
+    </div>
+
+    <!-- Row 3: Cash Outflow -->
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 print-hide">Cash Outflow Details</p>
+    <div class="summary-row-container print-hide" style="display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 1rem; width: 100%; margin-bottom: 2rem;">
+      <div class="relative rounded-xl border border-rose-200 bg-rose-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-rose-700 uppercase">Cash Out - PO</p>
+        <p class="mt-2 text-xl font-bold text-rose-600">₨ {{ kpi_cash_out_po|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-rose-200 bg-rose-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-rose-700 uppercase">Cash Out - SR Refunds</p>
+        <p class="mt-2 text-xl font-bold text-rose-600">₨ {{ kpi_cash_out_sr_refund|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-rose-200 bg-rose-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-rose-700 uppercase">Cash Out - General</p>
+        <p class="mt-2 text-xl font-bold text-rose-600">₨ {{ kpi_cash_out_general|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-rose-300 bg-rose-100/90 p-4 shadow-sm" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-rose-800 uppercase">Total Cash Out</p>
+        <p class="mt-2 text-lg font-bold text-rose-800">₨ {{ kpi_cash_out_total|default:0|floatformat:2 }}</p>
+      </div>
+    </div>
+
+    <!-- Row 4: Bank Activity -->
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 print-hide">Bank Activity</p>
+    <div class="summary-row-container print-hide" style="display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 1rem; width: 100%; margin-bottom: 2rem;">
+      <div class="relative rounded-xl border border-indigo-200 bg-indigo-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-indigo-700 uppercase">Bank Sales</p>
+        <p class="mt-2 text-xl font-bold text-indigo-700">₨ {{ kpi_bank_revenue|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-purple-200 bg-purple-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-purple-700 uppercase">Bank Deposited</p>
+        <p class="mt-2 text-xl font-bold text-purple-700">₨ {{ kpi_bank_deposited|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-slate-200 bg-slate-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-slate-700 uppercase">Bank Net Movement</p>
+        <p class="mt-2 text-xl font-bold {% if kpi_bank_amount|default:0 < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">₨ {{ kpi_bank_amount|default:0|floatformat:2 }}</p>
+      </div>
+    </div>
+
+    <!-- Row 5: Liquidity Summary -->
+    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1 print-hide">Liquidity & Balances</p>
+    <div class="summary-row-container print-hide" style="display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 1rem; width: 100%; margin-bottom: 1.5rem;">
+      <div class="relative rounded-xl border border-amber-300 bg-amber-100/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-amber-800 uppercase">Cash In Hand</p>
+        <p class="mt-2 text-xl font-bold text-amber-900">₨ {{ kpi_cash_in_hand|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-sky-300 bg-sky-100/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-sky-800 uppercase">Cheque in Hand (Pending)</p>
+        <p class="mt-2 text-xl font-bold text-sky-900">₨ {{ kpi_cheque_in_hand_pending|default:0|floatformat:2 }}</p>
+      </div>
+      <div class="relative rounded-xl border border-indigo-300 bg-indigo-100/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
+        <p class="text-[11px] font-semibold tracking-wide text-indigo-800 uppercase">All Bank Amount Balance</p>
+        <p class="mt-2 text-xl font-bold text-indigo-900">₨ {{ grand_total_banks|default:0|floatformat:2 }}</p>
+      </div>
+    </div>
+
+    <!-- Bank Summaries per Account -->
+    {% if bank_summaries %}
+    <div class="mb-6 print-hide">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <p class="text-[11px] font-semibold tracking-wide text-indigo-700 uppercase">
+            Bank Details by Account
+          </p>
+        </div>
+      </div>
+
+      {% for bank in bank_summaries %}
+      <div class="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+        <h3 class="text-sm font-semibold text-indigo-900 mb-3">{{ bank.bank_name }}</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <div>
+            <p class="text-xs text-indigo-700">Bank Sales</p>
+            <p class="text-base font-semibold text-indigo-900">₨ {{ bank.bank_sales|default:"0.00"|floatformat:2 }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-indigo-700">Deposited (Cash)</p>
+            <p class="text-base font-semibold text-indigo-900">₨ {{ bank.bank_deposited_cash|default:"0.00"|floatformat:2 }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-indigo-700">Cheque Deposited</p>
+            <p class="text-base font-semibold text-indigo-900">₨ {{ bank.cheque_deposited|default:"0.00"|floatformat:2 }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-indigo-700">Total Deposited</p>
+            <p class="text-base font-semibold text-indigo-900">₨ {{ bank.total_deposited|default:"0.00"|floatformat:2 }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-indigo-700">Total Bank Amount</p>
+            <p class="text-base font-semibold text-indigo-900">₨ {{ bank.total_bank_amount|default:"0.00"|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <!-- Grand Total -->
+      <div class="rounded-xl border-2 border-indigo-400 bg-indigo-100/80 p-4">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold text-indigo-900 uppercase">Grand Total of All Banks</p>
+          <p class="text-xl font-bold text-indigo-900">₨ {{ grand_total_banks|default:"0.00"|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+<!-- Product-Wise Profit/Loss -->
+<div class="card mb-6 no-print">
+  <div class="card-header bg-slate-50">
+    <h3 class="card-title flex items-center gap-2">
+      📈 Product-Wise Profit/Loss
+      <span class="text-[10px] font-normal text-slate-500 uppercase tracking-wider">(Based on Landed Cost Snapshots)</span>
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="table-container" style="max-height: 500px;">
+      <table class="w-full">
+        <thead class="bg-slate-50 sticky top-0">
+          <tr>
+            <th class="px-4 py-3 text-left">Product Name</th>
+            <th class="px-4 py-3 text-center">Qty Sold</th>
+            <th class="px-4 py-3 text-right">Revenue</th>
+            <th class="px-4 py-3 text-right">COGS (Landed)</th>
+            <th class="px-4 py-3 text-right">Net Profit</th>
+            <th class="px-4 py-3 text-center">Margin %</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in product_profit_rows %}
+          <tr class="hover:bg-slate-50/50 transition-colors">
+            <td class="px-4 py-2.5 font-medium text-slate-900">{{ row.name }}</td>
+            <td class="px-4 py-2.5 text-center text-slate-600">{{ row.qty|floatformat:2 }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold">₨ {{ row.revenue|floatformat:2 }}</td>
+            <td class="px-4 py-2.5 text-right text-amber-700">₨ {{ row.cost|floatformat:2 }}</td>
+            <td class="px-4 py-2.5 text-right font-bold {% if row.profit < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">
+              ₨ {{ row.profit|floatformat:2 }}
+            </td>
+            <td class="px-4 py-2.5 text-center">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold {% if row.margin < 0 %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-700{% endif %}">
+                {{ row.margin|floatformat:1 }}%
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">No sales recorded in this period.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+  <!-- Deposit Tables. Bank Cash In vs Cheques . Deposited -->
+  <div class="grid-2 mb-6">
+    <!-- Bank Cash In . only bank with bank names -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Deposits . Bank Cash In</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Bank</th>
+                <th>Reference</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in deposit_bank_rows %}
+                <tr>
+                  <td class="nowrap">{{ row.date }}</td>
+                  <td>{{ row.account }}</td>
+                  <td>{{ row.ref }}</td>
+                  <td class="text-right">₨ {{ row.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty-state">No bank cash deposits in this period</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cheques . only deposited -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Deposits . Cheques . Deposited</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Bank</th>
+                <th>Reference</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in deposit_cheque_rows %}
+                <tr>
+                  <td class="nowrap">{{ row.date }}</td>
+                  <td>{{ row.account }}</td>
+                  <td>{{ row.ref }}</td>
+                  <td class="text-right">₨ {{ row.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty-state">No deposited cheques in this period</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bank Transactions -->
+  <div class="grid-2 mb-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Bank Transactions . Cash In</h3>
+        <span class="badge primary">Total: ₨ {{ bank_in_total|default:"0.00" }}</span>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Reference</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in bank_in_rows %}
+                <tr>
+                  <td class="nowrap">{{ tx.date }}</td>
+                  <td>{{ tx.account }}</td>
+                  <td>{{ tx.ref }}</td>
+                  <td class="text-right">₨ {{ tx.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty-state">No transactions found</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Bank Transactions . Cash Out</h3>
+        <span class="badge primary">Total: ₨ {{ bank_out_total|default:"0.00" }}</span>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Reference</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in bank_out_rows %}
+                <tr>
+                  <td class="nowrap">{{ tx.date }}</td>
+                  <td>{{ tx.account }}</td>
+                  <td>{{ tx.ref }}</td>
+                  <td class="text-right">₨ {{ tx.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty-state">No transactions found</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Purchase and Sales Orders -->
+  <div class="grid-2 mb-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Purchase Orders</h3>
+        <span class="badge">Count: {{ po_count|default:"0" }}</span>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>PO #</th>
+                <th>Supplier</th>
+                <th class="text-right">Items</th>
+                <th class="text-right">Paid</th>
+                <th class="text-right">Remaining</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in po_rows %}
+                <tr>
+                  <td class="nowrap">{{ row.date }}</td>
+                  <td>
+                    <div style="color: #4f46e5; font-weight: 600;">PO #{{ row.id }}</div>
+                    <div class="text-xs text-muted">{{ row.status }}</div>
+                  </td>
+                  <td>{{ row.supplier }}</td>
+                  <td class="text-right">{{ row.items_count }}</td>
+                  <td class="text-right">₨ {{ row.paid|default:"0.00" }}</td>
+                  <td class="text-right">₨ {{ row.remaining|default:"0.00" }}</td>
+                  <td class="text-right">₨ {{ row.total|default:"0.00" }}</td>
+                </tr>
+                {% if row.items %}
+                  <tr>
+                    <td colspan="7" class="nested-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th class="text-right">Qty</th>
+                            <th class="text-right">Unit Price</th>
+                            <th class="text-right">Line Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for it in row.items %}
+                            <tr>
+                              <td>{{ it.product }}</td>
+                              <td class="text-right">{{ it.qty }}</td>
+                              <td class="text-right">₨ {{ it.unit_price }}</td>
+                              <td class="text-right">₨ {{ it.line_total }}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                {% endif %}
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="empty-state">No purchase orders found</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Sales Orders</h3>
+        <span class="badge">Count: {{ so_count|default:"0" }}</span>
+      </div>
+      <div class="card-body">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>SO #</th>
+                <th>Customer</th>
+                <th class="text-right">Items</th>
+                <th class="text-right">Paid</th>
+                <th class="text-right">Remaining</th>
+                <th class="text-right">Net Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in so_rows %}
+                <tr>
+                  <td class="nowrap">{{ row.date }}</td>
+                  <td>
+                    <div style="color: #4f46e5; font-weight: 600;">SO #{{ row.id }}</div>
+                    <div class="text-xs text-muted">{{ row.status }}</div>
+                  </td>
+                  <td>{% if row.customer %}{{ row.customer }}{% else %}{{ row.customer_name }}{% endif %}</td>
+                  <td class="text-right">{{ row.items_count }}</td>
+                  <td class="text-right">₨ {{ row.paid|default:"0.00" }}</td>
+                  <td class="text-right">₨ {{ row.remaining|default:"0.00" }}</td>
+                  <td class="text-right">₨ {{ row.net_total|default:"0.00" }}</td>
+                </tr>
+                {% if row.items %}
+                  <tr>
+                    <td colspan="7" class="nested-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Product</th>
+                            <th class="text-right">Qty</th>
+                            <th class="text-right">Unit Price</th>
+                            <th class="text-right">Line Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for it in row.items %}
+                            <tr>
+                              <td>{{ it.product }}</td>
+                              <td class="text-right">{{ it.qty }}</td>
+                              <td class="text-right">₨ {{ it.unit_price }}</td>
+                              <td class="text-right">₨ {{ it.line_total }}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                {% endif %}
+              {% empty %}
+                <tr>
+                  <td colspan="7" class="empty-state">No sales orders found</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Purchase Returns -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">Purchase Returns</h3>
+      <span class="badge">Count: {{ pr_count|default:"0" }}</span>
+    </div>
+    <div class="card-body">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>PR #</th>
+              <th>Supplier</th>
+              <th class="text-right">Items</th>
+              <th class="text-right">Refunded</th>
+              <th class="text-right">Remaining</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pr_rows %}
+              <tr>
+                <td class="nowrap">{{ row.date }}</td>
+                <td>
+                  <div style="color: #4f46e5; font-weight: 600;">PR #{{ row.id }}</div>
+                  <div class="text-xs text-muted">{{ row.status }}</div>
+                </td>
+                <td>{{ row.supplier }}</td>
+                <td class="text-right">{{ row.items_count }}</td>
+                <td class="text-right">₨ {{ row.refunded|default:"0.00" }}</td>
+                <td class="text-right">₨ {{ row.remaining|default:"0.00" }}</td>
+                <td class="text-right">₨ {{ row.total|default:"0.00" }}</td>
+              </tr>
+              {% if row.items %}
+                <tr>
+                  <td colspan="7" class="nested-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th class="text-right">Qty</th>
+                          <th class="text-right">Unit Price</th>
+                          <th class="text-right">Line Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for it in row.items %}
+                          <tr>
+                            <td>{{ it.product }}</td>
+                            <td class="text-right">{{ it.qty }}</td>
+                            <td class="text-right">₨ {{ it.unit_price }}</td>
+                            <td class="text-right">₨ {{ it.line_total }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              {% endif %}
+            {% empty %}
+              <tr>
+                <td colspan="7" class="empty-state">No purchase returns found</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sales Returns -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">Sales Returns</h3>
+      <span class="badge">Count: {{ sr_count|default:"0" }}</span>
+    </div>
+    <div class="card-body">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>SR #</th>
+              <th>Customer</th>
+              <th class="text-right">Items</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sr_rows %}
+              <tr>
+                <td class="nowrap">{{ row.date }}</td>
+                <td>
+                  <div style="color: #4f46e5; font-weight: 600;">SR #{{ row.id }}</div>
+                  <div class="text-xs text-muted">{{ row.status }}</div>
+                </td>
+                <td>{{ row.customer }}</td>
+                <td class="text-right">{{ row.items_count }}</td>
+                <td class="text-right">₨ {{ row.total|default:"0.00" }}</td>
+              </tr>
+              {% if row.items %}
+                <tr>
+                  <td colspan="5" class="nested-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th class="text-right">Qty</th>
+                          <th class="text-right">Unit Price</th>
+                          <th class="text-right">Line Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for it in row.items %}
+                          <tr>
+                            <td>{{ it.product }}</td>
+                            <td class="text-right">{{ it.qty }}</td>
+                            <td class="text-right">₨ {{ it.unit_price }}</td>
+                            <td class="text-right">₨ {{ it.line_total }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              {% endif %}
+            {% empty %}
+              <tr>
+                <td colspan="5" class="empty-state">No sales returns found</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Items Sold -->
+  <div class="card mb-6">
+    <div class="card-header">
+      <h3 class="card-title">Items Sold . By Quantity</h3>
+      <span class="badge">Unique Items: {{ items_sold|length }}</span>
+    </div>
+    <div class="card-body">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th class="text-right">Quantity Sold</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in items_sold %}
+              <tr>
+                <td>{{ row.name }}</td>
+                <td class="text-right">{{ row.qty }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="2" class="empty-state">No items sold in this period</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expenses -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Expenses</h3>
+      <span class="badge">Total: ₨ {{ expenses_total|default:"0.00" }}</span>
+    </div>
+    <div class="card-body">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in expenses_rows %}
+              <tr>
+                <td class="nowrap">{{ e.date }}</td>
+                <td>{{ e.category }}</td>
+                <td>{{ e.note }}</td>
+                <td class="text-right">₨ {{ e.amount }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="empty-state">No expenses recorded</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function printReport() {
+  const originalTitle = document.title;
+  const business = {% if business %}"{{ business.code }}-{{ business.name|escapejs }}"{% else %}"AllBusinesses"{% endif %};
+  const from = "{{ from|escapejs }}".split('T')[0];
+  const to = "{{ to|escapejs }}".split('T')[0];
+  const printTitle = `Reports_${business}_${from}_to_${to}`;
+  document.title = printTitle;
+  document.body.classList.add('print-preparing');
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+      document.body.classList.remove('print-preparing');
+    }, 500);
+  }, 100);
+}
+
+function printPeriodSummary() {
+  const periodSummary = document.querySelector('.period-summary');
+  if (!periodSummary) {
+    alert('Period summary section not found');
+    return;
+  }
+
+  const printContent = periodSummary.cloneNode(true);
+  const noPrintElements = printContent.querySelectorAll('.no-print, .print-hide');
+  noPrintElements.forEach(el => el.remove());
+
+  const printOnlyElements = printContent.querySelectorAll('.print-only');
+  printOnlyElements.forEach(el => el.style.display = 'block');
+
+  const business = {% if business %}"{{ business.code }}-{{ business.name|escapejs }}"{% else %}"AllBusinesses"{% endif %};
+  const from = "{{ from|escapejs }}".split('T')[0];
+  const to = "{{ to|escapejs }}".split('T')[0];
+  const printTitle = `PeriodSummary_${business}_${from}_to_${to}`;
+  const styleEl = document.querySelector('style');
+  const styleCss = styleEl ? styleEl.innerHTML : "";
+
+  const printWindow = window.open('', '_blank', 'width=1000,height=600');
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${printTitle}</title>
+      <style>
+        ${styleCss}
+        body { margin: 20px; font-family: Arial, sans-serif; }
+        .print-only { display: block !important; }
+        .period-summary-table { width: 100%; border-collapse: collapse; }
+        .period-summary-table th,
+        .period-summary-table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+        .period-summary-table th { background-color: #f3f4f6; font-weight: bold; }
+        .text-right { text-align: right; }
+      </style>
+    </head>
+    <body>
+      <div style="margin-bottom: 20px;">
+        <h2 style="margin-bottom: 10px;">Period Summary</h2>
+        <p><strong>Business:</strong> {% if business %}{{ business.code }} - {{ business.name }}{% else %}All Businesses{% endif %}</p>
+        <p><strong>Period:</strong> ${from} to ${to}</p>
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+      </div>
+      ${printContent.outerHTML}
+      <script>
+        window.onload = function() {
+          window.print();
+          setTimeout(function() {
+            window.close();
+          }, 100);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+function alternativePrint() {
+  const originalTitle = document.title;
+  const main = document.querySelector('.container');
+  if (!main) {
+    window.print();
+    return;
+  }
+
+  const printContent = main.cloneNode(true);
+  const noPrintElements = printContent.querySelectorAll('.no-print');
+  noPrintElements.forEach(el => el.remove());
+
+  const printHeader = printContent.querySelector('.print-header');
+  if (printHeader) {
+    printHeader.style.display = 'block';
+  }
+
+  const business = {% if business %}"{{ business.code }}-{{ business.name|escapejs }}"{% else %}"AllBusinesses"{% endif %};
+  const from = "{{ from|escapejs }}".split('T')[0];
+  const to = "{{ to|escapejs }}".split('T')[0];
+  const printTitle = `Reports_${business}_${from}_to_${to}`;
+  const styleEl = document.querySelector('style');
+  const styleCss = styleEl ? styleEl.innerHTML : "";
+
+  const printWindow = window.open('', '_blank', 'width=1000,height=600');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${printTitle}</title>
+      <style>
+        ${styleCss}
+      </style>
+    </head>
+    <body>
+      ${printContent.outerHTML}
+      <script>
+        window.onload = function() {
+          window.print();
+          setTimeout(function() {
+            window.close();
+          }, 100);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  document.title = originalTitle;
+}
+
+window.addEventListener('beforeprint', () => {
+  document.documentElement.classList.add('printing');
+  const containers = document.querySelectorAll('.container, .card, .table-container');
+  containers.forEach(container => {
+    container.style.overflow = 'visible';
+    container.style.height = 'auto';
+  });
+});
+
+window.addEventListener('afterprint', () => {
+  document.documentElement.classList.remove('printing');
+  const containers = document.querySelectorAll('.container, .card, .table-container');
+  containers.forEach(container => {
+    container.style.overflow = '';
+    container.style.height = '';
+  });
+});
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+    e.preventDefault();
+    printReport();
+  }
+});
+
+/* Quick date range helpers */
+
+function pad2(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+function formatForDatetimeLocal(dt) {
+  const y = dt.getFullYear();
+  const m = pad2(dt.getMonth() + 1);
+  const d = pad2(dt.getDate());
+  const h = pad2(dt.getHours());
+  const min = pad2(dt.getMinutes());
+  return `${y}-${m}-${d}T${h}:${min}`;
+}
+
+function setQuickRange(range) {
+  const fromInput = document.querySelector('input[name="from"]');
+  const toInput = document.querySelector('input[name="to"]');
+  if (!fromInput || !toInput) return;
+
+  const now = new Date();
+  let start, end;
+
+  if (range === 'today') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0);
+  } else if (range === 'yesterday') {
+    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
+    end   = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 0);
+  } else if (range === 'this_week') {
+    const day = now.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    start = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate(), 0, 0, 0);
+    end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0);
+  } else {
+    return;
+  }
+
+  fromInput.value = formatForDatetimeLocal(start);
+  toInput.value = formatForDatetimeLocal(end);
+
+  const form = fromInput.closest('form');
+  if (form) {
+    form.submit();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.btn-range').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const range = this.getAttribute('data-range');
+      setQuickRange(range);
+    });
+  });
+});
+</script> 
+{% endblock %}

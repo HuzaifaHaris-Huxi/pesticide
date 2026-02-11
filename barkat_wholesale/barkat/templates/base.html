@@ -1,0 +1,1356 @@
+{% load static tailwind_tags %}
+<!--HTML Separator-->
+{% load static %}
+<!--HTML Separator-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{% block title %}Barkat POS Dashboard{% endblock %}</title>
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
+    <link rel="icon" href="{% static 'images/favicon.ico' %}" />
+
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+   
+    {% tailwind_css %} 
+    {% block head %}{% endblock head %}
+    <style>
+      /* Prevent horizontal scroll globally */
+      html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw;
+      }
+
+      /* Ensure sidebar doesn't cause overflow */
+      #sidebar {
+        overflow-x: hidden !important;
+        overflow-y: auto;
+      }
+
+      /* Hide overflow on nav items when collapsed */
+      #sidebar.collapsed .nav-label,
+      #sidebar.collapsed .submenu-label {
+        overflow: hidden !important;
+        white-space: nowrap;
+      }
+
+      /* Prevent submenu overflow */
+      .submenu {
+        overflow-x: hidden !important;
+      }
+
+      /* Main content container */
+      .flex.h-screen {
+        overflow-x: hidden !important;
+      }
+
+      /* Custom scrollbar for sidebar */
+      .custom-scrollbar {
+        overflow-x: hidden !important;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(148, 163, 184, 0.1);
+        border-radius: 4px;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.3);
+        border-radius: 4px;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.5);
+      }
+
+      /* Prevent any element from causing horizontal scroll */
+      * {
+        max-width: 100%;
+      }
+
+      /* Fix for user panel */
+      #userPanel {
+        overflow-x: hidden !important;
+      }
+
+      /* Ensure nav items don't overflow when collapsed */
+      #sidebar.collapsed .nav-item,
+      #sidebar.collapsed .submenu-item {
+        overflow: hidden !important;
+      }
+
+      /* Fix toggle button - positioned on sidebar */
+      #toggleSidebar {
+        z-index: 1 !important;
+        position: absolute !important;
+        right: -12px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+      }
+
+      /* Ensure icons maintain proper size when collapsed */
+      #sidebar.collapsed .nav-icon {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+      }
+
+      #sidebar.collapsed .nav-icon i {
+        width: 20px !important;
+        height: 20px !important;
+      }
+
+      #sidebar.collapsed .submenu-icon {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+      }
+
+      #sidebar.collapsed .submenu-icon i {
+        width: 16px !important;
+        height: 16px !important;
+      }
+
+      /* Center nav items when collapsed */
+      #sidebar.collapsed .nav-item {
+        justify-content: center !important;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+
+      /* Hide carets when collapsed */
+      #sidebar.collapsed .nav-caret {
+        display: none !important;
+      }
+
+      /* Ensure proper icon rendering */
+      .nav-icon, .submenu-icon {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+
+      /* Professional toast notifications */
+      @keyframes toast-slide-in {
+        from {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes toast-slide-out {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+      }
+      .animate-toast-in {
+        animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .toast-card {
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+      #toast-container {
+        max-width: min(92vw, 26rem) !important;
+      }
+      #toast-container [data-action="toast-dismiss"] {
+        max-width: none !important;
+        min-width: 2.25rem !important;
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+        cursor: pointer !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+      }
+    </style>
+
+  </head>
+
+  <!-- Body with only Tailwind utility classes (and inline CSS vars to feed the gradient) -->
+  <body
+    class="relative min-h-screen text-slate-800 antialiased overflow-hidden"
+    style="background-color: #f7fafc;"
+  >
+
+    <div class="flex h-screen">
+      <!-- Futuristic Sidebar -->
+      <aside
+        id="sidebar"
+        class="bg-slate-900 text-slate-200 flex flex-col transition-all w-72 duration-300 ease-in-out relative shadow-xl shadow-black/20 group/sidebar h-screen max-h-screen border-r border-slate-700/50"
+        :class="isCollapsed ? 'w-20' : 'w-72'"
+      >
+        <!-- Logo Area with Glass Effect -->
+        <div
+          class="px-4 h-16 border-b border-slate-700/50 flex items-center justify-center bg-slate-800/20 backdrop-blur-md shrink-0"
+        >
+          <img
+            id="logo"
+            src="{% static 'images/barkat_logo.svg' %}"
+            alt="Barkat Logo"
+            class="h-8 w-auto transition-all duration-500 group-[.collapsed]/sidebar:scale-90"
+          />
+        </div>
+
+        <!-- Navigation Container -->
+        <nav class="flex-1 flex flex-col p-3 space-y-1 overflow-y-auto custom-scrollbar pb-20">
+
+          <!-- Navigation Groups -->
+          <div class="">
+            <!-- Core Section -->
+            <div class="space-y-1">
+              <!-- Businesses -->
+              <a
+                href="{% url 'business' %}"
+                class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 border border-transparent hover:border-blue-500/30 {% block active_aside_business %}hover:bg-blue-500/20{% endblock %}"
+              >
+                <div
+                  class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                >
+                  <i
+                    data-feather="briefcase"
+                    class="w-4 h-4 text-slate-300 group-hover:text-blue-300"
+                  ></i>
+                </div>
+                <span
+                  class="nav-label font-medium text-slate-200 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible group-[.collapsed]/sidebar:scale-95"
+                >
+                  Businesses
+                </span>
+              </a>
+            </div>
+
+            <!-- Relationships Section -->
+            <div class="space-y-1">
+              <!-- Parties -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/10 border border-transparent hover:border-purple-500/30"
+                  data-collapse="parties"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="users"
+                      class="w-4 h-4 text-slate-300 group-hover:text-purple-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Parties
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-parties"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <a
+                    href="{% url 'customers_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_customer %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="user"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-green-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Customers
+                    </span>
+                  </a>
+                  <a
+                    href="{% url 'vendors_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_vendor %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="truck"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Vendors
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Products Section -->
+            <div class="space-y-1">
+              <!-- Catalog -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/10 border border-transparent hover:border-emerald-500/30"
+                  data-collapse="catalog"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="package"
+                      class="w-4 h-4 text-slate-300 group-hover:text-emerald-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Catalog
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-catalog"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <a
+                    href="{% url 'product_categories' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_categories %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="folder"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Categories
+                    </span>
+                  </a>
+                  <a
+                    href="{% url 'products_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_products %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="box"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Products
+                    </span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Inventory -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-amber-500/20 hover:shadow-lg hover:shadow-amber-500/10 border border-transparent hover:border-amber-500/30"
+                  data-collapse="inventory"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="layers"
+                      class="w-4 h-4 text-slate-300 group-hover:text-amber-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Inventory
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-inventory"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <a
+                   href="{% url 'stock_status' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_inventory %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="bar-chart-2"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Stock Status
+                    </span>
+                  </a>
+                  
+                  <a
+                   href="{% url 'warehouse_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_warehouses %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="home"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Warehouses
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transactions Section -->
+            <div class="space-y-1">
+              <!-- Purchasing -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-orange-500/20 hover:shadow-lg hover:shadow-orange-500/10 border border-transparent hover:border-orange-500/30"
+                  data-collapse="purchasing"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="shopping-cart"
+                      class="w-4 h-4 text-slate-300 group-hover:text-orange-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Purchasing
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-purchasing"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <a
+                    href="{% url 'po_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_pinv %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="shopping-bag"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Purchase Order
+                    </span>
+                  </a>
+                  <a
+                    href="{% url 'pr_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_pret %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="rotate-ccw"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Purchase Returns
+                    </span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Sales -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-green-500/20 hover:shadow-lg hover:shadow-green-500/10 border border-transparent hover:border-green-500/30"
+                  data-collapse="sales"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="file-text"
+                      class="w-4 h-4 text-slate-300 group-hover:text-green-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Sales
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-sales"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <!-- Orders -->
+
+                  <a
+                    href="{% url 'so_add' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_sord %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="shopping-cart"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-green-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Orders
+                    </span>
+                  </a>
+                  <!-- Sales Invoices -->
+                  <a
+                    href="{% url 'so_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_sinv %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="file-plus"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-green-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Sales Invoices
+                    </span>
+                  </a>
+
+                  <!-- Sales Returns -->
+                  <a
+                  href="{% url 'sr_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_sret %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="refresh-cw"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-green-300"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Sales Returns
+                    </span>
+                  </a>
+
+                  <!-- Orders -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Finance Section -->
+            <div class="space-y-1">
+              <!-- Finance Menu -->
+              <div class="nav-group">
+                <button
+                  type="button"
+                  class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl w-full text-left transition-all duration-300 hover:bg-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/10 border border-transparent hover:border-indigo-500/30"
+                  data-collapse="finance"
+                >
+                  <div
+                    class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                  >
+                    <i
+                      data-feather="dollar-sign"
+                      class="w-4 h-4 text-slate-300 group-hover:text-indigo-300"
+                    ></i>
+                  </div>
+                  <span
+                    class="nav-label font-medium text-slate-200 group-hover:text-white flex-1 transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                  >
+                    Finance
+                  </span>
+                  <div
+                    class="nav-caret transition-all duration-300 group-[.collapsed]/sidebar:absolute group-[.collapsed]/sidebar:right-2"
+                  >
+                    <i
+                      data-feather="chevron-down"
+                      class="w-4 h-4 text-slate-400 transform transition-transform duration-300"
+                    ></i>
+                  </div>
+                </button>
+
+                <div
+                  id="submenu-finance"
+                  class="submenu ml-3 mt-1 space-y-1 hidden"
+                >
+                  <!-- Bank Accounts -->
+                  <a
+                    href="{%url 'bankaccount_list'%}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_banks %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="credit-card"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Bank Accounts
+                    </span>
+                  </a>
+
+                  <!-- Cash Flow -->
+                  <a
+                    href="{% url 'movement_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_cashflow %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="trending-up"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Bank Cash Movment
+                    </span>
+                  </a>
+
+                  <!-- Cash In -->
+                  <a
+                    href="{% url 'quick_receipt_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_cashin %}{% endblock %}"
+                  >
+                    <div class="submenu-icon w-5 h-5 flex items-center justify-center">
+                      <i
+                        data-feather="arrow-down-circle"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Cash In
+                    </span>
+                  </a>
+
+                  <!-- Cash Out -->
+                  <a
+                    href="{% url 'cash_out_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_cashout %}{% endblock %}"
+                  >
+                    <div class="submenu-icon w-5 h-5 flex items-center justify-center">
+                      <i
+                        data-feather="arrow-up-circle"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Cash Out
+                    </span>
+                  </a>
+
+
+                  <!-- Expenses -->
+                  <a
+                    href="{% url 'finance_expense_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_expenses %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="dollar-sign"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Expenses
+                    </span>
+                  </a>
+
+                  <!-- Ledgers -->
+                  <a
+                  href="{% url 'ledgers_list' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_ledger %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="file-text"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Ledgers
+                    </span>
+                  </a>
+
+                  <!-- Reports -->
+                  <a
+                  href="{% url 'finance_reports' %}"
+                    class="submenu-item group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-slate-800/60 hover:shadow-md border border-transparent hover:border-slate-600/50 {% block active_aside_reports %}{% endblock %}"
+                  >
+                    <div
+                      class="submenu-icon w-5 h-5 flex items-center justify-center"
+                    >
+                      <i
+                        data-feather="bar-chart-2"
+                        class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400"
+                      ></i>
+                    </div>
+                    <span
+                      class="submenu-label text-slate-300 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible"
+                    >
+                      Reports
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
+            <!-- Management Section -->
+            <div class="space-y-1">
+              <!-- Staff -->
+              <a
+                href="{%url 'staff_list'%}"
+                class="nav-item group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 hover:bg-rose-500/20 hover:shadow-lg hover:shadow-rose-500/10 border border-transparent hover:border-rose-500/30 {% block active_aside_staff %}{% endblock %}"
+              >
+                <div
+                  class="nav-icon w-6 h-6 flex items-center justify-center transition-all duration-300"
+                >
+                  <i
+                    data-feather="user-check"
+                    class="w-4 h-4 text-slate-300 group-hover:text-rose-300"
+                  ></i>
+                </div>
+                <span
+                  class="nav-label font-medium text-slate-200 group-hover:text-white transition-all duration-500 group-[.collapsed]/sidebar:opacity-0 group-[.collapsed]/sidebar:invisible group-[.collapsed]/sidebar:scale-95"
+                >
+                  Staff
+                </span>
+              </a>
+            </div>
+
+            <!-- User Panel (pinned bottom, JS-collapsible) -->
+            <div id="userPanel" class="absolute inset-x-0 bottom-0 bg-slate-900/95 border-t border-slate-700/50">
+              <div id="userPanelInner" class="px-3 py-3 flex items-center justify-between gap-3 transition-all">
+                <!-- Avatar (always visible) -->
+                <div class="h-10 w-10 rounded-full border-2 bg-gradient-to-br from-[#3F88C8] to-[#2563eb]
+                            flex items-center justify-center shrink-0 text-white font-semibold text-sm shadow-lg">
+                  {% with full_name=request.user.get_full_name|default:request.user.username %}
+                    {% with initials=full_name|slice:":1"|upper %}
+                      {{ initials }}
+                    {% endwith %}
+                  {% endwith %}
+                </div>
+
+                <!-- Name + Designation (hidden when collapsed) -->
+                <div id="userPanelDetails" class="min-w-0">
+                  <div class="text-sm font-semibold text-slate-100 truncate">
+                    {{ request.user.get_full_name|default:request.user.username }}
+                  </div>
+                  {% with desig=request.user.groups.all.0.name %}
+                    <div class="text-xs text-slate-400 truncate">
+                      {{ desig|default:"Staff" }}
+                    </div>
+                  {% endwith %}
+                </div>
+
+                <!-- Settings and Logout buttons (hidden when collapsed) -->
+                <div class="flex items-center gap-2">
+                  <a href="{% url 'user_settings' %}"
+                    class="p-2 hover:cursor-pointer rounded-lg border border-slate-600/60 bg-slate-800/60 hover:bg-slate-700/70 hover:border-slate-500 transition-all group"
+                    title="Settings">
+                    <i data-feather="settings" class="w-5 h-5 text-slate-300 group-hover:text-slate-100"></i>
+                  </a>
+                  <form method="post" action="{% url 'logout' %}" class="inline">
+                      {% csrf_token %}
+                      <button type="submit"
+                        class="p-2 hover:cursor-pointer rounded-lg border border-slate-600/60 bg-slate-800/60 hover:bg-slate-700/70 hover:border-slate-500 transition-all group"
+                        title="Logout">
+                        <i data-feather="log-out" class="w-5 h-5 text-slate-300 group-hover:text-slate-100"></i>
+                      </button>
+                    </form>
+                </div>
+              </div>
+            </div>
+
+
+
+          </div>
+        </nav>
+
+        <!-- Enhanced Collapse Button -->
+      <button
+        id="toggleSidebar"
+        class="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800/80 text-slate-200 border border-slate-600 rounded-full p-2 shadow-lg hover:shadow-xl hover:bg-slate-700/80 transition-all duration-300 backdrop-blur-md z-[1] group/btn"
+        title="Collapse sidebar"
+        aria-label="Collapse sidebar">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="10"
+            height="32"
+            viewBox="0 0 10 32"
+            fill="none"
+            class="transition-transform duration-500 group-[.collapsed]/sidebar:rotate-180"
+          >
+            <path
+              d="M5 4V28"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              class="transition-all duration-300"
+            />
+          </svg>
+        </button>
+      </aside>
+
+      <!-- Main Content Area -->
+      <div class="flex-1 flex flex-col h-screen min-w-0  {% block padding %}{% endblock %}  ">
+        <!-- Header -->
+
+        <main class="flex-1 min-h-0 overflow-auto">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    {% comment %} Professional Message Toasts {% endcomment %}
+    {% if messages %}
+    <div
+      id="toast-container"
+      class="fixed top-4 right-4 z-[10001] flex flex-col gap-3 w-[min(92vw,26rem)] max-h-[calc(100vh-2rem)] overflow-y-auto overflow-x-hidden"
+      aria-live="polite"
+      aria-label="Notifications"
+    >
+      {% for message in messages %}
+      {% if 'success' in message.tags %}
+      <div
+        data-toast
+        data-type="success"
+        class="toast-card pointer-events-auto flex items-start gap-3 rounded-xl border border-emerald-200/80 bg-white px-4 py-3.5 shadow-lg shadow-slate-200/50 ring-1 ring-emerald-100/50 animate-toast-in"
+        role="status"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+          <i data-feather="check-circle" class="h-5 w-5" aria-hidden="true"></i>
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Success</p>
+          <p class="mt-0.5 text-sm font-medium text-slate-800 leading-snug">{{ message }}</p>
+        </div>
+        <button type="button" data-action="toast-dismiss" class="toast-dismiss -m-1.5 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-xl leading-none" aria-label="Dismiss">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {% elif 'error' in message.tags or 'danger' in message.tags %}
+      <div
+        data-toast
+        data-type="error"
+        class="toast-card pointer-events-auto flex items-start gap-3 rounded-xl border border-rose-200/80 bg-white px-4 py-3.5 shadow-lg shadow-slate-200/50 ring-1 ring-rose-100/50 animate-toast-in"
+        role="alert"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+          <i data-feather="alert-triangle" class="h-5 w-5" aria-hidden="true"></i>
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-xs font-semibold uppercase tracking-wide text-rose-600">Error</p>
+          <p class="mt-0.5 text-sm font-medium text-slate-800 leading-snug">{{ message }}</p>
+        </div>
+        <button type="button" data-action="toast-dismiss" class="toast-dismiss -m-1.5 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20 text-xl leading-none" aria-label="Dismiss">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {% elif 'warning' in message.tags %}
+      <div
+        data-toast
+        data-type="warning"
+        class="toast-card pointer-events-auto flex items-start gap-3 rounded-xl border border-amber-200/80 bg-white px-4 py-3.5 shadow-lg shadow-slate-200/50 ring-1 ring-amber-100/50 animate-toast-in"
+        role="status"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+          <i data-feather="alert-circle" class="h-5 w-5" aria-hidden="true"></i>
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-xs font-semibold uppercase tracking-wide text-amber-600">Warning</p>
+          <p class="mt-0.5 text-sm font-medium text-slate-800 leading-snug">{{ message }}</p>
+        </div>
+        <button type="button" data-action="toast-dismiss" class="toast-dismiss -m-1.5 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-xl leading-none" aria-label="Dismiss">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {% else %}
+      <div
+        data-toast
+        data-type="info"
+        class="toast-card pointer-events-auto flex items-start gap-3 rounded-xl border border-sky-200/80 bg-white px-4 py-3.5 shadow-lg shadow-slate-200/50 ring-1 ring-sky-100/50 animate-toast-in"
+        role="status"
+      >
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+          <i data-feather="info" class="h-5 w-5" aria-hidden="true"></i>
+        </span>
+        <div class="min-w-0 flex-1 pt-0.5">
+          <p class="text-xs font-semibold uppercase tracking-wide text-sky-600">Info</p>
+          <p class="mt-0.5 text-sm font-medium text-slate-800 leading-snug">{{ message }}</p>
+        </div>
+        <button type="button" data-action="toast-dismiss" class="toast-dismiss -m-1.5 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-sky-50 hover:text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-xl leading-none" aria-label="Dismiss">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <script>
+  // Toast initialization - runs immediately
+  (function() {
+    'use strict';
+    
+    console.log('[Toast] Script loading...');
+    
+    var TOAST_AUTO_DISMISS_MS = 2000;
+    var toastTimers = {};
+    var toastCounter = 0;
+    
+    function removeToast(toastEl) {
+      if (!toastEl) {
+        console.warn('[Toast] removeToast called with null element');
+        return;
+      }
+      
+      console.log('[Toast] Removing toast:', toastEl);
+      
+      // Clear timer if exists
+      var toastId = toastEl.getAttribute('data-toast-id');
+      if (toastId && toastTimers[toastId]) {
+        clearTimeout(toastTimers[toastId]);
+        delete toastTimers[toastId];
+      }
+      
+      // Animate out
+      toastEl.style.opacity = '0';
+      toastEl.style.transform = 'translateX(100%)';
+      
+      setTimeout(function() {
+        if (toastEl.parentNode) {
+          toastEl.parentNode.removeChild(toastEl);
+          console.log('[Toast] Toast removed from DOM');
+        }
+        
+        // Remove container if empty
+        var container = document.getElementById('toast-container');
+        if (container && container.querySelectorAll('[data-toast]').length === 0) {
+          console.log('[Toast] Container empty, removing');
+          if (container.parentNode) {
+            container.parentNode.removeChild(container);
+          }
+        }
+      }, 300);
+    }
+    
+    function initToastElement(toastEl, index) {
+      var toastId = 'toast-' + (++toastCounter);
+      toastEl.setAttribute('data-toast-id', toastId);
+      
+      console.log('[Toast] Initializing toast', toastId);
+      
+      // Set up auto-dismiss timer
+      toastTimers[toastId] = setTimeout(function() {
+        console.log('[Toast] Auto-dismissing', toastId);
+        removeToast(toastEl);
+      }, TOAST_AUTO_DISMISS_MS);
+      
+      // Find and attach close button handler
+      var closeBtn = toastEl.querySelector('[data-action="toast-dismiss"]');
+      if (closeBtn) {
+        console.log('[Toast] Attaching close button to', toastId);
+        closeBtn.addEventListener('click', function(e) {
+          console.log('[Toast] Close button clicked for', toastId);
+          e.preventDefault();
+          e.stopPropagation();
+          removeToast(toastEl);
+        });
+      } else {
+        console.warn('[Toast] No close button found for', toastId);
+      }
+    }
+    
+    // Initialize immediately if container exists
+    var container = document.getElementById('toast-container');
+    if (container) {
+      console.log('[Toast] Container found, initializing toasts');
+      var toasts = container.querySelectorAll('[data-toast]');
+      console.log('[Toast] Found ' + toasts.length + ' toast(s)');
+      
+      for (var i = 0; i < toasts.length; i++) {
+        initToastElement(toasts[i], i);
+      }
+    } else {
+      console.log('[Toast] No toast container found');
+    }
+    
+    // ESC key handler
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        var container = document.getElementById('toast-container');
+        if (container) {
+          console.log('[Toast] ESC pressed, closing all toasts');
+          var toasts = container.querySelectorAll('[data-toast]');
+          for (var i = 0; i < toasts.length; i++) {
+            removeToast(toasts[i]);
+          }
+        }
+      }
+    });
+    
+    console.log('[Toast] Initialization complete');
+  })();
+  </script>
+
+    <!--HTML Separator-->
+    {% block all_scripts %} {% endblock %}
+
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+
+
+    <script>
+  // Safe feather rendering function
+  function safeFeatherRender() {
+    try {
+      if (window.feather && !window.featherRendering) {
+        window.featherRendering = true;
+        feather.replace();
+        setTimeout(() => {
+          window.featherRendering = false;
+        }, 100);
+      }
+    } catch (e) {
+      console.warn("Feather icons render issue:", e);
+    }
+  }
+
+  class FuturisticSidebar {
+    constructor() {
+      this.sidebar   = document.getElementById("sidebar");
+      this.toggleBtn = document.getElementById("toggleSidebar");
+      this.isCollapsed = false;
+
+      // user panel refs
+      this.upanel      = document.getElementById("userPanel");
+      this.upanelInner = document.getElementById("userPanelInner");
+      this.upanelDet   = document.getElementById("userPanelDetails");
+      this.upanelOut   = document.getElementById("userPanelLogout");
+
+      this.init();
+    }
+
+    init() {
+      this.renderIcons();
+      this.bindEvents();
+      this.loadState();
+      // Force no horizontal scroll on body
+      document.body.style.overflowX = 'hidden';
+      document.documentElement.style.overflowX = 'hidden';
+    }
+
+    bindEvents() {
+      this.toggleBtn?.addEventListener("click", () => this.toggleSidebar());
+      document.querySelectorAll("[data-collapse]").forEach((btn) => {
+        btn.addEventListener("click", (e) => this.toggleSubmenu(e));
+      });
+      document.addEventListener("click", (e) => this.handleOutsideClick(e));
+      document.addEventListener("keydown", (e) => this.handleKeyboard(e));
+    }
+
+    toggleSidebar() {
+      this.isCollapsed = !this.isCollapsed;
+
+      if (this.isCollapsed) {
+        this.sidebar.classList.add("collapsed");
+        this.sidebar.classList.remove("w-72");
+        this.sidebar.classList.add("w-20");
+        this.collapseAllSubmenus();
+      } else {
+        this.sidebar.classList.remove("collapsed");
+        this.sidebar.classList.remove("w-20");
+        this.sidebar.classList.add("w-72");
+      }
+
+      // Force no horizontal scroll
+      document.body.style.overflowX = 'hidden';
+      document.documentElement.style.overflowX = 'hidden';
+
+      // If a user menu exists, hide it when toggling
+      document.getElementById("userMenu")?.classList.add("hidden");
+
+      this.updateLogo();
+      this.updateUserPanel();
+      this.saveState();
+      
+      // Fix icon sizes after toggle
+      setTimeout(() => {
+        this.renderIcons();
+        this.fixIconSizes();
+      }, 350);
+    }
+
+    toggleSubmenu(e) {
+      if (this.isCollapsed) return;
+      const btn = e.currentTarget;
+      const key = btn.getAttribute("data-collapse");
+      const panel = document.getElementById(`submenu-${key}`);
+      const chevron = btn.querySelector('[data-feather="chevron-down"]');
+
+      if (!panel.classList.contains("hidden")) {
+        this.collapseAllSubmenus();
+        return;
+      }
+      this.collapseAllSubmenus();
+      panel.classList.remove("hidden");
+      if (chevron) chevron.style.transform = "rotate(180deg)";
+      setTimeout(() => this.renderIcons(), 150);
+    }
+
+    collapseAllSubmenus() {
+      document.querySelectorAll('[id^="submenu-"]').forEach((p) => p.classList.add("hidden"));
+      document.querySelectorAll('[data-feather="chevron-down"]').forEach((c) => (c.style.transform = "rotate(0deg)"));
+    }
+
+    handleOutsideClick(e) {
+      if (!this.sidebar.contains(e.target) && !this.isCollapsed) this.collapseAllSubmenus();
+    }
+
+    handleKeyboard(e) {
+      if (e.key === "Escape" && !this.isCollapsed) this.collapseAllSubmenus();
+    }
+
+    updateLogo() {
+      const logo = document.getElementById("logo");
+      if (!logo) return;
+      try {
+        logo.src = this.isCollapsed
+          ? "{% static 'images/barkat_logo_b.svg' %}"
+          : "{% static 'images/barkat_logo.svg' %}";
+      } catch (e) {}
+    }
+
+    // NEW: Fix icon sizes to ensure they're properly displayed
+    fixIconSizes() {
+      if (this.isCollapsed) {
+        // Force proper icon sizes for nav items
+        document.querySelectorAll('#sidebar .nav-icon').forEach(container => {
+          container.style.width = '24px';
+          container.style.height = '24px';
+          container.style.minWidth = '24px';
+          
+          const icon = container.querySelector('i');
+          if (icon) {
+            icon.style.width = '20px';
+            icon.style.height = '20px';
+          }
+        });
+
+        // Force proper icon sizes for submenu items
+        document.querySelectorAll('#sidebar .submenu-icon').forEach(container => {
+          container.style.width = '20px';
+          container.style.height = '20px';
+          container.style.minWidth = '20px';
+          
+          const icon = container.querySelector('i');
+          if (icon) {
+            icon.style.width = '16px';
+            icon.style.height = '16px';
+          }
+        });
+      } else {
+        // Reset to default when expanded
+        document.querySelectorAll('#sidebar .nav-icon, #sidebar .submenu-icon').forEach(container => {
+          container.style.width = '';
+          container.style.height = '';
+          container.style.minWidth = '';
+          
+          const icon = container.querySelector('i');
+          if (icon) {
+            icon.style.width = '';
+            icon.style.height = '';
+          }
+        });
+      }
+    }
+
+    renderIcons() { 
+      safeFeatherRender();
+      // Fix icon sizes after rendering
+      setTimeout(() => this.fixIconSizes(), 100);
+    }
+
+    saveState() {
+      try { localStorage.setItem("sidebarCollapsed", this.isCollapsed); } catch (e) {}
+    }
+
+    loadState() {
+      try {
+        const saved = localStorage.getItem("sidebarCollapsed");
+        if (saved === "true") {
+          this.isCollapsed = true;
+          this.sidebar.classList.add("collapsed", "w-20");
+          this.sidebar.classList.remove("w-72");
+        }
+        this.updateLogo();
+        this.updateUserPanel();
+        
+        // Ensure no horizontal scroll after loading state
+        document.body.style.overflowX = 'hidden';
+        document.documentElement.style.overflowX = 'hidden';
+        
+        // Fix icon sizes on initial load
+        setTimeout(() => this.fixIconSizes(), 200);
+      } catch (e) {}
+    }
+
+    updateUserPanel() {
+      if (!this.upanelInner) return;
+
+      if (this.isCollapsed) {
+        // center avatar, hide details + logout, remove side padding
+        this.upanelInner.classList.remove("justify-between", "px-3");
+        this.upanelInner.classList.add("justify-center", "px-0");
+        this.upanelDet?.classList.add("hidden");
+        this.upanelOut?.classList.add("hidden");
+      } else {
+        // show full info
+        this.upanelInner.classList.remove("justify-center", "px-0");
+        this.upanelInner.classList.add("justify-between", "px-3");
+        this.upanelDet?.classList.remove("hidden");
+        this.upanelOut?.classList.remove("hidden");
+      }
+    }
+  }
+
+  // Single DOMContentLoaded event listener
+  document.addEventListener("DOMContentLoaded", function () {
+    console.log("DOM loaded, initializing all components...");
+
+    // Initialize sidebar
+    new FuturisticSidebar();
+
+    // Initialize DataTables if table exists
+    if (typeof initDataTables === 'function') {
+      initDataTables();
+    }
+
+    // Single feather icons render
+    safeFeatherRender();
+  });
+
+  window.addEventListener("resize", () => {
+    setTimeout(() => {
+      safeFeatherRender();
+    }, 100);
+  });
+
+
+    </script>
+  </body>
+</html>

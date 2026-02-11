@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-4">Delete Sales Return</h1>
+
+  <div class="bg-white border border-rose-200 rounded-xl p-5 mb-4">
+    <p class="text-rose-700 font-medium mb-2">
+      This action will permanently delete Sales Return #{{ object.id }}.
+    </p>
+    <p class="text-slate-600 text-sm">
+      Business: <span class="font-medium">{{ object.business.name }}</span><br>
+      Customer:
+      <span class="font-medium">
+        {% if object.customer_id %}
+          {{ object.customer.display_name }}
+        {% else %}
+          {{ object.customer_name|default:"Walk-in" }}
+        {% endif %}
+      </span><br>
+      Created: {{ object.created_at|date:"Y-m-d H:i" }}
+    </p>
+  </div>
+
+  <div class="bg-white border rounded-xl p-5 mb-4">
+    <h2 class="text-lg font-semibold mb-3">Amounts</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Return Total</div>
+        <div class="text-base font-semibold">₨ {{ object.return_total|floatformat:2 }}</div>
+      </div>
+      <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+        <div class="text-xs uppercase tracking-wide text-emerald-700">Refunded So Far</div>
+        <div class="text-base font-semibold text-emerald-800">₨ {{ object.refunded_total|floatformat:2 }}</div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 col-span-2">
+        <div class="text-xs uppercase tracking-wide text-amber-700">Refund Remaining</div>
+        <div class="text-base font-semibold text-amber-800">₨ {{ object.refund_remaining|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-xl p-5 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Items</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-2 text-left">Product</th>
+            <th class="px-3 py-2 text-right">Qty</th>
+            <th class="px-3 py-2 text-right">Unit Price</th>
+            <th class="px-3 py-2 text-right">Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in object.items.all %}
+            <tr class="border-t">
+              <td class="px-3 py-2">{{ it.product.name }}</td>
+              <td class="px-3 py-2 text-right">{{ it.quantity }}</td>
+              <td class="px-3 py-2 text-right">₨ {{ it.unit_price|floatformat:2 }}</td>
+              <td class="px-3 py-2 text-right">₨ {{ it.line_total|floatformat:2 }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="px-3 py-4 text-center text-slate-500">No items.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <form method="post" class="flex items-center gap-2">
+    {% csrf_token %}
+    <button type="submit"
+            class="rounded-lg px-4 py-2 bg-rose-600 text-white hover:bg-rose-700">
+      Yes, delete this return
+    </button>
+    <a href="{% url 'sr_list' %}"
+       class="rounded-lg px-4 py-2 border border-slate-300 hover:bg-slate-50">
+      Cancel
+    </a>
+  </form>
+</div>
+{% endblock %}

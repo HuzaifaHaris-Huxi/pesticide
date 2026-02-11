@@ -1,0 +1,129 @@
+{% load tz %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receipt {{ receipt.id }}</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 3mm;
+    }
+    body {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      margin: 0;
+      padding: 0;
+      width: 80mm;
+    }
+    .receipt {
+      padding: 4px;
+    }
+    .center {
+      text-align: center;
+    }
+    .bold {
+      font-weight: 700;
+    }
+    .line {
+      border-top: 1px dashed #000;
+      margin: 4px 0;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .small {
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+<div class="receipt">
+  <!-- Business header -->
+  <div class="center">
+    {% if business %}
+      <div class="bold">{{ business.name }}</div>
+      {% if business.legal_name %}<div class="small">{{ business.legal_name }}</div>{% endif %}
+      {% if business.phone %}<div class="small">Ph: {{ business.phone }}</div>{% endif %}
+      {% if business.address %}<div class="small">{{ business.address|linebreaksbr }}</div>{% endif %}
+    {% else %}
+      <div class="bold">Receipt</div>
+    {% endif %}
+  </div>
+
+  <div class="line"></div>
+
+  <!-- meta -->
+  <div class="row small">
+    <span>Date</span>
+    <span>{% timezone "Asia/Karachi" %}{{ receipt.date }}{% endtimezone %}</span>
+  </div>
+  <div class="row small">
+    <span>Receipt #</span>
+    <span>{{ receipt.id }}</span>
+  </div>
+
+  {% if party %}
+  <div class="row small">
+    <span>Party</span>
+    <span>{{ party.display_name }}</span>
+  </div>
+  {% endif %}
+
+  <div class="line"></div>
+
+  <div class="row">
+    <span class="bold">Amount</span>
+    <span class="bold">{{ receipt.amount }}</span>
+  </div>
+
+  <div class="row small">
+    <span>Method</span>
+    <span>{{ receipt.get_payment_method_display }}</span>
+  </div>
+
+  {% if receipt.payment_method == "cheque" %}
+    <div class="row small">
+      <span>Cheque status</span>
+      <span>
+        {% if receipt.cheque_status %}
+          {{ receipt.get_cheque_status_display }}
+        {% else %}
+          Pending
+        {% endif %}
+      </span>
+    </div>
+  {% endif %}
+
+  {% if receipt.reference %}
+  <div class="row small">
+    <span>Ref</span>
+    <span>{{ receipt.reference }}</span>
+  </div>
+  {% endif %}
+
+  {% if receipt.description %}
+    <div class="line"></div>
+    <div class="small">
+      Note. {{ receipt.description }}
+    </div>
+  {% endif %}
+
+  <div class="line"></div>
+
+  <div class="center small">
+    Thank you
+  </div>
+</div>
+
+<script>
+  window.addEventListener("load", function () {
+    window.print();
+    setTimeout(function () {
+      window.close();
+    }, 500);
+  });
+</script>
+</body>
+</html>

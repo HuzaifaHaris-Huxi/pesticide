@@ -1,0 +1,32 @@
+{# templates/barkat/finance/movement_confirm_delete.html #} {% extends
+"base.html" %} {% block content %}
+<div class="max-w-xl mx-auto p-6">
+  <h1 class="text-xl font-semibold mb-4">Delete Movement</h1>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <p class="mb-4">
+      Are you sure you want to delete the movement
+      <strong
+        >{{ object.get_movement_type_display }} — ₨ {{
+        object.amount|floatformat:2 }}</strong
+      >
+      dated <strong>{{ object.date }}</strong>?
+    </p>
+
+    <form method="post" class="flex items-center gap-2">
+      {% csrf_token %}
+      <a
+        href="{% url 'movement_list' %}"
+        class="px-4 py-2 rounded border border-slate-300 hover:bg-slate-50"
+      >
+        Cancel
+      </a>
+      <button
+        class="px-4 py-2 rounded bg-rose-600 text-white hover:bg-rose-700"
+      >
+        Yes, delete
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

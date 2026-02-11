@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Warehouse — {{ warehouse.code }} / {{ warehouse.name }}{% endblock %}
+{% block padding %}px-4{% endblock padding %}
+{% block content %}
+<div class="px-10 py-4">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="home" class="w-7 h-7"></i>
+      <span>Warehouse — {{ warehouse.code }} / {{ warehouse.name }}</span>
+    </h1>
+
+    <div class="flex items-center gap-2">
+      <a href="{% url 'warehouse_refill' warehouse.id %}"
+         class="rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700">
+        Refill
+      </a>
+     
+      <a href="{% url 'stock_move_bulk' %}?source_warehouse={{ warehouse.id }}&dest_warehouse={{ other_wh.id }}&product={{ p.id }}"
+         class="rounded-lg px-3 py-2 bg-indigo-600 text-white hover:bg-indigo-700">Bulk Stock Move</a>
+    </div>
+    </div>
+  </div>
+
+  {# Business tabs #}
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      {# All tab (active on this page) #}
+      <a
+        href="{% url 'warehouse_detail' warehouse.id %}"
+        aria-current="page"
+        data-tint="slate"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+               bg-slate-700 text-white border-slate-700 shadow-md"
+      >All</a>
+
+      {# per-business tabs #}
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        <a
+          href="{% url 'business_wise_warehouse' warehouse.id b.id %}"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                 text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900"
+        >{{ b.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Search #}
+  <form method="get" class="mb-3 flex gap-2">
+    <input name="q" value="{{ query }}" type="search"
+           placeholder="Search product name, SKU, business…"
+           class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">Filter</button>
+    <a href="{% url 'warehouse_detail' warehouse.id %}"
+       class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">Reset</a>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Business</th>
+          <th class="px-4 py-2 text-left">SKU</th>
+          <th class="px-4 py-2 text-left">Product</th>
+          <th class="px-4 py-2 text-left">UOM</th>
+          <th class="px-4 py-2 text-right">Qty in {{ warehouse.code }}</th>
+        </tr>
+      </thead>
+      <tbody id="tblBody" class="transition-colors">
+        {% for p in page_obj %}
+          <tr class="border-t">
+            <td class="px-4 py-2 whitespace-nowrap">{{ p.business.name }}</td>
+            <td class="px-4 py-2 font-mono">{{ p.sku }}</td>
+            <td class="px-4 py-2">{{ p.name }}</td>
+            <td class="px-4 py-2">{{ p.uom.code|default:"—" }}</td>
+            <td class="px-4 py-2 text-right font-semibold">{{ p.wh_qty|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+              No products found for this warehouse.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# pagination #}
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-4 flex items-center justify-between">
+    <div class="text-sm text-slate-600">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query }}&page={{ page_obj.previous_page_number }}"
+           class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">Previous</a>
+      {% else %}
+        <span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 cursor-not-allowed">Previous</span>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?q={{ query }}&page={{ page_obj.next_page_number }}"
+           class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">Next</a>
+      {% else %}
+        <span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 cursor-not-allowed">Next</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block all_scripts %}
+<script>
+  // tint rows softly for "All" view if you like; keeping neutral here
+  (function(){})()
+</script>
+{% endblock %}

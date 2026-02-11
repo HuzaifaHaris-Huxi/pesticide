@@ -1,0 +1,173 @@
+{% extends "base.html" %} {% block content %}
+<div class="max-w-3xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">
+      {% if object %}Edit{% else %}Add{% endif %} Staff
+    </h1>
+    <a href="{% url 'staff_list' %}" class="text-slate-700 hover:underline"
+      >Back to list</a
+    >
+  </div>
+
+  {% if form.non_field_errors %}
+  <div class="mb-4 p-3 rounded bg-red-50 text-red-700">
+    {{ form.non_field_errors }}
+  </div>
+  {% endif %}
+
+  <form
+    method="post"
+    class="bg-white p-6 rounded-xl border border-slate-200 space-y-6"
+  >
+    {% csrf_token %}
+
+    <!-- Identity -->
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Business</label>
+        {{ form.business }} {{ form.business.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Full name</label>
+        {{ form.full_name }} {{ form.full_name.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Role</label>
+        {{ form.role }} {{ form.role.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Phone</label>
+        {{ form.phone }} {{ form.phone.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">CNIC</label>
+        {{ form.cnic }} {{ form.cnic.errors }}
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm mb-1">Address</label>
+        {{ form.address }} {{ form.address.errors }}
+      </div>
+    </div>
+
+    <!-- Software Access -->
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="flex items-center gap-2">
+        {{ form.has_software_access }}
+        <label class="text-sm" for="id_has_software_access"
+          >Has software access</label
+        >
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Linked User (existing)</label>
+        {{ form.user }}
+        <p class="text-xs text-slate-500 mt-1">
+          Pick an existing user, or leave blank to create new credentials below.
+        </p>
+        {{ form.user.errors }}
+      </div>
+
+      <!-- Credentials (shown if access is checked AND no existing user selected) -->
+      <div id="cred-username" style="display: none">
+        <label class="block text-sm mb-1">Username</label>
+        {{ form.username }} {{ form.username.errors }}
+      </div>
+
+      <div id="cred-email" style="display: none">
+        <label class="block text-sm mb-1">Email (optional)</label>
+        {{ form.email }} {{ form.email.errors }}
+      </div>
+
+      <div id="cred-pw1" style="display: none">
+        <label class="block text-sm mb-1">Password</label>
+        {{ form.password1 }} {{ form.password1.errors }}
+      </div>
+
+      <div id="cred-pw2" style="display: none">
+        <label class="block text-sm mb-1">Confirm Password</label>
+        {{ form.password2 }} {{ form.password2.errors }}
+      </div>
+
+      <div class="flex items-center gap-2">
+        {{ form.access_sales }}
+        <label class="text-sm" for="id_access_sales">Access Sales</label>
+      </div>
+      <div class="flex items-center gap-2">
+        {{ form.access_inventory }}
+        <label class="text-sm" for="id_access_inventory"
+          >Access Inventory</label
+        >
+      </div>
+      <div class="flex items-center gap-2">
+        {{ form.access_accounts }}
+        <label class="text-sm" for="id_access_accounts">Access Accounts</label>
+      </div>
+    </div>
+
+    <!-- HR -->
+    <div class="grid md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Joined on</label>
+        {{ form.joined_on }} {{ form.joined_on.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Salary start</label>
+        {{ form.salary_start }} {{ form.salary_start.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Monthly salary</label>
+        {{ form.monthly_salary }} {{ form.monthly_salary.errors }}
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <button
+        class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    function byId(id) {
+      return document.getElementById(id);
+    }
+    const hasAccess = document.getElementById("id_has_software_access");
+    const userSel = document.getElementById("id_user");
+
+    const rows = [
+      byId("cred-username"),
+      byId("cred-email"),
+      byId("cred-pw1"),
+      byId("cred-pw2"),
+    ];
+
+    function show(el, flag) {
+      if (el) {
+        el.style.display = flag ? "" : "none";
+      }
+    }
+
+    function refresh() {
+      const accessOn = !!(hasAccess && hasAccess.checked);
+      const hasExisting = !!(userSel && userSel.value);
+
+      const showCreds = accessOn && !hasExisting;
+      rows.forEach((el) => show(el, showCreds));
+    }
+
+    if (hasAccess) hasAccess.addEventListener("change", refresh);
+    if (userSel) userSel.addEventListener("change", refresh);
+    document.addEventListener("DOMContentLoaded", refresh);
+    refresh();
+  })();
+</script>
+{% endblock %}

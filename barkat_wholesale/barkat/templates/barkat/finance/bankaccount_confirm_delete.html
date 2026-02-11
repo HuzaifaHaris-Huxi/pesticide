@@ -1,0 +1,30 @@
+{# templates/barkat/finance/bankaccount_confirm_delete.html #}
+<!--HTML Separator-->
+{% extends "base.html" %} {% block content %}
+<div class="max-w-xl mx-auto p-6">
+  <h1 class="text-xl font-semibold mb-4">Delete Bank Account</h1>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <p class="mb-4">
+      Are you sure you want to delete
+      <strong>{{ object.bank_name|default:"Bank" }} — {{ object.name }}</strong
+      >?
+    </p>
+
+    <form method="post" class="flex items-center gap-2">
+      {% csrf_token %}
+      <a
+        href="{% url 'bankaccount_list' %}"
+        class="px-4 py-2 rounded border border-slate-300 hover:bg-slate-50"
+      >
+        Cancel
+      </a>
+      <button
+        class="px-4 py-2 rounded bg-rose-600 text-white hover:bg-rose-700"
+      >
+        Yes, delete
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

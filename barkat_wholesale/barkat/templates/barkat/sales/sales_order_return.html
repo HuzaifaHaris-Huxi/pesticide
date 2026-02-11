@@ -1,0 +1,2011 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="max-w-[1400px] mx-auto p-4 md:p-6">
+
+  <!-- Header Section -->
+  <div class="mb-3">
+    <div class="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center mb-2">
+      <!-- Title -->
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800">
+        {% if object %}Edit Return #{{ object.id }}{% else %}New Sales Return{% endif %}
+      </h1>
+      
+      <!-- Action Button -->
+      <a href="{% url 'sr_list' %}"
+         class="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg transition-colors text-sm font-medium shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+        View Returns
+      </a>
+    </div>
+
+    <!-- Business tabs -->
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+        {% for b in businesses %}
+          <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+
+          {% if business and b.id == business.id %}
+          <a
+            href="{% url 'sr_add' %}?business={{ b.id }}"
+            data-business-id="{{ b.id }}"
+            data-color="{{ color }}"
+               aria-current="page"
+            class="biz-tab inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+              {{ b.name }}
+            </a>
+          {% else %}
+          <a
+            href="{% url 'sr_add' %}?business={{ b.id }}"
+            data-business-id="{{ b.id }}"
+            data-color="{{ color }}"
+            class="biz-tab inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                      text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+              {{ b.name }}
+            </a>
+          {% endif %}
+        {% endfor %}
+    </div>
+  </div>
+
+  <form method="post" class="space-y-5" autocomplete="off" id="returnForm"
+        data-edit="{{ object|yesno:'1,0' }}"
+        data-refunded="{{ refunded_so_far|default:'0.00' }}">
+    {% csrf_token %}
+    <span class="hidden">{{ form.business }}</span>
+    <span class="hidden">{{ form.source_order }}</span>
+    <span class="hidden">{{ form.status }}</span>
+
+    <!-- Customer & Refund Method Section -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-3" id="customerSection">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+        
+        <!-- Customer Name -->
+        <div class="md:col-span-4">
+          <label class="block text-xs font-medium text-slate-700 mb-1">
+            Customer Name
+            <span id="customerBalanceBadge" class="ml-2 text-[10px] font-normal text-slate-500 hidden"></span>
+          </label>
+          <div class="relative">
+            {{ form.customer_name }}
+            {{ form.customer_name.errors }}
+            <ul id="nameSuggest"
+                class="absolute z-30 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg hidden max-h-48 overflow-auto"></ul>
+            
+            <div class="hidden">
+              {{ form.customer }}
+              {{ form.customer.errors }}
+            </div>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Leave empty for Walk-in Customer</p>
+        </div>
+
+        <!-- Customer Phone (optional) -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-slate-700 mb-1">Phone (Optional)</label>
+          {{ form.customer_phone }}
+          {{ form.customer_phone.errors }}
+        </div>
+
+        <!-- Refund Method -->
+        <div class="md:col-span-3">
+          <label class="block text-xs font-medium text-slate-700 mb-1">Refund Method</label>
+          <div class="flex flex-wrap gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer group">
+              <input type="radio" name="{{ form.refund_method.name }}" value="cash"
+                     class="w-3.5 h-3.5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                     id="refund_cash" checked>
+              <span class="text-xs font-medium text-slate-700 group-hover:text-blue-600">Cash</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer group">
+              <input type="radio" name="{{ form.refund_method.name }}" value="bank"
+                     class="w-3.5 h-3.5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                     id="refund_bank">
+              <span class="text-xs font-medium text-slate-700 group-hover:text-blue-600">Bank</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer group">
+              <input type="radio" name="{{ form.refund_method.name }}" value="card"
+                     class="w-3.5 h-3.5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                     id="refund_card">
+              <span class="text-xs font-medium text-slate-700 group-hover:text-blue-600">Card</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer group">
+              <input type="radio" name="{{ form.refund_method.name }}" value="on_credit"
+                     class="w-3.5 h-3.5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                     id="refund_on_credit">
+              <span class="text-xs font-medium text-slate-700 group-hover:text-blue-600">On Credit</span>
+            </label>
+          </div>
+          {{ form.refund_method.errors }}
+        </div>
+
+        <!-- Bank Account - Adaptive, appears when bank or card is selected -->
+        <div id="bankWrap" class="md:col-span-3 hidden">
+          <label class="block text-xs font-medium text-slate-700 mb-1">Bank Account</label>
+          {{ form.bank_account }}
+          {{ form.bank_account.errors }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Add Item Section -->
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-300 shadow-md p-4 mb-4">
+        {{ formset.management_form }}
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <!-- Barcode Input -->
+        <div class="md:col-span-3">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Barcode</label>
+          <div class="relative">
+            <input type="text" id="quickBarcode"
+                   class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                   placeholder="Scan or type barcode">
+            <ul id="quickBarcodeSuggest"
+                class="absolute z-30 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg hidden max-h-52 overflow-auto"></ul>
+          </div>
+        </div>
+
+        <!-- Product Name -->
+        <div class="md:col-span-4">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Product Name</label>
+          <div class="relative">
+            <input type="text" id="quickProductSearch"
+                   class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                   placeholder="Search product...">
+            <ul id="quickProductSuggest"
+                class="absolute z-30 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg hidden max-h-60 overflow-auto"></ul>
+          </div>
+          <input type="hidden" id="quickProductId">
+          <p id="quickStock" class="text-xs text-slate-600 mt-1 min-h-[16px]"></p>
+        </div>
+
+        <!-- Quantity -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Quantity</label>
+          <input type="number" id="quickQty"
+                 class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                 placeholder="1" step="0.000001" min="0" value="1">
+        </div>
+
+        <!-- Price -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Unit Price</label>
+          <input type="number" id="quickPrice"
+                 class="w-full rounded-lg border-2 border-blue-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                 placeholder="0.00" step="0.01" min="0">
+        </div>
+
+        <!-- Add Button -->
+        <div class="md:col-span-1 flex items-end">
+          <button type="button" id="quickAddBtn"
+                  class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+            <span>Add</span>
+          </button>
+        </div>
+      </div>
+        </div>
+
+    <!-- Items Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-800">Return Items</h3>
+        <span class="text-xs text-slate-500 font-medium"><span id="itemCount">0</span> items</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <div id="itemsScroll" style="max-height: 350px; overflow-y: auto;">
+          <table class="min-w-full text-xs">
+            <thead class="bg-slate-700 text-white sticky top-0 z-10">
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold w-8">#</th>
+                <th class="px-3 py-2 text-left font-semibold">Product</th>
+                <th class="px-3 py-2 text-center font-semibold w-16">Unit</th>
+                <th class="px-3 py-2 text-center font-semibold w-20">Qty</th>
+                <th class="px-3 py-2 text-right font-semibold w-24">Price</th>
+                <th class="px-3 py-2 text-right font-semibold w-28">Total</th>
+                <th class="px-3 py-2 text-center font-semibold w-16">Action</th>
+              </tr>
+            </thead>
+              <tbody id="itemBody">
+                {% for f in formset.forms %}
+              <tr class="item-row border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td class="px-3 py-2 text-slate-500 font-medium row-number">1</td>
+                
+                <td class="px-3 py-2">
+                    {{ f.id }}
+                  <div class="hidden">
+                    {{ f.uom }}
+                    {{ f.size_per_unit }}
+                  </div>
+                  <div class="flex flex-col gap-0.5">
+                      <div class="relative">
+                        {{ f.product }}
+                      <span class="prod-name font-medium text-slate-800"></span>
+                      <span class="prod-barcode text-[10px] text-slate-500"></span>
+                      </div>
+                      {{ f.product.errors }}
+                    </div>
+                  </td>
+
+                <td class="px-3 py-2 text-center">
+                  <span class="prod-unit text-xs font-semibold text-slate-600"></span>
+                </td>
+
+                <td class="px-3 py-2">
+                  <div class="flex items-center justify-center">
+                    {{ f.quantity }}
+                  </div>
+                    {{ f.quantity.errors }}
+                  </td>
+
+                <td class="px-3 py-2">
+                  <div class="flex items-center justify-end">
+                    {{ f.unit_price }}
+                  </div>
+                    {{ f.unit_price.errors }}
+                  </td>
+
+                <td class="px-3 py-2 text-right">
+                  <span class="line-total font-bold text-slate-800">0.00</span>
+                  </td>
+                <td class="px-3 py-2 text-center">
+                  <div class="hidden">
+                    {{ f.DELETE }} 
+                  </div>
+                  {{ f.id }} <button type="button"
+                          class="row-remove inline-flex items-center justify-center rounded-lg p-1.5 hover:bg-red-100 transition-colors group"
+                            title="Remove">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-600 group-hover:text-red-700"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                        <path d="M10 11v6"></path>
+                        <path d="M14 11v6"></path>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      <!-- Totals Section -->
+      <div class="bg-slate-50 border-t border-slate-200 p-3">
+        <div class="grid md:grid-cols-2 gap-3">
+          <!-- Tax & Discount -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tax %</label>
+              {{ form.tax_percent }}
+              {{ form.tax_percent.errors }}
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Discount %</label>
+              {{ form.discount_percent }}
+              {{ form.discount_percent.errors }}
+            </div>
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Notes (optional)</label>
+              {{ form.notes }}
+              {{ form.notes.errors }}
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-slate-600">Subtotal</span>
+              <span class="font-semibold text-slate-800">Rs <span id="subtotal">0.00</span></span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-slate-600">Tax</span>
+              <span class="font-semibold text-slate-800">Rs <span id="tax_amt">0.00</span></span>
+          </div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-slate-600">Discount</span>
+              <span class="font-semibold text-slate-800">Rs <span id="disc_amt">0.00</span></span>
+        </div>
+            <div class="flex items-center justify-between text-base font-bold text-white bg-blue-600 rounded-lg px-3 py-2 shadow-md">
+              <span>Net Total</span>
+              <span>Rs <span id="sum_net">0.00</span></span>
+          </div>
+          </div>
+        </div>
+
+        {% if object %}
+        <div class="mt-3 border-2 border-amber-300 rounded-lg p-3 bg-amber-50">
+          <div class="flex items-center justify-between text-xs mb-1.5">
+            <span class="font-semibold text-slate-700">Refunded So Far</span>
+            <span class="font-bold text-emerald-600">Rs <span id="refunded_so_far">0.00</span></span>
+      </div>
+          <div class="flex items-center justify-between text-sm font-bold text-amber-700">
+            <span>Remaining Refund</span>
+            <span class="text-base">Rs <span id="remaining_amt">0.00</span></span>
+    </div>
+              </div>
+        {% endif %}
+              </div>
+            </div>
+
+    <!-- Bottom Action Bar -->
+    <div class="sticky bottom-0 left-0 right-0 bg-white border-t-2 border-slate-200 shadow-lg rounded-t-xl">
+      <div class="max-w-[1400px] mx-auto p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="w-full md:w-72">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Refund Amount</label>
+          {{ form.refund_amount }}
+          {{ form.refund_amount.errors }}
+          <p class="text-[10px] text-slate-500 mt-0.5">Auto-filled for Cash/Bank/Card payments</p>
+          </div>
+
+        <div class="flex flex-wrap justify-end gap-2">
+          <a href="{% url 'sr_list' %}"
+             class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 border-2 border-slate-300 hover:bg-slate-100 font-semibold text-slate-700 transition-colors text-sm">
+            Cancel
+          </a>
+          
+          <button type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md hover:shadow-lg transition-all text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Save Return
+          </button>
+              </div>
+      </div>
+    </div>
+
+    {{ form.non_field_errors }}
+    {% if form.errors %}
+      <div class="rounded-lg border-2 border-red-300 bg-red-50 p-4 text-red-800 text-sm shadow-md">
+        <strong class="font-bold">Form Errors:</strong> {{ form.errors }}
+      </div>
+    {% endif %}
+    {% if formset.non_form_errors %}
+      <div class="rounded-lg border-2 border-amber-300 bg-amber-50 p-4 text-amber-900 text-sm shadow-md">
+        <strong class="font-bold">Items Errors:</strong> {{ formset.non_form_errors }}
+      </div>
+    {% endif %}
+  </form>
+</div>
+
+<script>
+(function () {
+  function toNum(v) {
+    const n = parseFloat((v || '').toString().replace(/,/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+  function two(v) {
+    return (parseFloat(v || 0) || 0).toFixed(2);
+  }
+
+  function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.app-toast');
+    if (existingToast) existingToast.remove();
+
+    const colors = {
+      info: 'bg-blue-600',
+      warning: 'bg-amber-600',
+      success: 'bg-emerald-600',
+      error: 'bg-red-600'
+    };
+    
+    const bgColors = {
+      info: 'bg-blue-600',
+      warning: 'bg-amber-600',
+      success: 'bg-emerald-500',
+      error: 'bg-red-600'
+    };
+
+    const icons = {
+      info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      warning: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />',
+      success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = 'app-toast';
+    const bgColor = bgColors[type] || colors[type];
+    const extraStyle = type === 'success' ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);' : '';
+    toast.innerHTML = `
+      <div style="position: fixed; top: 20px; right: 20px; z-index: 9999;
+                  ${bgColor} color: white; padding: 16px 20px;
+                  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                  animation: slideInRight 0.3s ease-out;
+                  font-size: 14px; font-weight: 500; min-width: 300px; max-width: 500px; ${extraStyle}">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            ${icons[type]}
+          </svg>
+          <div style="flex: 1;">${message}</div>
+        </div>
+      </div>
+      <style>
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      </style>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  function highlightRow(tr) {
+    const originalBg = tr.style.backgroundColor;
+    tr.style.transition = 'background-color 0.4s ease';
+    tr.style.backgroundColor = '#fef3c7';
+    
+    setTimeout(() => {
+      tr.style.backgroundColor = '#dbeafe';
+    }, 200);
+    
+    setTimeout(() => {
+      tr.style.backgroundColor = originalBg || '';
+    }, 800);
+  }
+
+  function qProdInput(scope) {
+    return scope.querySelector('select[name$="-product"], input[name$="-product"]');
+  }
+  
+  function isBlankRow(tr) {
+    const prodEl = qProdInput(tr);
+    const q = tr.querySelector('input[name$="-quantity"]');
+    const r = tr.querySelector('input[name$="-unit_price"]');
+    const prodEmpty = !(prodEl && prodEl.value);
+    return prodEmpty && !toNum(q?.value) && !toNum(r?.value);
+  }
+
+  const formEl = document.getElementById('returnForm');
+  const isEdit = formEl?.dataset.edit === '1';
+  const refundedFromServer = toNum(formEl?.dataset.refunded);
+
+  const body = document.getElementById('itemBody');
+  const itemsScroll = document.getElementById('itemsScroll');
+  const totalEl = document.querySelector('[name$="TOTAL_FORMS"]');
+
+  const taxEl = document.getElementById('id_tax_percent');
+  const discEl = document.getElementById('id_discount_percent');
+
+  const subtotalCell = document.getElementById('subtotal');
+  const taxAmtCell = document.getElementById('tax_amt');
+  const discAmtCell = document.getElementById('disc_amt');
+  const sumNet = document.getElementById('sum_net');
+
+  const refundedSoFarEl = document.getElementById('refunded_so_far');
+  const remainingEl = document.getElementById('remaining_amt');
+  const itemCountEl = document.getElementById('itemCount');
+
+  const businessInput = document.getElementById('id_business');
+
+  const PRODUCT_STOCKS = {
+    {% for p in products_cards %}
+    "{{ p.id }}": {{ p.stock|default:'0' }},
+    {% endfor %}
+  };
+
+  const PRODUCT_BY_BARCODE = {
+    {% for p in products_cards %}
+      {% if p.barcode %}
+      "{{ p.barcode|escapejs }}": {
+        id: "{{ p.id }}",
+        name: "{{ p.name|escapejs }}",
+        price: {{ p.sale_price|floatformat:2 }},
+        stock: {{ p.stock|default:'0' }}
+      },
+      {% endif %}
+    {% endfor %}
+  };
+
+  const PRODUCTS = [
+    {% for p in products_cards %}
+    {
+      id: "{{ p.id }}",
+      name: "{{ p.name|escapejs }}",
+      price: {{ p.sale_price|floatformat:2 }},
+      stock: {{ p.stock|default:'0' }}{% if p.barcode %},
+      barcode: "{{ p.barcode|escapejs }}"{% else %},
+      barcode: ""{% endif %},
+      uom_id: "{{ p.uom_id|default:'' }}",
+      uom_code: "{{ p.uom_code|escapejs }}",
+      bulk_uom_id: "{{ p.bulk_uom_id|default:'' }}",
+      bulk_uom_code: "{{ p.bulk_uom_code|escapejs }}",
+      bulk_size: {{ p.bulk_size|default:'1' }},
+      has_bulk: {{ p.has_bulk|yesno:"true,false" }}
+    },
+    {% endfor %}
+  ];
+
+  (function wireBusinessTabs() {
+    const tabs = document.querySelectorAll('.biz-tab');
+    if (!tabs.length) return;
+
+    const base = ['inline-flex','items-center','gap-2','px-4','py-2','rounded-t-lg','border','text-sm','font-medium'];
+
+    function inactiveClasses(color) {
+      return [
+        `text-${color}-700`,
+        `border-${color}-300`,
+        `hover:bg-${color}-100`,
+        `hover:border-${color}-600`,
+        `hover:text-${color}-900`,
+      ];
+    }
+
+    function activeClasses(color) {
+      return [
+        `bg-${color}-700`,
+        `border-${color}-700`,
+        'text-white',
+        'shadow-md',
+      ];
+    }
+
+    function applyState(tab, isActive) {
+      const color = tab.dataset.color || 'indigo';
+
+      tab.classList.add(...base);
+
+      ['indigo', 'emerald', 'rose', 'amber'].forEach(c => {
+        tab.classList.remove(...inactiveClasses(c), ...activeClasses(c));
+      });
+
+      if (isActive) {
+        tab.setAttribute('aria-current', 'page');
+        tab.classList.add(...activeClasses(color));
+      } else {
+        tab.removeAttribute('aria-current');
+        tab.classList.add(...inactiveClasses(color));
+      }
+    }
+
+    tabs.forEach(t => {
+      const isActive = t.hasAttribute('aria-current') && t.getAttribute('aria-current') === 'page';
+      applyState(t, isActive);
+    });
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
+        const bizId = tab.dataset.businessId;
+        if (!bizId) return;
+
+        if (businessInput) {
+          businessInput.value = bizId;
+          businessInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('business', bizId);
+          window.history.replaceState({}, '', url.toString());
+        } catch (err) {}
+
+        tabs.forEach(t => applyState(t, t === tab));
+      });
+    });
+  })();
+
+  (function autoSelectFirstBusiness() {
+    const params = new URLSearchParams(window.location.search);
+    const bizParam = params.get('business');
+    
+    if (!bizParam && businessInput && !businessInput.value) {
+      const firstTab = document.querySelector('.biz-tab[data-business-id]');
+      if (firstTab) {
+        const firstBizId = firstTab.dataset.businessId;
+        if (firstBizId) {
+          businessInput.value = firstBizId;
+          
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('business', firstBizId);
+            window.history.replaceState({}, '', url.toString());
+          } catch (err) {}
+        }
+      }
+    }
+  })();
+
+  const bankWrap = document.getElementById('bankWrap');
+  const refundMethodRadios = document.querySelectorAll('input[name="refund_method"]');
+  const refundAmountInput = document.getElementById('id_refund_amount');
+
+  function applyRefundEffects(net) {
+    const selectedMethod = document.querySelector('input[name="refund_method"]:checked')?.value;
+    if (bankWrap) {
+      bankWrap.classList.toggle('hidden', !(selectedMethod === 'bank' || selectedMethod === 'card'));
+    }
+    if (!refundAmountInput) return;
+    const netVal = net != null ? net : toNum(sumNet?.textContent || 0);
+    // For returns: Cash/Bank/Card auto-fill refund amount, Credit leaves it at 0
+    if (selectedMethod === 'on_credit') {
+      refundAmountInput.value = '0.00';
+      refundAmountInput.readOnly = true;
+      refundAmountInput.classList.add('bg-slate-100', 'text-slate-500'); // simple visual cue
+    } else {
+      refundAmountInput.readOnly = false;
+      refundAmountInput.classList.remove('bg-slate-100', 'text-slate-500');
+      
+      if (selectedMethod === 'cash' || selectedMethod === 'bank' || selectedMethod === 'card') {
+        if (refundAmountInput.dataset.manuallyChanged !== 'true') {
+          refundAmountInput.value = two(netVal);
+        }
+      }
+    }
+  }
+
+  // Auto-select cash payment method on page load
+  (function autoSelectCash() {
+    const cashRadio = document.getElementById('refund_cash');
+    if (cashRadio && !cashRadio.checked) {
+      cashRadio.checked = true;
+      cashRadio.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  })();
+
+  refundMethodRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      applyRefundEffects();
+  });
+  });
+
+  const customerSelect = document.getElementById('id_customer');
+  const nameInput = document.getElementById('id_customer_name');
+  const nameSuggest = document.getElementById('nameSuggest');
+  if (customerSelect) customerSelect.style.display = 'none';
+
+  const people = [];
+  if (customerSelect) {
+    Array.from(customerSelect.options).forEach((opt) => {
+      if (!opt.value) return;
+      people.push({ id: opt.value, label: (opt.textContent || '').trim() });
+    });
+  }
+
+  if (isEdit && nameInput && customerSelect && !nameInput.value && customerSelect.value) {
+    const opt = Array.from(customerSelect.options).find((o) => o.value === customerSelect.value);
+    if (opt) {
+      nameInput.value = (opt.textContent || '').trim();
+    }
+  }
+
+  function showCustomerBalance(data) {
+    const badge = document.getElementById('customerBalanceBadge');
+    if (!badge) return;
+    
+    if (!data || !data.ok || !customerSelect || !customerSelect.value) {
+      badge.classList.add('hidden');
+      return;
+    }
+
+    const amount = data.amount || '0.00';
+    const side = data.side || '';
+
+    let textColor = 'text-slate-500';
+    let text = '';
+
+    if (side === 'Dr') {
+      textColor = 'text-emerald-600';
+      text = `(Credit: Rs. ${amount})`;
+    } else if (side === 'Cr') {
+      textColor = 'text-rose-600 font-semibold';
+      text = `(Owes: Rs. ${amount})`;
+    } else {
+      textColor = 'text-slate-500';
+      text = `(Balance: Rs. ${amount})`;
+    }
+
+    badge.textContent = text;
+    badge.className = `ml-2 text-[10px] font-normal ${textColor}`;
+    badge.classList.remove('hidden');
+  }
+
+  async function loadCustomerBalance() {
+    if (!customerSelect) return;
+    const cid = customerSelect.value;
+    if (!cid) return;
+
+    const params = new URLSearchParams();
+    params.append('customer_id', cid);
+
+    try {
+      const resp = await fetch("{% url 'customer_balance_api' %}?" + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      showCustomerBalance(data);
+    } catch (err) {
+      console.error('Failed to load customer balance', err);
+      const badge = document.getElementById('customerBalanceBadge');
+      if (badge) badge.classList.add('hidden');
+    }
+  }
+
+  if (customerSelect) {
+    customerSelect.addEventListener('change', loadCustomerBalance);
+  }
+  
+  if (nameInput) {
+    nameInput.addEventListener('input', function() {
+      if (!this.value.trim()) {
+        customerSelect.value = '';
+        const badge = document.getElementById('customerBalanceBadge');
+        if (badge) badge.classList.add('hidden');
+      }
+    });
+  }
+
+  let nameActiveIndex = -1;
+  let nameCurrentItems = [];
+
+  function updateNameActive() {
+    const lis = nameSuggest.querySelectorAll('li');
+    lis.forEach((li, idx) => {
+      li.classList.toggle('bg-blue-100', idx === nameActiveIndex);
+    });
+  }
+
+  function renderNameSuggest(items) {
+    nameCurrentItems = items;
+    nameActiveIndex = -1;
+    nameSuggest.innerHTML = '';
+    if (!items.length) {
+      nameSuggest.classList.add('hidden');
+      return;
+    }
+    items.slice(0, 30).forEach((it, idx) => {
+      const li = document.createElement('li');
+      li.className = 'px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm';
+      li.dataset.index = String(idx);
+      li.textContent = it.label;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        nameInput.value = it.label;
+        if (customerSelect) {
+          customerSelect.value = it.id;
+          customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        nameSuggest.classList.add('hidden');
+      });
+      nameSuggest.appendChild(li);
+    });
+    nameSuggest.classList.remove('hidden');
+    updateNameActive();
+  }
+
+  nameInput?.addEventListener('input', () => {
+    const q = (nameInput.value || '').toLowerCase().trim();
+    if (!q) {
+      if (customerSelect) {
+        customerSelect.value = '';
+        customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      nameSuggest.classList.add('hidden');
+      return;
+    }
+    const matches = people.filter((p) => p.label.toLowerCase().includes(q));
+    renderNameSuggest(matches);
+  });
+
+  nameInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      nameSuggest.classList.add('hidden');
+      document.getElementById('quickBarcode')?.focus();
+      return;
+    }
+
+    if (nameSuggest.classList.contains('hidden')) return;
+    if (!nameCurrentItems.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      nameActiveIndex = (nameActiveIndex < nameCurrentItems.length - 1) ? nameActiveIndex + 1 : 0;
+      updateNameActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      nameActiveIndex = (nameActiveIndex > 0) ? nameActiveIndex - 1 : nameCurrentItems.length - 1;
+      updateNameActive();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nameActiveIndex >= 0) {
+        const it = nameCurrentItems[nameActiveIndex];
+        nameInput.value = it.label;
+        if (customerSelect) {
+          customerSelect.value = it.id;
+          customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        nameSuggest.classList.add('hidden');
+      }
+    } else if (e.key === 'Escape') {
+      nameSuggest.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!nameSuggest.contains(e.target) && e.target !== nameInput) {
+      nameSuggest.classList.add('hidden');
+    }
+  });
+
+  function updateLineTotal(tr) {
+    const qtyInp = tr.querySelector('input[name$="-quantity"]');
+    const rateInp = tr.querySelector('input[name$="-unit_price"]');
+    const qty = toNum(qtyInp?.value);
+    const rate = toNum(rateInp?.value);
+    const total = qty * rate;
+    const cell = tr.querySelector('.line-total');
+    if (cell) cell.textContent = two(total);
+    return total;
+  }
+
+  function updateItemCount() {
+    const visibleRows = Array.from(body.querySelectorAll('tr.item-row')).filter(tr => {
+      if (tr.style.display === 'none') return false;
+      const del = tr.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) return false;
+      return !isBlankRow(tr);
+    });
+    
+    if (itemCountEl) itemCountEl.textContent = visibleRows.length;
+    
+    visibleRows.forEach((tr, idx) => {
+      const numCell = tr.querySelector('.row-number');
+      if (numCell) numCell.textContent = idx + 1;
+    });
+  }
+
+  function computeTotals() {
+    let subtotal = 0;
+    body.querySelectorAll('tr.item-row').forEach((tr) => {
+      if (tr.style.display === 'none') return;
+      const del = tr.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) return;
+      if (isBlankRow(tr)) {
+        const c = tr.querySelector('.line-total');
+        if (c) c.textContent = '0.00';
+        return;
+      }
+      subtotal += updateLineTotal(tr);
+    });
+
+    const taxPct = toNum(taxEl?.value);
+    const discPct = toNum(discEl?.value);
+    const taxAmt = subtotal * (taxPct / 100);
+    const discAmt = subtotal * (discPct / 100);
+    const net = subtotal + taxAmt - discAmt;
+
+    if (subtotalCell) subtotalCell.textContent = two(subtotal);
+    if (taxAmtCell) taxAmtCell.textContent = two(taxAmt);
+    if (discAmtCell) discAmtCell.textContent = two(discAmt);
+    if (sumNet) sumNet.textContent = two(net);
+
+    if (refundedSoFarEl) {
+      refundedSoFarEl.textContent = two(refundedFromServer);
+    }
+    if (remainingEl) {
+      remainingEl.textContent = two(Math.max(0, net - refundedFromServer));
+    }
+
+    updateItemCount();
+    applyRefundEffects(net);
+  }
+
+  function bumpTotalForms(delta) {
+    if (!totalEl) return;
+    const n = (parseInt(totalEl.value, 10) || 0) + delta;
+    totalEl.value = n < 0 ? 0 : n;
+    const rows = Array.from(body.querySelectorAll('tr.item-row')).filter((r) => r.style.display !== 'none');
+    rows.forEach((tr, idx) => {
+      tr.querySelectorAll('input, select').forEach((el) => {
+        if (!el.name) return;
+        el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+        if (el.id) el.id = el.id.replace(/-(\d+)-/, `-${idx}-`);
+      });
+    });
+  }
+
+  function clearRow(tr) {
+    tr.querySelectorAll('input, select').forEach((el) => {
+      if (!el.name) return;
+      if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type === 'hidden')) el.value = '';
+      else if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+    const lt = tr.querySelector('span.line-total');
+    if (lt) lt.textContent = '0.00';
+    const nameSpan = tr.querySelector('.prod-name');
+    if (nameSpan) nameSpan.textContent = '';
+    const barcodeSpan = tr.querySelector('.prod-barcode');
+    if (barcodeSpan) barcodeSpan.textContent = '';
+    const unitSpan = tr.querySelector('.prod-unit');
+    if (unitSpan) unitSpan.textContent = '';
+  }
+
+  function findExistingProductRow(productId) {
+    if (!productId) return null;
+    
+    const rows = Array.from(body.querySelectorAll('tr.item-row'));
+    for (const row of rows) {
+      if (row.style.display === 'none') continue;
+      
+      const delInput = row.querySelector('input[name$="-DELETE"]');
+      if (delInput && delInput.checked) continue;
+      
+      const prodEl = qProdInput(row);
+      if (prodEl && prodEl.value === productId) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  function focusOnExistingProduct(existingRow, productName) {
+    const qtyInput = existingRow.querySelector('input[name$="-quantity"]');
+    
+    if (qtyInput) {
+      existingRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightRow(existingRow);
+      
+      setTimeout(() => {
+        qtyInput.focus();
+        qtyInput.select();
+      }, 300);
+      
+      showToast(`${productName} is already in the list. Quantity updated!`, 'warning');
+    }
+  }
+
+  function addProductToTable(productInfo, qty, price, isScannerInput = false) {
+    // For returns, we don't check stock - we're increasing stock, not decreasing
+    // Check for duplicate
+    const existingRow = findExistingProductRow(productInfo.id);
+    
+    if (existingRow) {
+      const qtyInput = existingRow.querySelector('input[name$="-quantity"]');
+      if (qtyInput) {
+        const currentQty = toNum(qtyInput.value);
+        const newTotalQty = currentQty + toNum(qty);
+        qtyInput.value = two(newTotalQty);
+      }
+      focusOnExistingProduct(existingRow, productInfo.name);
+      computeTotals();
+      return;
+    }
+
+    // Find first blank row or create new
+    let targetRow = null;
+    const rows = Array.from(body.querySelectorAll('tr.item-row'));
+    
+    for (const row of rows) {
+      if (row.style.display === 'none') continue;
+      const del = row.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) continue;
+      
+      if (isBlankRow(row)) {
+        targetRow = row;
+        break;
+      }
+    }
+
+    if (!targetRow) {
+      const lastRow = body.querySelector('tr.item-row:last-child');
+      if (lastRow) {
+        targetRow = lastRow.cloneNode(true);
+        targetRow.style.display = '';
+        clearRow(targetRow);
+        
+        // Ensure cloned product SELECT has all product options
+        const clonedProdSelect = qProdInput(targetRow);
+        if (clonedProdSelect && clonedProdSelect.tagName === 'SELECT') {
+          // Clear existing options (except empty option)
+          clonedProdSelect.innerHTML = '<option value="">---------</option>';
+          // Add all products from PRODUCTS array
+          PRODUCTS.forEach(prod => {
+            const option = document.createElement('option');
+            option.value = String(prod.id);
+            option.textContent = prod.name;
+            clonedProdSelect.appendChild(option);
+          });
+        }
+        
+        body.appendChild(targetRow);
+        bumpTotalForms(+1);
+        wireRow(targetRow);
+      }
+    }
+
+    if (targetRow) {
+      const prodSelect = qProdInput(targetRow);
+      const qtyInput = targetRow.querySelector('input[name$="-quantity"]');
+      const priceInput = targetRow.querySelector('input[name$="-unit_price"]');
+      const uomInput = targetRow.querySelector('input[name$="-uom"]');
+      const sizeInput = targetRow.querySelector('input[name$="-size_per_unit"]');
+      const nameSpan = targetRow.querySelector('.prod-name');
+      const barcodeSpan = targetRow.querySelector('.prod-barcode');
+      const unitSpan = targetRow.querySelector('.prod-unit');
+
+      if (prodSelect) {
+        // Ensure the option exists in the SELECT, create it if needed
+        const productIdStr = String(productInfo.id);
+        let optionExists = false;
+        for (let opt of prodSelect.options) {
+          if (opt.value === productIdStr) {
+            optionExists = true;
+            break;
+          }
+        }
+        
+        if (!optionExists && prodSelect.tagName === 'SELECT') {
+          // Create the option dynamically
+          const option = document.createElement('option');
+          option.value = productIdStr;
+          option.textContent = productInfo.name;
+          prodSelect.appendChild(option);
+        }
+        
+        prodSelect.value = productIdStr;
+        
+        // Trigger change event to ensure form recognizes the value
+        prodSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        const fullProductInfo = PRODUCTS.find(p => p.id === productInfo.id);
+        if (fullProductInfo && uomInput && sizeInput) {
+          if (fullProductInfo.uom_id) {
+            uomInput.value = fullProductInfo.uom_id;
+          }
+          sizeInput.value = '1.000000';
+          
+          if (unitSpan && fullProductInfo.uom_code) {
+            unitSpan.textContent = fullProductInfo.uom_code;
+          }
+        }
+      }
+      if (qtyInput) qtyInput.value = two(qty);
+      if (priceInput) priceInput.value = two(price);
+      if (nameSpan) nameSpan.textContent = productInfo.name;
+      if (barcodeSpan && productInfo.barcode) {
+        barcodeSpan.textContent = `Barcode: ${productInfo.barcode}`;
+      }
+      if (unitSpan && productInfo.uom_code) {
+        unitSpan.textContent = productInfo.uom_code;
+      }
+
+      computeTotals();
+      if (!isScannerInput) {
+        showToast(`${productInfo.name} added successfully!`, 'success');
+      }
+    }
+  }
+
+  // Quick Add Section
+  const quickBarcode = document.getElementById('quickBarcode');
+  const quickProductSearch = document.getElementById('quickProductSearch');
+  const quickProductId = document.getElementById('quickProductId');
+  const quickQty = document.getElementById('quickQty');
+  const quickPrice = document.getElementById('quickPrice');
+  const quickStock = document.getElementById('quickStock');
+  const quickAddBtn = document.getElementById('quickAddBtn');
+
+  const quickBarcodeSuggest = document.getElementById('quickBarcodeSuggest');
+  const quickProductSuggest = document.getElementById('quickProductSuggest');
+
+  let quickBarcodeItems = [];
+  let quickBarcodeActiveIndex = -1;
+
+  let quickProductItems = [];
+  let quickProductActiveIndex = -1;
+
+  let barcodeInputTimer = null;
+  let lastBarcodeInputTime = 0;
+  const BARCODE_SCANNER_THRESHOLD = 50;
+
+  function clearQuickForm() {
+    quickBarcode.value = '';
+    quickProductSearch.value = '';
+    quickProductId.value = '';
+    quickQty.value = '1';
+    quickPrice.value = '';
+    quickStock.textContent = '';
+    quickBarcodeSuggest.classList.add('hidden');
+    quickProductSuggest.classList.add('hidden');
+    setTimeout(() => {
+      quickBarcode?.focus();
+    }, 50);
+  }
+
+  function updateQuickBarcodeActive() {
+    const lis = quickBarcodeSuggest.querySelectorAll('li');
+    lis.forEach((li, idx) => {
+      li.classList.toggle('bg-blue-100', idx === quickBarcodeActiveIndex);
+    });
+  }
+
+  function renderQuickBarcodeSuggest(items) {
+    quickBarcodeItems = items;
+    quickBarcodeActiveIndex = -1;
+    quickBarcodeSuggest.innerHTML = '';
+    if (!items.length) {
+      quickBarcodeSuggest.classList.add('hidden');
+      return;
+    }
+    items.forEach((it, idx) => {
+      const li = document.createElement('li');
+      li.dataset.index = String(idx);
+      li.className = 'px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm';
+      li.innerHTML = `
+        <div class="font-semibold">${it.barcode}</div>
+        <div class="text-xs text-slate-600">${it.name} (Stock: ${two(it.stock)})</div>
+      `;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        applyQuickProduct(it);
+      });
+      quickBarcodeSuggest.appendChild(li);
+    });
+    quickBarcodeSuggest.classList.remove('hidden');
+    updateQuickBarcodeActive();
+  }
+
+  function updateQuickProductActive() {
+    const lis = quickProductSuggest.querySelectorAll('li');
+    lis.forEach((li, idx) => {
+      li.classList.toggle('bg-blue-100', idx === quickProductActiveIndex);
+    });
+  }
+
+  function renderQuickProductSuggest(items) {
+    quickProductItems = items;
+    quickProductActiveIndex = -1;
+    quickProductSuggest.innerHTML = '';
+      if (!items.length) {
+      quickProductSuggest.classList.add('hidden');
+        return;
+      }
+      items.forEach((it, idx) => {
+        const li = document.createElement('li');
+        li.dataset.index = String(idx);
+      li.className = 'px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm';
+      
+      const stockColor = it.stock > 0 ? 'text-emerald-600' : 'text-red-600';
+        li.innerHTML = `
+        <div class="flex justify-between items-center">
+          <span class="font-semibold">${it.name}</span>
+          <span class="text-xs ${stockColor} font-bold">Stock: ${two(it.stock)}</span>
+        </div>
+        ${it.barcode ? `<div class="text-xs text-slate-500">Barcode: ${it.barcode}</div>` : ''}
+        `;
+        li.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+        applyQuickProduct(it);
+      });
+      quickProductSuggest.appendChild(li);
+    });
+    quickProductSuggest.classList.remove('hidden');
+    updateQuickProductActive();
+  }
+
+  function handleBarcodeScan(barcode) {
+    let productInfo = PRODUCTS.find(p => p.barcode === barcode);
+    
+    if (!productInfo && PRODUCT_BY_BARCODE[barcode]) {
+      const barcodeInfo = PRODUCT_BY_BARCODE[barcode];
+      const fullProduct = PRODUCTS.find(p => p.id === barcodeInfo.id);
+      productInfo = {
+        id: barcodeInfo.id,
+        name: barcodeInfo.name,
+        barcode: barcode,
+        price: barcodeInfo.price,
+        stock: barcodeInfo.stock,
+        uom_id: fullProduct?.uom_id || '',
+        uom_code: fullProduct?.uom_code || '',
+        bulk_uom_id: fullProduct?.bulk_uom_id || '',
+        bulk_uom_code: fullProduct?.bulk_uom_code || '',
+        bulk_size: fullProduct?.bulk_size || '1',
+        has_bulk: fullProduct?.has_bulk || false,
+      };
+    }
+
+    if (!productInfo) {
+      showToast('No product found for this barcode', 'error');
+      quickBarcode.value = '';
+      quickBarcode.focus();
+      return;
+    }
+
+    // For returns, no stock check needed - we're increasing stock
+    const existingRow = findExistingProductRow(productInfo.id);
+    if (existingRow) {
+      const qtyInput = existingRow.querySelector('input[name$="-quantity"]');
+      if (qtyInput) {
+        const currentQty = toNum(qtyInput.value);
+        const newQty = currentQty + 1;
+        qtyInput.value = two(newQty);
+        qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+        computeTotals();
+        highlightRow(existingRow);
+        showToast(`${productInfo.name} quantity increased to ${qtyInput.value}`, 'success');
+      }
+    } else {
+      addProductToTable(productInfo, 1, productInfo.price, true);
+    }
+
+    quickBarcode.value = '';
+    quickBarcode.dataset.isScanner = 'false';
+    quickBarcode.focus();
+  }
+
+  function applyQuickProduct(info) {
+    quickBarcode.value = info.barcode || '';
+    quickProductSearch.value = info.name;
+    quickProductId.value = info.id;
+    quickPrice.value = two(info.price);
+    
+    const stock = toNum(info.stock || 0);
+    // Display stock in both lower and bulk units
+    let stockText = `Stock: ${two(stock)} ${info.uom_code || ''}`;
+    if (info.has_bulk && info.bulk_size && info.bulk_size > 0 && info.bulk_uom_code) {
+      const bulkStock = stock / toNum(info.bulk_size);
+      stockText += ` / ${two(bulkStock)} ${info.bulk_uom_code}`;
+    }
+    quickStock.textContent = stockText;
+    quickStock.className = 'text-xs text-slate-600 mt-1 font-semibold';
+    
+    quickBarcodeSuggest.classList.add('hidden');
+    quickProductSuggest.classList.add('hidden');
+    
+    quickQty.focus();
+    quickQty.select();
+  }
+
+  quickBarcode.addEventListener('keydown', (e) => {
+    const now = Date.now();
+    const timeSinceLastKey = now - lastBarcodeInputTime;
+    lastBarcodeInputTime = now;
+
+    const isLikelyScanner = timeSinceLastKey > 0 && timeSinceLastKey < BARCODE_SCANNER_THRESHOLD;
+
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      quickBarcode.dataset.isScanner = isLikelyScanner ? 'true' : 'false';
+    }
+  });
+
+  quickBarcode.addEventListener('input', () => {
+    const q = (quickBarcode.value || '').trim().toLowerCase();
+      if (!q) {
+      quickBarcodeSuggest.classList.add('hidden');
+        return;
+      }
+    
+    if (barcodeInputTimer) {
+      clearTimeout(barcodeInputTimer);
+    }
+
+    if (quickBarcode.dataset.isScanner !== 'true') {
+      const matches = PRODUCTS.filter(p => p.barcode && p.barcode.toLowerCase().includes(q)).slice(0, 20);
+      renderQuickBarcodeSuggest(matches);
+    } else {
+      barcodeInputTimer = setTimeout(() => {
+        const finalCode = (quickBarcode.value || '').trim();
+        if (finalCode) {
+          handleBarcodeScan(finalCode);
+        }
+      }, 100);
+    }
+  });
+
+  quickBarcode.addEventListener('keydown', (e) => {
+    const hasList = !quickBarcodeSuggest.classList.contains('hidden') && quickBarcodeItems.length > 0;
+
+      if (e.key === 'ArrowDown' && hasList) {
+        e.preventDefault();
+      quickBarcodeActiveIndex = (quickBarcodeActiveIndex < quickBarcodeItems.length - 1) ? quickBarcodeActiveIndex + 1 : 0;
+      updateQuickBarcodeActive();
+        return;
+      }
+    
+      if (e.key === 'ArrowUp' && hasList) {
+        e.preventDefault();
+      quickBarcodeActiveIndex = (quickBarcodeActiveIndex > 0) ? quickBarcodeActiveIndex - 1 : quickBarcodeItems.length - 1;
+      updateQuickBarcodeActive();
+        return;
+      }
+    
+      if (e.key === 'Enter') {
+        e.preventDefault();
+
+      if (quickBarcode.dataset.isScanner === 'true') {
+        const code = (quickBarcode.value || '').trim();
+        if (code) {
+          handleBarcodeScan(code);
+          return;
+        }
+      }
+
+      if (hasList && quickBarcodeActiveIndex >= 0) {
+        applyQuickProduct(quickBarcodeItems[quickBarcodeActiveIndex]);
+        return;
+      }
+
+      const code = (quickBarcode.value || '').trim();
+        if (!code) {
+        quickProductSearch.focus();
+          return;
+        }
+
+        let direct = PRODUCTS.find(p => p.barcode === code);
+        if (!direct && PRODUCT_BY_BARCODE[code]) {
+        const barcodeInfo = PRODUCT_BY_BARCODE[code];
+        const fullProduct = PRODUCTS.find(p => p.id === barcodeInfo.id);
+          direct = {
+          id: barcodeInfo.id,
+          name: barcodeInfo.name,
+            barcode: code,
+          price: barcodeInfo.price,
+          stock: barcodeInfo.stock,
+          uom_id: fullProduct?.uom_id || '',
+          uom_code: fullProduct?.uom_code || '',
+          bulk_uom_id: fullProduct?.bulk_uom_id || '',
+          bulk_uom_code: fullProduct?.bulk_uom_code || '',
+          bulk_size: fullProduct?.bulk_size || '1',
+          has_bulk: fullProduct?.has_bulk || false,
+        };
+      }
+
+        if (!direct) {
+        showToast('No product found for this barcode', 'error');
+        quickBarcode.select();
+          return;
+        }
+      
+      applyQuickProduct(direct);
+        return;
+      }
+    
+      if (e.key === 'Escape' && hasList) {
+        e.preventDefault();
+      quickBarcodeSuggest.classList.add('hidden');
+    }
+    
+    if (e.key === 'Tab' && !e.shiftKey) {
+      quickBarcodeSuggest.classList.add('hidden');
+    }
+  });
+
+  quickProductSearch.addEventListener('input', () => {
+    const q = (quickProductSearch.value || '').trim().toLowerCase();
+    if (!q) {
+      quickProductSuggest.classList.add('hidden');
+      quickProductId.value = '';
+      quickPrice.value = '';
+      quickStock.textContent = '';
+      return;
+    }
+    const matches = PRODUCTS.filter(p => p.name.toLowerCase().includes(q)).slice(0, 30);
+    renderQuickProductSuggest(matches);
+  });
+
+  quickProductSearch.addEventListener('keydown', (e) => {
+    const hasList = !quickProductSuggest.classList.contains('hidden') && quickProductItems.length > 0;
+
+    if (e.key === 'ArrowDown' && hasList) {
+      e.preventDefault();
+      quickProductActiveIndex = (quickProductActiveIndex < quickProductItems.length - 1) ? quickProductActiveIndex + 1 : 0;
+      updateQuickProductActive();
+      return;
+    }
+    
+    if (e.key === 'ArrowUp' && hasList) {
+      e.preventDefault();
+      quickProductActiveIndex = (quickProductActiveIndex > 0) ? quickProductActiveIndex - 1 : quickProductItems.length - 1;
+      updateQuickProductActive();
+      return;
+    }
+    
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (hasList && quickProductActiveIndex >= 0) {
+        applyQuickProduct(quickProductItems[quickProductActiveIndex]);
+        return;
+      }
+      if (quickProductItems.length === 1) {
+        applyQuickProduct(quickProductItems[0]);
+        return;
+      }
+      quickQty.focus();
+    }
+    
+    if (e.key === 'Escape' && hasList) {
+      e.preventDefault();
+      quickProductSuggest.classList.add('hidden');
+    }
+  });
+
+  quickQty.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+          e.preventDefault();
+      quickPrice.focus();
+      quickPrice.select();
+    }
+  });
+
+  quickPrice.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      quickAddBtn.click();
+    }
+  });
+
+  quickAddBtn.addEventListener('click', () => {
+    const productId = quickProductId.value;
+    const qty = toNum(quickQty.value);
+    const price = toNum(quickPrice.value);
+
+    if (!productId) {
+      showToast('Please select a product', 'warning');
+      quickProductSearch.focus();
+        return;
+      }
+
+    if (!qty || qty <= 0) {
+      showToast('Please enter a valid quantity', 'warning');
+      quickQty.focus();
+        return;
+      }
+
+    if (!price || price <= 0) {
+      showToast('Please enter a valid price', 'warning');
+      quickPrice.focus();
+        return;
+      }
+
+    const productInfo = PRODUCTS.find(p => p.id === productId);
+    if (!productInfo) {
+      showToast('Product not found', 'error');
+          return;
+        }
+
+    // For returns, no stock validation needed - we're increasing stock
+    addProductToTable(productInfo, qty, price, false);
+    clearQuickForm();
+    });
+
+    document.addEventListener('click', (e) => {
+    if (!quickBarcodeSuggest.contains(e.target) && e.target !== quickBarcode) {
+      quickBarcodeSuggest.classList.add('hidden');
+      }
+    if (!quickProductSuggest.contains(e.target) && e.target !== quickProductSearch) {
+      quickProductSuggest.classList.add('hidden');
+  }
+  });
+
+  function wireRow(tr) {
+    const qtyInput = tr.querySelector('input[name$="-quantity"]');
+    const priceInput = tr.querySelector('input[name$="-unit_price"]');
+    const prodSelect = qProdInput(tr);
+    
+    if (qtyInput) {
+      qtyInput.addEventListener('input', () => {
+        updateLineTotal(tr);
+          computeTotals();
+        });
+      }
+    
+    if (priceInput) {
+      priceInput.addEventListener('input', () => {
+        updateLineTotal(tr);
+        computeTotals();
+      });
+    }
+    
+    if (prodSelect) {
+      prodSelect.addEventListener('change', function() {
+        const productId = this.value;
+        const unitSpan = tr.querySelector('.prod-unit');
+        const nameSpan = tr.querySelector('.prod-name');
+        const barcodeSpan = tr.querySelector('.prod-barcode');
+        
+        if (productId) {
+          const productInfo = PRODUCTS.find(p => p.id === productId);
+          if (productInfo) {
+            if (unitSpan) {
+              unitSpan.textContent = productInfo.uom_code || '';
+            }
+            if (nameSpan) {
+              nameSpan.textContent = productInfo.name || '';
+            }
+            if (barcodeSpan) {
+              barcodeSpan.textContent = productInfo.barcode ? `Barcode: ${productInfo.barcode}` : '';
+            }
+          }
+        } else {
+          if (unitSpan) unitSpan.textContent = '';
+          if (nameSpan) nameSpan.textContent = '';
+          if (barcodeSpan) barcodeSpan.textContent = '';
+        }
+      });
+    }
+
+    tr.querySelector('.row-remove')?.addEventListener('click', () => {
+      const idInput = tr.querySelector('input[name$="-id"]');
+      const deleteCheckbox = tr.querySelector('input[name$="-DELETE"]');
+      
+      const visibleRows = Array.from(body.querySelectorAll('tr.item-row'))
+                              .filter(r => r.style.display !== 'none').length;
+      
+      if (visibleRows <= 1) {
+        showToast("Cannot delete the last item. A return must have at least one product.", "error");
+        return;
+      }
+
+      if (!idInput || !idInput.value) {
+        tr.remove();
+        bumpTotalForms(-1);
+      } else {
+        if (deleteCheckbox) {
+          deleteCheckbox.checked = true;
+        tr.style.display = 'none';
+          tr.classList.add('marked-for-delete');
+      }
+      }
+      
+      computeTotals();
+      showToast("Item removed.", "info");
+    });
+  }
+
+  (function initializeRows() {
+    const rows = Array.from(body.querySelectorAll('tr.item-row'));
+    rows.forEach((tr, idx) => {
+      wireRow(tr);
+      
+      const numCell = tr.querySelector('.row-number');
+      if (numCell) numCell.textContent = idx + 1;
+      
+      // Ensure product SELECT has all products available
+      const prodEl = qProdInput(tr);
+      if (prodEl && prodEl.tagName === 'SELECT') {
+        const currentValue = prodEl.value || '';
+        // Populate SELECT with all products from PRODUCTS array
+        // Clear existing options except the empty one
+        const emptyOption = prodEl.querySelector('option[value=""]');
+        prodEl.innerHTML = '';
+        if (emptyOption) {
+          prodEl.appendChild(emptyOption.cloneNode(true));
+        } else {
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = '---------';
+          prodEl.appendChild(defaultOpt);
+        }
+        
+        // Add all products
+        PRODUCTS.forEach(prod => {
+          const option = document.createElement('option');
+          option.value = String(prod.id);
+          option.textContent = prod.name;
+          if (currentValue === String(prod.id)) {
+            option.selected = true;
+          }
+          prodEl.appendChild(option);
+        });
+      }
+      
+      if (prodEl && prodEl.value) {
+        const selectedOpt = prodEl.options[prodEl.selectedIndex];
+        const nameSpan = tr.querySelector('.prod-name');
+        const barcodeSpan = tr.querySelector('.prod-barcode');
+        const unitSpan = tr.querySelector('.prod-unit');
+        
+        if (selectedOpt) {
+          if (nameSpan) nameSpan.textContent = (selectedOpt.textContent || '').trim();
+          
+          const productInfo = PRODUCTS.find(p => String(p.id) === String(prodEl.value));
+          if (productInfo) {
+            if (barcodeSpan && productInfo.barcode) {
+              barcodeSpan.textContent = `Barcode: ${productInfo.barcode}`;
+            }
+            if (unitSpan && productInfo.uom_code) {
+              unitSpan.textContent = productInfo.uom_code;
+            }
+          }
+        }
+      }
+      
+      const prodSelect = qProdInput(tr);
+      if (prodSelect) {
+        prodSelect.addEventListener('change', function() {
+          const productId = this.value;
+          const unitSpan = tr.querySelector('.prod-unit');
+          if (productId && unitSpan) {
+            const productInfo = PRODUCTS.find(p => p.id === productId);
+            if (productInfo && productInfo.uom_code) {
+              unitSpan.textContent = productInfo.uom_code;
+            } else {
+              unitSpan.textContent = '';
+            }
+          }
+        });
+      }
+      
+      const price = tr.querySelector('input[name$="-unit_price"]');
+      if (price) {
+        const v = (price.value || '').trim();
+        if (v === '0' || v === '0.0' || v === '0.00' || v === '0.0000') {
+          price.value = '';
+        }
+      }
+    });
+
+    computeTotals();
+    
+    if (quickBarcode) {
+      setTimeout(() => {
+        quickBarcode.focus();
+      }, 100);
+    }
+  })();
+
+  // Mark refund amount as manually changed when user types
+  if (refundAmountInput) {
+    refundAmountInput.addEventListener('input', function() {
+      this.dataset.manuallyChanged = 'true';
+    });
+  }
+
+  let isSubmitting = false;
+
+  formEl?.addEventListener('submit', (e) => {
+    if (isSubmitting) {
+      e.preventDefault();
+      return;
+    }
+
+    // Validate that at least one item is present
+    const rows = Array.from(body.querySelectorAll('tr.item-row')).filter((tr) => tr.style.display !== 'none');
+    let nonBlankCount = 0;
+    
+    rows.forEach((tr) => {
+      const del = tr.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) {
+        // Skip rows marked for deletion
+        return;
+      }
+      
+      const prodEl = qProdInput(tr);
+      const qtyInput = tr.querySelector('input[name$="-quantity"]');
+      const priceInput = tr.querySelector('input[name$="-unit_price"]');
+      
+      // Check if row has valid data - product, quantity > 0, price > 0
+      // Try multiple ways to detect product value
+      let productValue = '';
+      if (prodEl) {
+        productValue = prodEl.value || '';
+        // Also check if product name span exists as fallback
+        if (!productValue) {
+          const nameSpan = tr.querySelector('.prod-name');
+          if (nameSpan && nameSpan.textContent && nameSpan.textContent !== '-' && nameSpan.textContent.trim() !== '') {
+            // Product name exists, try to find the product ID from PRODUCTS
+            const prodName = nameSpan.textContent.trim();
+            const foundProd = PRODUCTS.find(p => p.name === prodName);
+            if (foundProd && prodEl.tagName === 'SELECT') {
+              // Ensure option exists and set value
+              const productIdStr = String(foundProd.id);
+              let optionExists = false;
+              for (let opt of prodEl.options) {
+                if (opt.value === productIdStr) {
+                  optionExists = true;
+                  break;
+                }
+              }
+              if (!optionExists) {
+                const option = document.createElement('option');
+                option.value = productIdStr;
+                option.textContent = foundProd.name;
+                prodEl.appendChild(option);
+              }
+              prodEl.value = productIdStr;
+              productValue = productIdStr;
+            }
+          }
+        }
+      }
+      
+      const hasProduct = productValue && productValue.trim() !== '' && productValue !== '0';
+      const hasQty = qtyInput && toNum(qtyInput.value) > 0;
+      const hasPrice = priceInput && toNum(priceInput.value) > 0;
+      
+      if (hasProduct && hasQty && hasPrice) {
+        nonBlankCount++;
+        if (del) del.checked = false;
+      } else {
+        // Blank or invalid row - mark for deletion only if it's truly blank
+        if (!hasProduct && !hasQty && !hasPrice) {
+          if (del) del.checked = true;
+        }
+      }
+    });
+
+    // Check if we have at least one valid item
+    if (nonBlankCount === 0) {
+      e.preventDefault();
+      isSubmitting = false;
+      console.error('Validation failed: no valid items found', {
+        totalRows: rows.length,
+        rows: rows.map((tr, idx) => {
+          const prodEl = qProdInput(tr);
+          const qtyInput = tr.querySelector('input[name$="-quantity"]');
+          const priceInput = tr.querySelector('input[name$="-unit_price"]');
+          const del = tr.querySelector('input[name$="-DELETE"]');
+          return {
+            idx,
+            product: prodEl?.value || 'none',
+            productName: tr.querySelector('.prod-name')?.textContent || 'none',
+            quantity: qtyInput?.value || '0',
+            price: priceInput?.value || '0',
+            deleted: del?.checked || false
+          };
+        })
+      });
+      showToast('Please add at least one item with product, quantity, and price to the return', 'error');
+      if (quickBarcode) quickBarcode.focus();
+      return;
+    }
+    
+    console.log('Validation passed:', { nonBlankCount, totalRows: rows.length });
+
+    // Re-sequence form indices and update formset management form
+    const visibleRows = rows.filter((tr) => {
+      const del = tr.querySelector('input[name$="-DELETE"]');
+      return !(del && del.checked);
+    });
+    
+    if (totalEl) {
+      totalEl.value = String(rows.length);
+    }
+
+    // Re-sequence all form indices to be sequential (0, 1, 2, ...)
+    // AND ensure all product SELECTs have all products available
+    rows.forEach((tr, idx) => {
+      // First, ensure product SELECT has all options before re-sequencing
+      const prodSelect = qProdInput(tr);
+      if (prodSelect && prodSelect.tagName === 'SELECT') {
+        const currentValue = prodSelect.value || '';
+        
+        // Get current selected option text (if any)
+        let currentText = '';
+        if (currentValue) {
+          for (let opt of prodSelect.options) {
+            if (opt.value === currentValue) {
+              currentText = opt.textContent;
+              break;
+            }
+          }
+          // If no option found but we have product name span, use that
+          if (!currentText) {
+            const nameSpan = tr.querySelector('.prod-name');
+            if (nameSpan && nameSpan.textContent && nameSpan.textContent !== '-') {
+              currentText = nameSpan.textContent.trim();
+            }
+          }
+        }
+        
+        // Rebuild SELECT with all products - this ensures all options are available
+        prodSelect.innerHTML = '';
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '---------';
+        prodSelect.appendChild(defaultOpt);
+        
+        // Add all products from PRODUCTS array
+        PRODUCTS.forEach(prod => {
+          const option = document.createElement('option');
+          option.value = String(prod.id);
+          option.textContent = prod.name;
+          if (currentValue && String(prod.id) === String(currentValue)) {
+            option.selected = true;
+          }
+          prodSelect.appendChild(option);
+        });
+        
+        // If we had a value but it's not in PRODUCTS, try to restore it
+        if (currentValue && !prodSelect.value) {
+          // Try to find by matching the current text
+          if (currentText) {
+            const foundProd = PRODUCTS.find(p => p.name === currentText);
+            if (foundProd) {
+              prodSelect.value = String(foundProd.id);
+            }
+          }
+        }
+      }
+      
+      // Now re-sequence all form fields
+      tr.querySelectorAll('input, select').forEach((el) => {
+        if (el.name) {
+          el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+        }
+        if (el.id) {
+          el.id = el.id.replace(/-(\d+)-/, `-${idx}-`);
+        }
+      });
+    });
+
+    // Ensure business is set
+    if (businessInput && !businessInput.value) {
+      e.preventDefault();
+      isSubmitting = false;
+      showToast('Please select a business', 'error');
+      return;
+    }
+
+    isSubmitting = true;
+
+    const submitBtn = formEl.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      if (!submitBtn.dataset.originalText) {
+        submitBtn.dataset.originalText = submitBtn.textContent;
+      }
+      submitBtn.innerHTML = `
+        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Processing...</span>
+      `;
+      submitBtn.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+    }
+  });
+
+  taxEl?.addEventListener('input', computeTotals);
+  discEl?.addEventListener('input', computeTotals);
+
+  if (customerSelect && customerSelect.value) {
+    loadCustomerBalance();
+  }
+})();
+</script>
+
+<style>
+#id_customer_name,
+#id_customer_phone,
+#id_bank_account,
+#id_refund_amount {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+#id_customer_name:focus,
+#id_customer_phone:focus,
+#id_bank_account:focus,
+#id_refund_amount:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#customerSection input,
+#customerSection select {
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.875rem !important;
+  line-height: 1.25rem !important;
+}
+
+#id_tax_percent,
+#id_discount_percent {
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+#id_tax_percent:focus,
+#id_discount_percent:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.item-row select[name$="-product"] {
+  display: none;
+}
+
+.item-row input[name$="-quantity"],
+.item-row input[name$="-unit_price"] {
+  width: 100%;
+  padding: 0.375rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.item-row input[name$="-unit_price"] {
+  text-align: right;
+}
+
+.item-row input[name$="-quantity"]:focus,
+.item-row input[name$="-unit_price"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#nameSuggest li,
+#quickBarcodeSuggest li,
+#quickProductSuggest li {
+  transition: background-color 0.15s;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+
+#itemsScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+#itemsScroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+#itemsScroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+#itemsScroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.prod-name {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.prod-barcode {
+  display: block;
+  margin-top: 0.125rem;
+}
+
+@media (max-width: 768px) {
+  .item-row input[name$="-quantity"],
+  .item-row input[name$="-unit_price"] {
+    font-size: 0.7rem;
+    padding: 0.3rem;
+  }
+}
+</style>
+{% endblock %}

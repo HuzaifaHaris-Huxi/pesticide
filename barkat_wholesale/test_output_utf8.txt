@@ -1,0 +1,128 @@
+﻿python : python-dotenv could not parse statement starting at line 1
+At line:1 char:1
++ python manage.py test barkat.tests_instant_payment -v 2 > test_output ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (python-dotenv c...rting at line 
+    1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+python-dotenv could not parse statement starting at line 2
+python-dotenv could not parse statement starting at line 3
+python-dotenv could not parse statement starting at line 4
+python-dotenv could not parse statement starting at line 5
+Creating test database for alias 'default' 
+('file:memorydb_default?mode=memory&cache=shared')...
+
+Found 3 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: messages, staticfiles, tailwind, theme
+  Apply all migrations: admin, auth, barkat, contenttypes, sessions
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying barkat.0001_initial... OK
+  Applying barkat.0002_staff... OK
+  Applying barkat.0003_alter_staff_business_alter_staff_role... OK
+  Applying barkat.0004_bankaccount_cashflow_bankmovement_and_more... OK
+  Applying barkat.0005_purchaseorder_purchaseorderitem_stocktransaction_and_more... OK
+  Applying barkat.0006_alter_purchaseorder_options_and_more... OK
+  Applying barkat.0007_alter_staff_joined_on_alter_staff_salary_start_and_more... OK
+  Applying barkat.0008_product_stock_qty... OK
+  Applying barkat.0009_expense... OK
+  Applying barkat.0010_alter_expense_business... OK
+  Applying barkat.0011_purchasereturn_purchasereturnitem... OK
+  Applying barkat.0012_purchasereturnrefund... OK
+  Applying barkat.0013_salesinvoice_salesinvoiceitem_salesinvoicereceipt_and_more... OK
+  Applying barkat.0014_productimage... OK
+  Applying barkat.0015_warehouse_businessstock_stockmove_warehousestock... OK
+  Applying barkat.0016_business_pos_printer_name... OK
+  Applying barkat.0017_alter_business_pos_printer_name... OK
+  Applying barkat.0018_payment_payment_method_alter_product_sku_and_more... OK
+  Applying barkat.0019_remove_payment_barkat_paym_payment_b61926_idx_and_more... OK
+  Applying barkat.0020_bankmovement_is_day_closing_and_more... OK
+  Applying barkat.0021_purchaseorder_warehouse... OK
+  Applying barkat.0022_bankmovement_party_bankmovement_purchase_order_and_more... OK
+  Applying barkat.0023_salesorder_order_date_and_more... OK
+  Applying barkat.0024_remove_salesorder_barkat_sale_busines_6178c0_idx_and_more... OK
+  Applying barkat.0025_alter_expense_category... OK
+  Applying barkat.0026_alter_expense_category... OK
+  Applying barkat.0027_product_bulk_uom_product_default_bulk_size... OK
+  Applying barkat.0028_purchaseorderitem_size_per_unit_and_more... OK
+  Applying barkat.0029_alter_payment_payment_method_alter_product_sku_and_more... OK
+  Applying barkat.0030_product_company_name_and_more... OK
+  Applying barkat.0031_usersettings... OK
+  Applying barkat.0032_usersettings_business... OK
+  Applying barkat.0033_remove_usersettings_business_and_more... OK
+  Applying barkat.0034_add_source_order_to_sales_return... OK
+  Applying barkat.0035_purchasereturnitem_size_per_unit_and_more... OK
+  Applying barkat.0036_add_sale_price_to_purchase_order_item... OK
+  Applying barkat.0037_add_dozen_uom_and_default_sale_payment... OK
+  Applying barkat.0038_add_cancellation_password... OK
+  Applying barkat.0039_add_opening_balance_side... OK
+  Applying barkat.0040_add_opening_balance_date... OK
+  Applying barkat.0041_add_po_expense_features... OK
+  Applying barkat.0042_purchaseorderitem_landed_cost... OK
+  Applying barkat.0043_remove_expense_divide_per_unit_and_more... OK
+  Applying barkat.0044_alter_expense_category... OK
+  Applying barkat.0045_expense_divide_per_unit... OK
+  Applying barkat.0046_add_default_sale_business... OK
+  Applying barkat.0047_purchaseorderitem_landing_unit_price... OK
+  Applying barkat.0048_salesorderitem_unit_cost... OK
+  Applying barkat.0049_expense_is_paid_expense_payment... OK
+  Applying barkat.0050_set_expenses_is_paid_true... OK
+test_finance_reports_separation (barkat.tests_instant_payment.InstantPaymentT
+est.test_finance_reports_separation)
+Verify that finance_reports correctly separates Landed PO Expenses ... ok
+test_po_creation_with_instant_payment_expense (barkat.tests_instant_payment.I
+nstantPaymentTest.test_po_creation_with_instant_payment_expense)
+Verify that creating a PO with an is_paid=True expense: ... ok
+test_po_creation_with_unpaid_expense (barkat.tests_instant_payment.InstantPay
+mentTest.test_po_creation_with_unpaid_expense)
+Verify that if is_paid is False, no Payment is created. ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 14.927s
+
+OK
+Destroying test database for alias 'default' 
+('file:memorydb_default?mode=memory&cache=shared')...
+
+  Applying sessions.0001_initial... OK
+[OK] RTL libraries (arabic_reshaper, bidi) imported successfully
+[OK] Found English font: arial.ttf
+
+============================================================
+INITIALIZING RECEIPT FONTS
+============================================================
+Regular font path: E:\for Clones\Barkat_WholeSale_2025\barkat_wholesale\barkat\Fonts\NotoSansArabic-Regular.ttf
+Bold font path: E:\for Clones\Barkat_WholeSale_2025\barkat_wholesale\barkat\Fonts\NotoSansArabic-Regular.ttf
+RTL Support available: True
+------------------------------------------------------------
+Testing Urdu rendering capability...
+[OK] Font can render Urdu (test width: 113px)
+[OK] Loaded title font: NotoSansArabic-Regular.ttf (size 40)
+[OK] Loaded body font: NotoSansArabic-Regular.ttf (size 30)
+[OK] Loaded small font: NotoSansArabic-Regular.ttf (size 24)
+[OK] Loaded body-bold font: NotoSansArabic-Regular.ttf (size 30)
+[OK] Loaded small-bold font: NotoSansArabic-Regular.ttf (size 24)
+============================================================
+
+System check identified no issues (0 silenced).

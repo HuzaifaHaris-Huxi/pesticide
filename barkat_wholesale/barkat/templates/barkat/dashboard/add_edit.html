@@ -1,0 +1,86 @@
+{% extends "base.html" %} {% load static %}
+
+<!--HTML Sperator-->
+{% block active_aside_business%}bg-blue-500/20 {% endblock %}
+
+<!--HTML Sperator-->
+{% block content %}
+
+<div class="p-4 md:p-6 max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">{{ title }}</h1>
+    <a href="{% url 'businesses_list' %}" class="text-slate-600 hover:underline"
+      >← Back to list</a
+    >
+  </div>
+
+  <form
+    method="post"
+    class="rounded-2xl border border-slate-200 bg-white p-5 space-y-4"
+  >
+    {% csrf_token %}
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Code</label>
+        {{ form.code }} {{ form.code.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Name</label>
+        {{ form.name }} {{ form.name.errors }}
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm mb-1">Legal Name</label>
+        {{ form.legal_name }} {{ form.legal_name.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">NTN</label>
+        {{ form.ntn }} {{ form.ntn.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Sales Tax Reg</label>
+        {{ form.sales_tax_reg }} {{ form.sales_tax_reg.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Phone</label>
+        {{ form.phone }} {{ form.phone.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Email</label>
+        {{ form.email }} {{ form.email.errors }}
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm mb-1">Address</label>
+        {{ form.address }} {{ form.address.errors }}
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm mb-1">POS Printer</label>
+        {{ form.pos_printer_name }}
+        {% if form.pos_printer_name.help_text %}
+          <p class="text-xs text-slate-500 mt-1">{{ form.pos_printer_name.help_text }}</p>
+        {% endif %}
+        {{ form.pos_printer_name.errors }}
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="inline-flex items-center gap-2">
+          {{ form.is_active }} <span>Active</span>
+        </label>
+        {{ form.is_active.errors }}
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      <a
+        href="{% url 'businesses_list' %}"
+        class="rounded-lg px-3 py-2 bg-slate-100 hover:bg-slate-200"
+        >Cancel</a
+      >
+      <button
+        class="rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-500"
+      >
+        {{ submit_label }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

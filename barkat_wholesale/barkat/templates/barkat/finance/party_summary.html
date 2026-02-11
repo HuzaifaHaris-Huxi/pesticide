@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block active_aside_business %}bg-blue-500/20 {% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">Businesses</h1>
+
+    <a
+      href="{% url 'business_new' %}"
+      class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800"
+    >
+      + New Business
+    </a>
+  </div>
+
+  {# Party remaining summary . now on top #}
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-lg font-semibold">Party Remaining Summary</h2>
+
+      <div class="inline-flex rounded-lg bg-slate-100 p-1">
+        <a
+          href="?kind=customer{% if party_q %}&q={{ party_q|urlencode }}{% endif %}{% if party_date_from %}&date_from={{ party_date_from|date:'Y-m-d' }}{% endif %}{% if party_date_to %}&date_to={{ party_date_to|date:'Y-m-d' }}{% endif %}"
+          class="px-4 py-2 text-xs font-medium rounded-md
+                 {% if party_kind == 'customer' %}
+                   bg-white text-slate-900 shadow
+                 {% else %}
+                   text-slate-500 hover:text-slate-800
+                 {% endif %}"
+        >
+          Customers
+        </a>
+        <a
+          href="?kind=supplier{% if party_q %}&q={{ party_q|urlencode }}{% endif %}{% if party_date_from %}&date_from={{ party_date_from|date:'Y-m-d' }}{% endif %}{% if party_date_to %}&date_to={{ party_date_to|date:'Y-m-d' }}{% endif %}"
+          class="px-4 py-2 text-xs font-medium rounded-md ml-1
+                 {% if party_kind == 'supplier' %}
+                   bg-white text-slate-900 shadow
+                 {% else %}
+                   text-slate-500 hover:text-slate-800
+                 {% endif %}"
+        >
+          Suppliers
+        </a>
+      </div>
+    </div>
+
+    <form method="get" class="mb-3 flex flex-wrap gap-2 items-end">
+      <input type="hidden" name="kind" value="{{ party_kind }}">
+
+      <div>
+        <label class="block text-xs text-slate-600 mb-1">Search</label>
+        <input
+          type="search"
+          name="q"
+          value="{{ party_q }}"
+          class="rounded-lg border border-slate-300 px-3 py-2"
+          placeholder="Name, phone, email"
+        >
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-600 mb-1">From</label>
+        <input
+          type="date"
+          name="date_from"
+          {% if party_date_from %}
+            value="{{ party_date_from|date:'Y-m-d' }}"
+          {% endif %}
+          class="rounded-lg border border-slate-300 px-3 py-2"
+        >
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-600 mb-1">To</label>
+        <input
+          type="date"
+          name="date_to"
+          {% if party_date_to %}
+            value="{{ party_date_to|date:'Y-m-d' }}"
+          {% endif %}
+          class="rounded-lg border border-slate-300 px-3 py-2"
+        >
+      </div>
+
+      <button
+        class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800"
+      >
+        Filter
+      </button>
+    </form>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-2 text-left">Name</th>
+            <th class="px-4 py-2 text-left">Phone</th>
+            <th class="px-4 py-2 text-right">Remaining Amount</th>
+            <th class="px-4 py-2 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in party_rows %}
+          <tr class="border-t">
+            <td class="px-4 py-2">
+              {{ row.party.display_name }}
+            </td>
+            <td class="px-4 py-2">
+              {{ row.party.phone }}
+            </td>
+            <td class="px-4 py-2 text-right">
+              <span
+                class="font-semibold
+                       {% if row.balance_side == 'Dr' %}
+                         text-emerald-700
+                       {% else %}
+                         text-red-700
+                       {% endif %}"
+              >
+                ₨ {{ row.balance_abs|floatformat:2 }}
+                <span class="text-xs text-slate-500">
+                  ({{ row.balance_side }})
+                </span>
+              </span>
+            </td>
+            <td class="px-4 py-2 text-right">
+              <a
+                href="{% url 'ledger_detail' party_kind row.party.id %}"
+                class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                 ledger
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="px-4 py-6 text-center text-slate-500">
+              No parties with remaining balance for this filter.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Businesses table . moved to bottom #}
+  <div class="mt-10">
+    <div class="mb-3">
+      <h2 class="text-lg font-semibold">Businesses List</h2>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="text-left px-4 py-2">Code</th>
+            <th class="text-left px-4 py-2">Name</th>
+            <th class="text-left px-4 py-2">Legal Name</th>
+            <th class="text-left px-4 py-2">Phone</th>
+            <th class="text-left px-4 py-2">Email</th>
+            <th class="text-left px-4 py-2">Active</th>
+            <th class="text-right px-4 py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in businesses %}
+          <tr class="border-t">
+            <td class="px-4 py-2">{{ b.code }}</td>
+            <td class="px-4 py-2">{{ b.name }}</td>
+            <td class="px-4 py-2">{{ b.legal_name }}</td>
+            <td class="px-4 py-2">{{ b.phone }}</td>
+            <td class="px-4 py-2">{{ b.email }}</td>
+            <td class="px-4 py-2">
+              {% if b.is_active %}
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200"
+              >
+                Active
+              </span>
+              {% else %}
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-slate-100 text-slate-700 border border-slate-200"
+              >
+                Inactive
+              </span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2 text-right">
+              <a
+                href="{% url 'business_edit' b.id %}"
+                class="underline text-slate-700 hover:text-black mr-3"
+              >
+                Edit
+              </a>
+
+              <form
+                method="post"
+                action="{% url 'business_delete' b.id %}"
+                class="inline"
+                onsubmit="return confirm('Delete this business?')"
+              >
+                {% csrf_token %}
+                <button class="text-rose-600 hover:text-rose-700 underline">
+                  Delete
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-4 py-6 text-center text-slate-500">
+              No businesses yet . click
+              <span class="font-semibold">+ New Business</span> to add your first
+              one.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="flex items-center justify-between mt-4 text-sm">
+      <div>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</div>
+      <div class="space-x-2">
+        {% if page_obj.has_previous %}
+        <a
+          href="?page={{ page_obj.previous_page_number }}&kind={{ party_kind }}{% if party_q %}&q={{ party_q|urlencode }}{% endif %}{% if party_date_from %}&date_from={{ party_date_from|date:'Y-m-d' }}{% endif %}{% if party_date_to %}&date_to={{ party_date_to|date:'Y-m-d' }}{% endif %}"
+          class="px-3 py-1 rounded border hover:bg-slate-50"
+        >
+          Prev
+        </a>
+        {% else %}
+        <span class="px-3 py-1 rounded border text-slate-400">Prev</span>
+        {% endif %}
+
+        {% if page_obj.has_next %}
+        <a
+          href="?page={{ page_obj.next_page_number }}&kind={{ party_kind }}{% if party_q %}&q={{ party_q|urlencode }}{% endif %}{% if party_date_from %}&date_from={{ party_date_from|date:'Y-m-d' }}{% endif %}{% if party_date_to %}&date_to={{ party_date_to|date:'Y-m-d' }}{% endif %}"
+          class="px-3 py-1 rounded border hover:bg-slate-50"
+        >
+          Next
+        </a>
+        {% else %}
+        <span class="px-3 py-1 rounded border text-slate-400">Next</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

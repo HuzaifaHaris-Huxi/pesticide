@@ -1,0 +1,460 @@
+{% extends "base.html"%}
+{% load static %}
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="file-text" class="w-7 h-7"></i>
+      <span>Sales Orders — {{ business.name }}</span>
+    </h1>
+
+    <a href="{% url 'so_add' %}?business={{ business.id }}"
+       class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">
+      + New Order
+    </a>
+  </div>
+
+  {# Tabs #}
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      <a href="{% url 'so_list' %}"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium text-slate-600 border-slate-300 hover:bg-slate-200">
+        All
+      </a>
+
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        {% if b.id == business.id %}
+          <a href="{% url 'so_list_business' b.id %}"
+             aria-current="page"
+             data-tint="{{ color }}"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+            {{ b.name }}
+          </a>
+        {% else %}
+          <a href="{% url 'so_list_business' b.id %}"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                    text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+            {{ b.name }}
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Filters #}
+  <form id="filterForm" method="get" class="mb-3 flex flex-wrap items-end gap-2">
+    <div class="flex flex-col">
+      <label class="text-xs text-slate-600 mb-1">Search</label>
+      <input name="q" id="qInput" value="{{ q }}" type="search"
+             placeholder="Search customer, status, id…"
+             class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    </div>
+
+    <div class="flex flex-col">
+      <label class="text-xs text-slate-600 mb-1">From</label>
+      <input type="date" name="from" id="fromInput" value="{{ date_from }}"
+             class="rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    </div>
+
+    <div class="flex flex-col">
+      <label class="text-xs text-slate-600 mb-1">To</label>
+      <input type="date" name="to" id="toInput" value="{{ date_to }}"
+             class="rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    </div>
+
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">Apply</button>
+    <a href="{% url 'so_list_business' business.id %}" class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">Reset</a>
+
+    <div class="ml-auto flex gap-2">
+      <button type="button" data-range="today" class="px-3 py-2 rounded-lg border hover:bg-slate-50">Today</button>
+      <button type="button" data-range="yesterday" class="px-3 py-2 rounded-lg border hover:bg-slate-50">Yesterday</button>
+      <button type="button" data-range="week" class="px-3 py-2 rounded-lg border hover:bg-slate-50">This Week</button>
+      <button type="button" data-range="month" class="px-3 py-2 rounded-lg border hover:bg-slate-50">This Month</button>
+      <button type="button" data-range="year" class="px-3 py-2 rounded-lg border hover:bg-slate-50">This Year</button>
+    </div>
+  </form>
+
+  {# Totals bar #}
+  <div class="mb-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div class="rounded-lg border bg-white p-3">
+      <div class="text-xs text-slate-500">Subtotal</div>
+      <div class="text-lg font-semibold">₨ {{ totals.total_subtotal|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border bg-white p-3">
+      <div class="text-xs text-slate-500">Net Total</div>
+      <div class="text-lg font-semibold">₨ {{ totals.total_net|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border bg-white p-3">
+      <div class="text-xs text-slate-500">Receiving</div>
+      <div class="text-lg font-semibold">₨ {{ totals.total_paid|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border bg-white p-3">
+      <div class="text-xs text-slate-500">Remaining</div>
+      <div class="text-lg font-semibold">₨ {{ totals.total_remaining|floatformat:2 }}</div>
+    </div>
+  </div>
+
+  {# Optional debug to confirm detected paths #}
+  {# <div class="text-xs text-slate-500 mb-3">Detected: items → {{ debug_paths.item_sum_path }}, payments → {{ debug_paths.payment_sum_path }}</div> #}
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Order #</th>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Customer</th>
+          <th class="px-4 py-2 text-left">Status</th>
+          <th class="px-4 py-2 text-right">Subtotal</th>
+          <th class="px-4 py-2 text-right">Receiving</th>
+          <th class="px-4 py-2 text-right">Remaining</th>
+          <th class="px-4 py-2 text-right">Net Total</th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="soBody" class="transition-colors">
+        {% for so in orders %}
+          <tr class="border-t">
+            <td class="px-4 py-2">#{{ so.id }}</td>
+            <td class="px-4 py-2">{{ so.created_at|date:"Y-m-d" }}</td>
+            <td class="px-4 py-2">
+              {% if so.customer_id %}{{ so.customer.display_name }}{% else %}{{ so.customer_name|default:"Walk-in" }}{% endif %}
+            </td>
+            <td class="px-4 py-2">
+              <select class="status-select text-xs rounded border px-2 py-1" 
+                      data-order-id="{{ so.id }}"
+                      data-current-status="{{ so.status }}">
+                {% for value, label in so.Status.choices %}
+                  <option value="{{ value }}" {% if so.status == value %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="px-4 py-2 text-right">₨ {{ so.subtotal|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">₨ {{ so.paid_amount|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">₨ {{ so.remaining|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right font-semibold">₨ {{ so.net|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right whitespace-nowrap">
+              <button type="button" 
+                      class="print-order-btn inline-flex items-center gap-1 rounded-md border border-emerald-300 text-emerald-700 px-2 py-1 text-xs hover:bg-emerald-50"
+                      data-order-id="{{ so.id }}"
+                      data-business-id="{{ so.business.id }}"
+                      title="Print Order">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print
+              </button>
+              <a href="{% url 'so_edit' so.pk %}"
+                 class="inline-flex items-center gap-1 rounded-md border border-indigo-300 text-indigo-700 px-2 py-1 text-xs hover:bg-indigo-50 ml-1">Edit</a>
+              <a href="{% url 'so_delete' so.pk %}"
+                 class="inline-flex items-center gap-1 rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50 ml-1">Delete</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" class="px-4 py-6 text-center text-slate-500">
+              No sales orders for {{ business.name }}.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <div class="mt-4 flex items-center gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&from={{ date_from }}&to={{ date_to }}" class="px-3 py-1 border rounded">Prev</a>
+      {% endif %}
+      <span class="text-sm text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&from={{ date_from }}&to={{ date_to }}" class="px-3 py-1 border rounded">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if has_cancellation_password %}
+  {# Cancel order: password confirmation modal #}
+  <div id="cancelOrderModal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-black/50" aria-hidden="true">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6" role="dialog" aria-labelledby="cancelOrderModalTitle" aria-modal="true">
+      <h3 id="cancelOrderModalTitle" class="text-lg font-semibold text-slate-800 mb-2">Cancel this order?</h3>
+      <p class="text-sm text-slate-600 mb-4">
+        This will reverse stock (add quantities back), delete all payments, and cannot be undone easily. Enter your <strong>cancellation password</strong> (from User Settings) to confirm.
+      </p>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Cancellation password</label>
+      <input type="password" id="cancelOrderPassword" autocomplete="off"
+             class="w-full rounded-lg border border-slate-300 px-3 py-2 mb-4"
+             placeholder="Enter cancellation password" />
+      <p id="cancelOrderError" class="text-sm text-rose-600 mb-3 hidden"></p>
+      <div class="flex gap-2 justify-end">
+        <button type="button" id="cancelOrderModalCancel" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">Cancel</button>
+        <button type="button" id="cancelOrderModalConfirm" class="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700">Confirm cancel</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block all_scripts %}
+<script>
+  // debounce helper
+  function debounce(fn, wait) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), wait); };
+  }
+
+  // live search on keypress
+  const qInput = document.getElementById('qInput');
+  const form = document.getElementById('filterForm');
+  if (qInput && form) qInput.addEventListener('keyup', debounce(() => form.submit(), 350));
+
+  // quick date ranges
+  const fromI = document.getElementById('fromInput');
+  const toI = document.getElementById('toInput');
+  const tzLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const setRange = (start, end) => { fromI.value = tzLocalISO(start); toI.value = tzLocalISO(end); form.submit(); };
+
+  document.querySelectorAll('button[data-range]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const label = btn.getAttribute('data-range');
+      if (label === 'today') setRange(today, today);
+      else if (label === 'yesterday') { const y = new Date(today); y.setDate(y.getDate()-1); setRange(y, y); }
+      else if (label === 'week') { const wd = today.getDay() || 7; const mon = new Date(today); mon.setDate(today.getDate()-(wd-1)); const sun = new Date(mon); sun.setDate(mon.getDate()+6); setRange(mon, sun); }
+      else if (label === 'month') { const s = new Date(today.getFullYear(), today.getMonth(), 1); const e = new Date(today.getFullYear(), today.getMonth()+1, 0); setRange(s, e); }
+      else if (label === 'year') { const s = new Date(today.getFullYear(), 0, 1); const e = new Date(today.getFullYear(), 11, 31); setRange(s, e); }
+    });
+  });
+
+  // Cancel-order modal: show / hide / confirm
+  const cancelModal = document.getElementById('cancelOrderModal');
+  const cancelPasswordInput = document.getElementById('cancelOrderPassword');
+  const cancelErrorEl = document.getElementById('cancelOrderError');
+  const cancelModalCancelBtn = document.getElementById('cancelOrderModalCancel');
+  const cancelModalConfirmBtn = document.getElementById('cancelOrderModalConfirm');
+
+  function showCancelModal() {
+    if (!cancelModal) return;
+    cancelModal.classList.remove('hidden');
+    if (cancelPasswordInput) cancelPasswordInput.value = '';
+    if (cancelErrorEl) { cancelErrorEl.textContent = ''; cancelErrorEl.classList.add('hidden'); }
+    setTimeout(() => cancelPasswordInput?.focus(), 50);
+  }
+  function hideCancelModal() {
+    if (!cancelModal) return;
+    cancelModal.classList.add('hidden');
+  }
+
+  let pendingCancel = null;
+
+  function doStatusUpdate(select, orderId, newStatus, cancellationPassword) {
+    const formData = new FormData();
+    formData.append('status', newStatus);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    if (cancellationPassword) formData.append('cancellation_password', cancellationPassword);
+    const url = `{% url 'so_update_status' 0 %}`.replace('0', orderId);
+    return fetch(url, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(r => r.json());
+  }
+
+  if (cancelModalCancelBtn) {
+    cancelModalCancelBtn.addEventListener('click', () => {
+      hideCancelModal();
+      if (pendingCancel) { pendingCancel.select.value = pendingCancel.oldStatus; pendingCancel = null; }
+    });
+  }
+  if (cancelModalConfirmBtn && cancelPasswordInput) {
+    cancelModalConfirmBtn.addEventListener('click', async () => {
+      if (!pendingCancel) return;
+      const password = cancelPasswordInput.value.trim();
+      if (!password) {
+        if (cancelErrorEl) { cancelErrorEl.textContent = 'Please enter the cancellation password.'; cancelErrorEl.classList.remove('hidden'); }
+        return;
+      }
+      cancelModalConfirmBtn.disabled = true;
+      if (cancelErrorEl) { cancelErrorEl.textContent = ''; cancelErrorEl.classList.add('hidden'); }
+      try {
+        const data = await doStatusUpdate(pendingCancel.select, pendingCancel.orderId, 'cancelled', password);
+        if (data.ok) {
+          pendingCancel.select.dataset.currentStatus = 'cancelled';
+          pendingCancel.select.value = 'cancelled';
+          const row = pendingCancel.select.closest('tr');
+          if (row) { row.style.backgroundColor = '#dcfce7'; setTimeout(() => { row.style.backgroundColor = ''; }, 2000); }
+          hideCancelModal();
+          pendingCancel = null;
+        } else {
+          if (cancelErrorEl) { cancelErrorEl.textContent = data.error || 'Failed to cancel.'; cancelErrorEl.classList.remove('hidden'); }
+        }
+      } catch (e) {
+        if (cancelErrorEl) { cancelErrorEl.textContent = 'Network error. Please try again.'; cancelErrorEl.classList.remove('hidden'); }
+      } finally {
+        cancelModalConfirmBtn.disabled = false;
+      }
+    });
+  }
+
+  // Status dropdown change handler
+  document.querySelectorAll('.status-select').forEach(select => {
+    select.addEventListener('change', async function() {
+      const orderId = this.dataset.orderId;
+      const newStatus = this.value;
+      const oldStatus = this.dataset.currentStatus;
+      if (newStatus === 'cancelled' && oldStatus !== 'cancelled') {
+        if (cancelModal) {
+          this.value = oldStatus;
+          pendingCancel = { select: this, orderId, oldStatus };
+          showCancelModal();
+          return;
+        }
+      }
+      this.disabled = true;
+      try {
+        const data = await doStatusUpdate(this, orderId, newStatus, null);
+        if (data.ok) {
+          this.dataset.currentStatus = data.status || newStatus;
+          this.value = data.status || newStatus;
+          const row = this.closest('tr');
+          if (row) { row.style.backgroundColor = '#dcfce7'; setTimeout(() => { row.style.backgroundColor = ''; }, 2000); }
+        } else {
+          alert('Error: ' + (data.error || 'Failed to update status'));
+          this.value = oldStatus;
+        }
+      } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Error updating status. Please try again.');
+        this.value = oldStatus;
+      } finally {
+        this.disabled = false;
+      }
+    });
+  });
+
+  // tint tbody based on active business tab color
+  (function () {
+    const activeTab = document.querySelector('[aria-current="page"][data-tint]');
+    const tint = activeTab ? activeTab.getAttribute("data-tint") : "slate";
+    const tblBody = document.getElementById("soBody");
+    const map = { indigo: "bg-indigo-200", emerald: "bg-emerald-200", rose: "bg-rose-200", amber: "bg-amber-200", slate: "bg-slate-200" };
+    Object.values(map).forEach(c => tblBody.classList.remove(c));
+    tblBody.classList.add(map[tint] || "bg-slate-50");
+  })();
+
+  // Print Order functionality
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function showToast(message, type = 'info') {
+    const existingToast = document.querySelector('.app-toast');
+    if (existingToast) existingToast.remove();
+
+    const colors = {
+      info: 'bg-blue-600',
+      success: 'bg-emerald-600',
+      error: 'bg-red-600'
+    };
+
+    const icons = {
+      info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />',
+      error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = 'app-toast';
+    const bgColor = colors[type] || colors.info;
+    toast.innerHTML = `
+      <div style="position: fixed; top: 20px; right: 20px; z-index: 9999;
+                  ${bgColor} color: white; padding: 16px 20px;
+                  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                  animation: slideInRight 0.3s ease-out;
+                  font-size: 14px; font-weight: 500; min-width: 300px; max-width: 500px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            ${icons[type]}
+          </svg>
+          <div style="flex: 1;">${message}</div>
+        </div>
+      </div>
+      <style>
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      </style>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.animation = 'slideInRight 0.3s ease-in reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  document.querySelectorAll('.print-order-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      if (this.disabled) return;
+      
+      const orderId = this.getAttribute('data-order-id');
+      const businessId = this.getAttribute('data-business-id');
+      
+      if (!orderId || !businessId) {
+        showToast('Missing order or business information', 'error');
+        return;
+      }
+
+      // Disable button and show loading state
+      this.disabled = true;
+      const originalHTML = this.innerHTML;
+      this.innerHTML = `
+        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Printing...</span>
+      `;
+
+      try {
+        const url = `{% url 'pos_print_order' 0 %}?business=${encodeURIComponent(businessId)}&width_kind=80mm`.replace('0', orderId);
+        const csrftoken = getCookie('csrftoken') || '{{ csrf_token }}';
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+          showToast(`Order #${orderId} printed successfully!`, 'success');
+        } else {
+          showToast('Error: ' + (data.error || 'Failed to print order'), 'error');
+        }
+      } catch (error) {
+        console.error('Print error:', error);
+        showToast('Error: ' + (error.message || 'Failed to print order'), 'error');
+      } finally {
+        this.disabled = false;
+        this.innerHTML = originalHTML;
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,468 @@
+{# templates/barkat/finance/movement_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">
+      {% if object %}Edit{% else %}Add{% endif %} Movement
+    </h1>
+    <a href="{% url 'movement_list' %}" class="text-slate-700 hover:underline">
+      Back to list
+    </a>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="mb-4 p-3 rounded bg-red-50 text-red-700">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <form method="post"
+        class="bg-white p-6 rounded-xl border border-slate-200 space-y-5">
+    {% csrf_token %}
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Date</label>
+        {{ form.date }}
+        {{ form.date.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Type</label>
+        {{ form.movement_type }}
+        {{ form.movement_type.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Amount</label>
+        {{ form.amount }}
+        <p class="text-xs text-slate-500 mt-1 hidden" id="amount-help">
+          For cheque deposit. amount is auto calculated from selected cheques.
+        </p>
+        {{ form.amount.errors }}
+      </div>
+
+      {# Closing cash in hand helper. only relevant for Cash to Bank #}
+      <div class="md:col-span-2" id="cash-in-hand-wrapper"
+           data-closing-cash="{{ cash_in_hand|default:'0.00' }}">
+        <div class="flex items-center gap-2">
+          {{ form.use_cash_in_hand }}
+          <label for="id_use_cash_in_hand" class="text-sm">
+            Use closing cash in hand
+            <span class="font-semibold">
+              ({{ cash_in_hand_display|default:"0.00" }})
+            </span>
+            for this Cash to Bank deposit
+          </label>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">
+          This value is computed from payments and expenses. same logic as Finance Reports.
+        </p>
+        <p id="closing-cash-info"
+           class="text-xs text-slate-500 mt-1 hidden">
+          When checked. the full closing cash in hand for this date will be used as the deposit amount from Cash to Bank.
+        </p>
+      </div>
+
+      <div id="from-bank-wrapper">
+        <label class="block text-sm mb-1">From (Bank)</label>
+        {{ form.from_bank }}
+        {{ form.from_bank.errors }}
+        <p class="text-xs text-slate-500 mt-1">
+          Leave blank to indicate Cash.
+        </p>
+      </div>
+
+      <div id="to-bank-wrapper">
+        <label class="block text-sm mb-1">To (Bank)</label>
+        {{ form.to_bank }}
+        {{ form.to_bank.errors }}
+        <p class="text-xs text-slate-500 mt-1">
+          Leave blank to indicate Cash.
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Method</label>
+        {{ form.method }}
+        {{ form.method.errors }}
+      </div>
+
+      <div>
+        <label class="block text-sm mb-1">Reference #</label>
+        {{ form.reference_no }}
+        {{ form.reference_no.errors }}
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm mb-1">Notes</label>
+        {{ form.notes }}
+        {{ form.notes.errors }}
+      </div>
+    </div>
+
+    {# Pending cheques block. only for movement_type = cheque_deposit #}
+    <div id="cheque-block"
+         class="mt-4 hidden"
+         data-cheque-amounts='{{ cheque_amounts|default:"{}"|escapejs }}'>
+      <label class="block text-sm font-medium mb-1">
+        Pending cheques to deposit
+      </label>
+
+      <div class="flex items-center mb-2 text-xs text-slate-700">
+        <input type="checkbox" id="cheques-select-all" class="mr-2">
+        <label for="cheques-select-all">Select all pending cheques</label>
+      </div>
+
+      <div class="border border-slate-200 rounded-lg max-h-64 overflow-y-auto px-3 py-2 bg-slate-50">
+        {{ form.cheques }}
+      </div>
+
+      {% for error in form.cheques.errors %}
+        <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    {# Cheque payment block. Bank to Cheque #}
+    <div id="cheque-payment-block" class="mt-4 hidden">
+      <h2 class="text-sm font-semibold mb-2">Cheque payment details</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm mb-1">Party (vendor)</label>
+          {{ form.party }}
+          {% for error in form.party.errors %}
+            <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1">Purchase order</label>
+
+          {# manual select so we can add data-party and date in the label #}
+          <select name="purchase_order"
+                  id="id_purchase_order"
+                  class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <option value="">---------</option>
+            {% with current_po_id=form.purchase_order.value %}
+              {% for po in form.fields.purchase_order.queryset %}
+                <option value="{{ po.id }}"
+                        data-party="{{ po.supplier_id }}"
+                        {% if current_po_id|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
+                  PO #{{ po.id }} . {{ po.supplier.display_name }} . {{ po.created_at|date:"Y-m-d" }}
+                </option>
+              {% endfor %}
+            {% endwith %}
+          </select>
+
+          {% for error in form.purchase_order.errors %}
+            <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+          {% endfor %}
+
+          <p class="text-xs text-slate-500 mt-1">
+            Only purchase orders for the selected party will be shown.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <button class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800">
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function() {
+    const typeSelect      = document.getElementById("id_movement_type");
+    const chequeBlock     = document.getElementById("cheque-block");
+    const fromWrapper     = document.getElementById("from-bank-wrapper");
+    const toWrapper       = document.getElementById("to-bank-wrapper");
+    const amountInput     = document.getElementById("id_amount");
+    const amountHelp      = document.getElementById("amount-help");
+    const selectAll       = document.getElementById("cheques-select-all");
+    const cashWrapper     = document.getElementById("cash-in-hand-wrapper");
+    const closingCashInfo = document.getElementById("closing-cash-info");
+    const useCashCheckbox = document.getElementById("id_use_cash_in_hand");
+
+    const chequePaymentBlock = document.getElementById("cheque-payment-block");
+    const partySelect        = document.getElementById("id_party");
+    const poSelect           = document.getElementById("id_purchase_order");
+
+    let chequeAmounts = {};
+    let closingCashVal = 0;
+
+    // Keep original list of all purchase orders
+    let allPoOptions = [];
+    if (poSelect) {
+      allPoOptions = Array.from(poSelect.options);
+    }
+
+    if (chequeBlock) {
+      const raw = chequeBlock.getAttribute("data-cheque-amounts");
+      if (raw) {
+        try {
+          chequeAmounts = JSON.parse(raw);
+        } catch (e) {
+          chequeAmounts = {};
+        }
+      }
+    }
+
+    if (cashWrapper) {
+      const rawClosing = cashWrapper.getAttribute("data-closing-cash");
+      if (rawClosing) {
+        const parsed = parseFloat(rawClosing);
+        closingCashVal = isNaN(parsed) ? 0 : parsed;
+      }
+    }
+
+    function recalcAmountFromCheques() {
+      if (!amountInput || !chequeBlock) return;
+      if (!typeSelect || typeSelect.value !== "cheque_deposit") return;
+
+      const chequeInputs = chequeBlock.querySelectorAll("input[type='checkbox'][name='cheques']");
+      let total = 0;
+      chequeInputs.forEach(function(input) {
+        if (input.checked) {
+          const v = input.value;
+          const amt = parseFloat(chequeAmounts[v] || "0");
+          if (!isNaN(amt)) {
+            total += amt;
+          }
+        }
+      });
+      amountInput.value = total.toFixed(2);
+    }
+
+    function isChequeDepositType(val) {
+      return val === "cheque_deposit";
+    }
+
+    function isCashDepositType(val) {
+      return val === "deposit" || val === "cash_deposit";
+    }
+
+    function isChequePaymentType(val) {
+      return val === "cheque_payment"; // your new code
+    }
+
+    // Filter purchase orders by selected party in the front end
+    function filterPurchaseOrdersByParty() {
+      if (!partySelect || !poSelect || !allPoOptions.length) return;
+      const partyId = partySelect.value;
+      const currentValue = poSelect.value;
+
+      // Clear current options
+      poSelect.innerHTML = "";
+
+      // Re add options that match party id. always keep blank
+      allPoOptions.forEach(function(opt) {
+        const optParty = opt.getAttribute("data-party");
+
+        if (!opt.value) {
+          poSelect.appendChild(opt);
+        } else if (!partyId || optParty === partyId) {
+          poSelect.appendChild(opt);
+        }
+      });
+
+      // Try to keep previous selection if still valid
+      if (currentValue) {
+        const stillExists = poSelect.querySelector('option[value="' + currentValue + '"]');
+        if (stillExists) {
+          poSelect.value = currentValue;
+        } else {
+          poSelect.value = "";
+        }
+      } else {
+        poSelect.value = "";
+      }
+    }
+
+    function updateUI() {
+      if (!typeSelect) return;
+      const val = typeSelect.value;
+
+      const chequeMode        = isChequeDepositType(val);
+      const cashDepositMode   = isCashDepositType(val);
+      const chequePaymentMode = isChequePaymentType(val);
+
+      // Cheque deposit mode
+      if (chequeMode) {
+        if (chequeBlock) chequeBlock.classList.remove("hidden");
+        if (fromWrapper) fromWrapper.classList.add("hidden");
+        if (toWrapper) toWrapper.classList.remove("hidden");
+
+        if (amountInput) {
+          amountInput.readOnly = true;
+          amountInput.placeholder = "Auto. sum of selected cheques";
+        }
+        if (amountHelp) {
+          amountHelp.textContent = "For cheque deposit. amount is auto calculated from selected cheques.";
+          amountHelp.classList.remove("hidden");
+        }
+
+        if (cashWrapper) cashWrapper.classList.add("hidden");
+        if (closingCashInfo) closingCashInfo.classList.add("hidden");
+        if (useCashCheckbox) {
+          useCashCheckbox.checked = false;
+        }
+
+        if (chequePaymentBlock) chequePaymentBlock.classList.add("hidden");
+
+        recalcAmountFromCheques();
+        return;
+      }
+
+      // Cheque payment mode. Bank to Cheque to Purchase order
+      if (chequePaymentMode) {
+        if (chequeBlock) chequeBlock.classList.add("hidden");
+
+        if (fromWrapper) fromWrapper.classList.remove("hidden");
+        if (toWrapper) toWrapper.classList.add("hidden");
+
+        if (chequePaymentBlock) chequePaymentBlock.classList.remove("hidden");
+
+        if (cashWrapper) cashWrapper.classList.add("hidden");
+        if (closingCashInfo) closingCashInfo.classList.add("hidden");
+        if (useCashCheckbox) {
+          useCashCheckbox.checked = false;
+        }
+
+        if (amountHelp) amountHelp.classList.add("hidden");
+        if (amountInput) {
+          amountInput.readOnly = false;
+          amountInput.placeholder = "";
+        }
+
+        // Filter POs now. based on selected party
+        filterPurchaseOrdersByParty();
+        return;
+      }
+
+      // Non cheque modes
+      if (chequeBlock) chequeBlock.classList.add("hidden");
+      if (chequePaymentBlock) chequePaymentBlock.classList.add("hidden");
+      if (fromWrapper) fromWrapper.classList.remove("hidden");
+      if (toWrapper) toWrapper.classList.remove("hidden");
+
+      if (cashDepositMode) {
+        if (cashWrapper) cashWrapper.classList.remove("hidden");
+        if (amountInput && useCashCheckbox && useCashCheckbox.checked) {
+          amountInput.readOnly = true;
+        } else if (amountInput) {
+          amountInput.readOnly = false;
+        }
+
+        if (closingCashInfo && useCashCheckbox && useCashCheckbox.checked) {
+          closingCashInfo.classList.remove("hidden");
+        } else if (closingCashInfo) {
+          closingCashInfo.classList.add("hidden");
+        }
+
+        if (amountHelp) {
+          if (useCashCheckbox && useCashCheckbox.checked) {
+            amountHelp.textContent = "Using closing cash in hand for this Cash to Bank deposit.";
+            amountHelp.classList.remove("hidden");
+          } else {
+            amountHelp.classList.add("hidden");
+          }
+        }
+      } else {
+        if (cashWrapper) cashWrapper.classList.add("hidden");
+        if (closingCashInfo) closingCashInfo.classList.add("hidden");
+        if (useCashCheckbox) {
+          useCashCheckbox.checked = false;
+        }
+        if (amountInput) {
+          amountInput.readOnly = false;
+          amountInput.placeholder = "";
+        }
+        if (amountHelp) {
+          amountHelp.classList.add("hidden");
+        }
+      }
+    }
+
+    // listen to change on movement type
+    if (typeSelect) {
+      typeSelect.addEventListener("change", function() {
+        updateUI();
+      });
+    }
+
+    // listen to cheque selection changes
+    if (chequeBlock) {
+      chequeBlock.addEventListener("change", function(e) {
+        const target = e.target;
+        if (target && target.name === "cheques") {
+          recalcAmountFromCheques();
+        }
+      });
+    }
+
+    // select all toggle
+    if (selectAll && chequeBlock) {
+      selectAll.addEventListener("change", function() {
+        const chequeInputs = chequeBlock.querySelectorAll("input[type='checkbox'][name='cheques']");
+        chequeInputs.forEach(function(input) {
+          input.checked = selectAll.checked;
+        });
+        recalcAmountFromCheques();
+      });
+    }
+
+    // closing cash checkbox logic
+    if (useCashCheckbox && amountInput) {
+      useCashCheckbox.addEventListener("change", function() {
+        if (!typeSelect) return;
+        const val = typeSelect.value;
+
+        if (!isCashDepositType(val)) {
+          if (closingCashInfo) closingCashInfo.classList.add("hidden");
+          return;
+        }
+
+        if (useCashCheckbox.checked) {
+          amountInput.value = closingCashVal.toFixed(2);
+          amountInput.readOnly = true;
+          if (closingCashInfo) closingCashInfo.classList.remove("hidden");
+          if (amountHelp) {
+            amountHelp.textContent = "Using closing cash in hand for this Cash to Bank deposit.";
+            amountHelp.classList.remove("hidden");
+          }
+        } else {
+          amountInput.readOnly = false;
+          if (closingCashInfo) closingCashInfo.classList.add("hidden");
+          if (amountHelp) {
+            amountHelp.classList.add("hidden");
+          }
+        }
+      });
+    }
+
+    // party change should filter purchase orders when in cheque_payment mode
+    if (partySelect) {
+      partySelect.addEventListener("change", function() {
+        if (!typeSelect) return;
+        if (isChequePaymentType(typeSelect.value)) {
+          filterPurchaseOrdersByParty();
+        }
+      });
+    }
+
+    // initial state on page load
+    updateUI();
+
+    // if we are editing an existing cheque payment. filter POs once
+    if (partySelect && poSelect && isChequePaymentType(typeSelect ? typeSelect.value : "")) {
+      filterPurchaseOrdersByParty();
+    }
+  })();
+</script>
+{% endblock %}

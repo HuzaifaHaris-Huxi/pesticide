@@ -1,0 +1,1369 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">Purchase Return</h1>
+    <a href="{% url 'pr_list' %}" class="text-slate-700 hover:underline">Back to list</a>
+  </div>
+
+  <form method="post" class="space-y-6" id="prForm">
+    {% csrf_token %}
+
+    <!-- Top: Business / Supplier / Status -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 grid md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Business</label>
+        {{ form.business }} {{ form.business.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Supplier</label>
+        {{ form.supplier }} {{ form.supplier.errors }}
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Status</label>
+        {{ form.status }} {{ form.status.errors }}
+      </div>
+    </div>
+
+    <!-- Quick Add Item Section -->
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm p-3 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
+        <!-- Barcode Input -->
+        <div class="md:col-span-3">
+          <label class="block text-[10px] font-semibold text-slate-700 mb-1">Barcode</label>
+          <div class="relative">
+            <input type="text" id="quickBarcode"
+                   class="w-full rounded-lg border-2 border-slate-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Scan or type barcode">
+            <ul id="quickBarcodeSuggest"
+                class="absolute z-30 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg hidden max-h-52 overflow-auto"></ul>
+          </div>
+        </div>
+
+        <!-- Product Name -->
+        <div class="md:col-span-3">
+          <label class="block text-[10px] font-semibold text-slate-700 mb-1">Product Name</label>
+          <div class="relative">
+            <input type="text" id="quickProductSearch"
+                   class="w-full rounded-lg border-2 border-slate-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Search product...">
+            <ul id="quickProductSuggest"
+                class="absolute z-30 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg hidden max-h-60 overflow-auto"></ul>
+          </div>
+          <input type="hidden" id="quickProductId">
+          <span id="quickProductUnit" class="text-[10px] text-slate-600 mt-0.5 block"></span>
+        </div>
+
+        <!-- Unit Toggle -->
+        <div class="md:col-span-1">
+          <label class="block text-[10px] font-semibold text-slate-700 mb-1">Unit</label>
+          <button type="button" id="quickUnitToggle"
+                  class="w-full px-2 py-1.5 text-xs border-2 border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer text-center"
+                  data-current-unit="bulk"
+                  title="Click to toggle between units">
+            <span id="quickUnitLabel">--</span>
+          </button>
+          <input type="hidden" id="quickUomId">
+          <input type="hidden" id="quickSizePerUnit" value="1.000000">
+        </div>
+
+        <!-- Quantity -->
+        <div class="md:col-span-2">
+          <label class="block text-[10px] font-semibold text-slate-700 mb-1">Quantity</label>
+          <input type="number" id="quickQty"
+                 class="w-full rounded-lg border-2 border-slate-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="1" step="0.000001" min="0" value="1">
+        </div>
+
+        <!-- Purchase Price -->
+        <div class="md:col-span-2">
+          <label class="block text-[10px] font-semibold text-slate-700 mb-1">Unit Price</label>
+          <input type="number" id="quickPrice"
+                 class="w-full rounded-lg border-2 border-slate-300 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="0.00" step="0.01" min="0">
+        </div>
+
+        <!-- Add Button -->
+        <div class="md:col-span-1 flex items-end">
+          <button type="button" id="quickAddBtn"
+                  class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <!-- 2/3 Items -->
+      <div class="md:col-span-2">
+        <div class="bg-white p-6 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-medium">Items</h2>
+            <button type="button" id="addRow" class="px-3 py-2 rounded-md border border-slate-300 hover:bg-slate-50 text-sm">
+              + Add Row
+            </button>
+          </div>
+
+          {{ formset.management_form }}
+
+          <table class="min-w-full text-sm" id="itemsTable">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-4 py-2 text-left">Product</th>
+                <th class="px-4 py-2 text-left">Unit</th>
+                <th class="px-4 py-2 text-left">Qty</th>
+                <th class="px-4 py-2 text-left">Unit Price</th>
+                <th class="px-4 py-2 text-right">Line Total</th>
+                <th class="px-4 py-2 text-right">Remove</th>
+              </tr>
+            </thead>
+            <tbody id="itemBody">
+              {% for f in formset.forms %}
+              <tr class="border-t item-row" 
+                  data-row-index="{{ forloop.counter0 }}"
+                  data-item-id="{{ f.instance.id|default:'' }}"
+                  data-product-id="{{ f.instance.product_id|default:'' }}">
+                <td class="px-4 py-2">
+                  {{ f.id }} {{ f.product }} {{ f.product.errors }}
+                </td>
+                <td class="px-4 py-2">
+                  <button
+                    type="button"
+                    class="unit-toggle px-3 py-1 text-sm border border-slate-300 rounded hover:bg-slate-50 cursor-pointer"
+                    data-current-unit="lowest"
+                    title="Click to toggle between units"
+                  >
+                    <span class="unit-label">--</span>
+                  </button>
+                  {{ f.uom.as_hidden }}
+                  {{ f.size_per_unit.as_hidden }}
+                </td>
+                <td class="px-4 py-2 w-28">
+                  {{ f.quantity }} {{ f.quantity.errors }}
+                </td>
+                <td class="px-4 py-2 w-32">
+                  {{ f.unit_price }} {{ f.unit_price.errors }}
+                </td>
+                <td class="px-4 py-2 text-right">
+                  <span class="line-total">0.00</span>
+                </td>
+                <td class="px-4 py-2 text-right">
+                  {{ f.DELETE.as_hidden }}
+                  <button
+                    type="button"
+                    class="row-remove inline-flex items-center justify-center rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50"
+                    title="Remove"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="border-t">
+                <td colspan="4" class="px-4 py-2 text-right font-medium">Subtotal</td>
+                <td class="px-4 py-2 text-right font-semibold">₨ <span id="subtotal">0.00</span></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- 1/3 Totals & Refund -->
+      <div>
+        <div
+          class="bg-white p-6 rounded-xl border border-slate-200 space-y-4"
+          id="totalsCard"
+          data-refunded-so-far="{{ refunded_so_far|default:0 }}"
+          data-net-total="{{ object.net_total|default:0 }}"
+        >
+          <div>
+            <label class="block text-sm mb-1">Tax %</label>
+            {{ form.tax_percent }} {{ form.tax_percent.errors }}
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Discount %</label>
+            {{ form.discount_percent }} {{ form.discount_percent.errors }}
+          </div>
+
+          <div class="border-t pt-3 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-sm">Subtotal</span>
+              <span>₨ <span id="sum_subtotal">0.00</span></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm">+ Tax</span>
+              <span>₨ <span id="sum_tax">0.00</span></span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm">- Discount</span>
+              <span>₨ <span id="sum_disc">0.00</span></span>
+            </div>
+            <div class="flex items-center justify-between text-lg font-semibold mt-1">
+              <span>Net Total</span>
+              <span>₨ <span id="sum_net">0.00</span></span>
+            </div>
+
+            <!-- NEW: Refunded so far & Remaining -->
+            <div class="mt-3 grid grid-cols-2 gap-3">
+              <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div class="text-xs uppercase tracking-wide text-slate-500">Refunded so far</div>
+                <div class="text-base font-semibold">₨ <span id="refunded_so_far">{{ refunded_so_far|default:0 }}</span></div>
+              </div>
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div class="text-xs uppercase tracking-wide text-amber-700">Remaining</div>
+                <div class="text-base font-semibold text-amber-800">₨ <span id="remaining_amt">{{ remaining|default:0 }}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t pt-3 space-y-3">
+            <div>
+              <label class="block text-sm mb-1">Refund method</label>
+              {{ form.refund_method }} {{ form.refund_method.errors }}
+            </div>
+            <div id="bankWrap" class="hidden">
+              <label class="block text-sm mb-1">Bank account</label>
+              {{ form.bank_account }} {{ form.bank_account.errors }}
+            </div>
+            <div>
+              <label class="block text-sm mb-1">Refund amount</label>
+              {{ form.received_amount }} {{ form.received_amount.errors }}
+              <p class="text-xs text-slate-500 mt-1">
+                Hint: Remaining will auto-fill here when you open an existing return.
+              </p>
+            </div>
+          </div>
+
+          {% if previous_refunds %}
+          <div class="border-t pt-3">
+            <div class="text-sm font-medium mb-2">Previous refunds</div>
+            <ul class="mt-2 space-y-1 text-xs text-slate-600">
+              {% for ap in previous_refunds %}
+                <li>
+                  {{ ap.payment.date }} — ₨ {{ ap.amount|floatformat:2 }} —
+                  {% if ap.payment.payment_source == 'bank' and ap.payment.bank_account %}
+                    Bank: {{ ap.payment.bank_account.bank_name|default:ap.payment.bank_account.name }}{% if ap.payment.bank_account.account_number %} ({{ ap.payment.bank_account.account_number }}){% endif %}
+                  {% else %}
+                    Cash
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-2">
+      <button
+        id="btnPRSave"
+        type="submit"
+        class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800"
+      >
+        Save
+      </button>
+    </div>
+  </form>
+</div>
+
+
+<script>
+(function () {
+  // Products data from server - defined globally for use throughout the script
+  const PRODUCT_BY_BARCODE = {
+    {% for p in products_cards %}
+      {% if p.barcode %}
+      "{{ p.barcode|escapejs }}": {
+        id: "{{ p.id }}",
+        name: "{{ p.name|escapejs }}",
+        purchase_price: {{ p.purchase_price|floatformat:2 }},
+        uom_id: "{{ p.uom_id|default:'' }}",
+        uom_code: "{{ p.uom_code|escapejs }}",
+        bulk_uom_id: "{{ p.bulk_uom_id|default:'' }}",
+        bulk_uom_code: "{{ p.bulk_uom_code|escapejs }}",
+        bulk_size: {{ p.bulk_size|default:'1' }},
+        has_bulk: {{ p.has_bulk|yesno:"true,false" }},
+      },
+      {% endif %}
+    {% endfor %}
+  };
+
+  const PRODUCTS = [
+    {% for p in products_cards %}
+    {
+      id: "{{ p.id }}",
+      name: "{{ p.name|escapejs }}",
+      company_name: "{{ p.company_name|escapejs|default:'' }}",
+      purchase_price: {{ p.purchase_price|floatformat:2 }},
+      barcode: {% if p.barcode %}"{{ p.barcode|escapejs }}"{% else %}""{% endif %},
+      uom_id: "{{ p.uom_id|default:'' }}",
+      uom_code: "{{ p.uom_code|escapejs }}",
+      bulk_uom_id: "{{ p.bulk_uom_id|default:'' }}",
+      bulk_uom_code: "{{ p.bulk_uom_code|escapejs }}",
+      bulk_size: {{ p.bulk_size|default:'1' }},
+      has_bulk: {{ p.has_bulk|yesno:"true,false" }},
+      business_id: "{{ p.business_id|default:'' }}"
+    },
+    {% endfor %}
+  ];
+
+  // Helper function to get filtered products by selected business
+  function getFilteredProducts() {
+    const businessId = businessSelect ? businessSelect.value : "";
+    if (!businessId) {
+      return PRODUCTS;
+    }
+    return PRODUCTS.filter(p => p.business_id === businessId);
+  }
+
+  const body = document.getElementById("itemBody");
+  const addBtn = document.getElementById("addRow");
+  const totalEl = document.querySelector('[name$="TOTAL_FORMS"]');
+
+  const taxEl = document.getElementById("id_tax_percent");
+  const discEl = document.getElementById("id_discount_percent");
+  const sumSub = document.getElementById("sum_subtotal");
+  const sumTax = document.getElementById("sum_tax");
+  const sumDisc = document.getElementById("sum_disc");
+  const sumNet = document.getElementById("sum_net");
+  const subCell = document.getElementById("subtotal");
+
+  const refundMethod = document.getElementById("id_refund_method");
+  const bankWrap = document.getElementById("bankWrap");
+
+  // refunded so far & remaining
+  const totalsCard = document.getElementById("totalsCard");
+  const refundedSoFarEl = document.getElementById("refunded_so_far");
+  const remainingEl = document.getElementById("remaining_amt");
+  const receivedAmountInput = document.getElementById("id_received_amount");
+
+  // form submit protection
+  const form = document.getElementById("prForm");
+  const saveBtn = document.getElementById("btnPRSave");
+  let isSubmitting = false;
+
+  const businessSelect = document.getElementById("id_business");
+
+    function toNum(v) {
+      const n = parseFloat((v || "").toString().replace(/,/g, ""));
+      return isNaN(n) ? 0 : n;
+    }
+
+    function two(v) {
+      return (parseFloat(v || 0) || 0).toFixed(2);
+    }
+
+    // Product data cache: { product_id: { uom_id, uom_code, bulk_uom_id, bulk_uom_code, default_bulk_size } }
+    const productDataCache = {};
+
+    // Saved item unit data from server (for edit mode)
+    const itemUnitData = {{ item_unit_data|default:'{}'|safe }};
+
+    // Fetch product details from API
+    async function fetchProductData(productId) {
+      if (productDataCache[productId]) {
+        return productDataCache[productId];
+      }
+      try {
+        const resp = await fetch(`/api/product-detail/?product_id=${productId}`);
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        if (data.ok) {
+          productDataCache[productId] = data;
+          return data;
+        }
+      } catch (err) {
+        console.error("Error fetching product data:", err);
+      }
+      return null;
+    }
+
+    // Initialize row unit display
+    async function initRowUnit(tr) {
+      const productSelect = tr.querySelector('select[name$="-product"]');
+      const unitToggle = tr.querySelector('.unit-toggle');
+      if (!unitToggle) return; // Safety check
+      
+      const unitLabel = unitToggle.querySelector('.unit-label');
+      const uomInput = tr.querySelector('input[name$="-uom"]');
+      const sizeInput = tr.querySelector('input[name$="-size_per_unit"]');
+
+      if (!productSelect || !productSelect.value) {
+        if (unitLabel) unitLabel.textContent = '--';
+        if (unitToggle) unitToggle.dataset.currentUnit = 'bulk';
+        return;
+      }
+
+      const data = await fetchProductData(productSelect.value);
+      if (!data) {
+        if (unitLabel) unitLabel.textContent = '--';
+        return;
+      }
+
+      // Check if this row has saved unit data (edit mode)
+      const itemId = tr.dataset.itemId;
+      const savedData = itemId && itemUnitData[itemId];
+
+      // Default to bulk unit if available, otherwise lowest
+      // Check both default_bulk_size and bulk_size for compatibility
+      const bulkSize = data.default_bulk_size || data.bulk_size || '1';
+      const hasBulk = data.bulk_uom_id && parseFloat(bulkSize) > 0;
+      
+      let currentUnit = hasBulk ? 'bulk' : 'lowest';
+      let selectedUomId = hasBulk ? data.bulk_uom_id : data.uom_id;
+      let selectedSize = hasBulk ? bulkSize : '1.000000';
+
+      if (savedData) {
+        // Restore saved unit state (from edit mode)
+        currentUnit = savedData.current_unit;
+        selectedUomId = savedData.uom_id;
+        selectedSize = savedData.size_per_unit;
+      }
+
+      // Set unit label and toggle state
+      if (currentUnit === 'bulk' && data.bulk_uom_id) {
+        if (unitLabel) unitLabel.textContent = data.bulk_uom_code || '--';
+        if (unitToggle) unitToggle.dataset.currentUnit = 'bulk';
+      } else {
+        if (unitLabel) unitLabel.textContent = data.uom_code || '--';
+        if (unitToggle) unitToggle.dataset.currentUnit = 'lowest';
+      }
+
+      // Store product data in toggle button
+      if (unitToggle) {
+        const bulkSize = data.default_bulk_size || data.bulk_size || '1';
+        unitToggle.dataset.lowestUomId = data.uom_id || '';
+        unitToggle.dataset.lowestUomCode = data.uom_code || '';
+        unitToggle.dataset.bulkUomId = data.bulk_uom_id || '';
+        unitToggle.dataset.bulkUomCode = data.bulk_uom_code || '';
+        unitToggle.dataset.bulkSize = bulkSize;
+      }
+
+      // Set hidden fields
+      if (uomInput) uomInput.value = selectedUomId;
+      if (sizeInput) sizeInput.value = selectedSize;
+
+      // If no bulk unit, disable toggle
+      if (unitToggle) {
+        if (!data.bulk_uom_id) {
+          unitToggle.classList.add('opacity-50', 'cursor-not-allowed');
+          unitToggle.disabled = true;
+        } else {
+          unitToggle.classList.remove('opacity-50', 'cursor-not-allowed');
+          unitToggle.disabled = false;
+        }
+      }
+    }
+
+    // Toggle unit between lowest and bulk
+    function toggleUnit(btn) {
+      if (!btn) return; // Safety check
+      
+      const tr = btn.closest('tr');
+      if (!tr) return;
+      
+      const unitLabel = btn.querySelector('.unit-label');
+      const uomInput = tr.querySelector('input[name$="-uom"]');
+      const sizeInput = tr.querySelector('input[name$="-size_per_unit"]');
+      
+      const currentUnit = btn.dataset.currentUnit;
+      const lowestUomId = btn.dataset.lowestUomId;
+      const lowestUomCode = btn.dataset.lowestUomCode;
+      const bulkUomId = btn.dataset.bulkUomId;
+      const bulkUomCode = btn.dataset.bulkUomCode;
+      const bulkSize = btn.dataset.bulkSize;
+
+      if (!bulkUomId || !uomInput || !sizeInput) {
+        // No bulk unit available or missing inputs
+        return;
+      }
+
+      if (currentUnit === 'lowest') {
+        // Switch to bulk
+        btn.dataset.currentUnit = 'bulk';
+        if (unitLabel) unitLabel.textContent = bulkUomCode || '--';
+        uomInput.value = bulkUomId;
+        sizeInput.value = bulkSize || '1.000000';
+      } else {
+        // Switch to lowest
+        btn.dataset.currentUnit = 'lowest';
+        if (unitLabel) unitLabel.textContent = lowestUomCode || '--';
+        uomInput.value = lowestUomId;
+        sizeInput.value = '1.000000';
+      }
+
+      computeTotals();
+    }
+
+    function updateLineTotal(tr) {
+      const qty = toNum(tr.querySelector('input[name$="-quantity"]').value);
+      const rate = toNum(tr.querySelector('input[name$="-unit_price"]').value);
+      const total = qty * rate;
+      tr.querySelector(".line-total").textContent = total.toFixed(2);
+      return total;
+    }
+
+    function computeTotals() {
+      let subtotal = 0;
+      body.querySelectorAll("tr.item-row").forEach((tr) => {
+        const del = tr.querySelector('input[name$="-DELETE"]');
+        if (del && del.checked) return;
+        subtotal += updateLineTotal(tr);
+      });
+      const taxPct = toNum(taxEl?.value);
+      const discPct = toNum(discEl?.value);
+      const taxAmt = subtotal * (taxPct / 100);
+      const discAmt = subtotal * (discPct / 100);
+      const net = subtotal + taxAmt - discAmt;
+
+      subCell.textContent = subtotal.toFixed(2);
+      sumSub.textContent = subtotal.toFixed(2);
+      sumTax.textContent = taxAmt.toFixed(2);
+      sumDisc.textContent = discAmt.toFixed(2);
+      sumNet.textContent = net.toFixed(2);
+
+      // live remaining = net - refunded_so_far
+      const refundedSoFar = toNum(refundedSoFarEl?.textContent || totalsCard?.dataset?.refundedSoFar || 0);
+      const remaining = Math.max(0, net - refundedSoFar);
+      if (remainingEl) remainingEl.textContent = remaining.toFixed(2);
+
+      // Hint with remaining when the input is empty/zero
+      if (receivedAmountInput && (receivedAmountInput.value === "" || toNum(receivedAmountInput.value) === 0)) {
+        receivedAmountInput.placeholder = remaining.toFixed(2);
+      }
+    }
+
+    function wireRow(tr) {
+      // Wire quantity and unit price inputs
+      tr.querySelectorAll('input[name$="-quantity"], input[name$="-unit_price"]').forEach((inp) => {
+        inp.addEventListener("input", computeTotals);
+      });
+
+      // Wire product change
+      const productSelect = tr.querySelector('select[name$="-product"]');
+      if (productSelect) {
+        productSelect.addEventListener('change', () => initRowUnit(tr));
+        // Initialize on load if product already selected
+        if (productSelect.value) {
+          initRowUnit(tr);
+        }
+      }
+
+      // Wire unit toggle
+      const unitToggle = tr.querySelector('.unit-toggle');
+      if (unitToggle) {
+        // Remove any existing listeners by cloning
+        const newToggle = unitToggle.cloneNode(true);
+        unitToggle.parentNode.replaceChild(newToggle, unitToggle);
+        // Add event listener to the new button
+        newToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleUnit(this);
+        });
+      }
+
+      // Wire remove button
+      const btn = tr.querySelector(".row-remove");
+      btn.addEventListener("click", function () {
+        const idInput = tr.querySelector('input[name$="-id"]');
+        const delInput = tr.querySelector('input[name$="-DELETE"]');
+
+        if (!idInput || !idInput.value) {
+          tr.remove();
+          if (totalEl) {
+            const current = parseInt(totalEl.value, 10) || 0;
+            totalEl.value = Math.max(0, current - 1);
+            reindexRows();
+          }
+        } else {
+          if (delInput) delInput.checked = true;
+          tr.style.display = "none";
+        }
+        computeTotals();
+      });
+    }
+
+    function reindexRows() {
+      const rows = Array.from(body.querySelectorAll("tr.item-row"));
+      rows.forEach((tr, idx) => {
+        tr.querySelectorAll("input, select").forEach((el) => {
+          if (!el.name) return;
+          el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+          if (el.id) el.id = el.id.replace(/-(\d+)-/, `-${idx}-`);
+        });
+      });
+    }
+
+    body.querySelectorAll("tr.item-row").forEach(wireRow);
+
+    addBtn?.addEventListener("click", function () {
+      const last = body.querySelector("tr.item-row:last-child");
+      if (!last) return;
+      const row = last.cloneNode(true);
+
+      row.style.display = "";
+      row.querySelectorAll("input, select").forEach((el) => {
+        if (!el.name) return;
+        if (el.tagName === "SELECT") {
+          el.selectedIndex = 0;
+        } else {
+          if (el.type === "checkbox") el.checked = false;
+          else el.value = "";
+        }
+      });
+      row.querySelector(".line-total").textContent = "0.00";
+      const unitLabel = row.querySelector(".unit-label");
+      const unitToggle = row.querySelector(".unit-toggle");
+      if (unitLabel) unitLabel.textContent = "--";
+      if (unitToggle) {
+        unitToggle.dataset.currentUnit = "bulk";
+        unitToggle.dataset.lowestUomId = "";
+        unitToggle.dataset.lowestUomCode = "";
+        unitToggle.dataset.bulkUomId = "";
+        unitToggle.dataset.bulkUomCode = "";
+        unitToggle.dataset.bulkSize = "1";
+      }
+
+      body.appendChild(row);
+      if (totalEl) {
+        const current = parseInt(totalEl.value, 10) || 0;
+        totalEl.value = current + 1;
+        reindexRows();
+      }
+      wireRow(row);
+      computeTotals();
+    });
+
+    taxEl?.addEventListener("input", computeTotals);
+    discEl?.addEventListener("input", computeTotals);
+
+    function toggleBank() {
+      bankWrap.classList.toggle("hidden", (refundMethod?.value || "") !== "bank");
+    }
+    refundMethod?.addEventListener("change", toggleBank);
+    toggleBank();
+
+    // Initial compute & hinting
+    computeTotals();
+
+    // form submit. prevent double submit and show Saving...
+    if (form && saveBtn) {
+      form.addEventListener("submit", function (e) {
+        if (isSubmitting) {
+          e.preventDefault();
+          return;
+        }
+        isSubmitting = true;
+
+        if (!saveBtn.dataset.originalText) {
+          saveBtn.dataset.originalText = saveBtn.textContent;
+        }
+        const currentText = (saveBtn.textContent || "").trim().toLowerCase();
+        let newText = "Processing...";
+        if (currentText.includes("save")) {
+          newText = "Saving...";
+        }
+        saveBtn.textContent = newText;
+        saveBtn.classList.add(
+          "opacity-70",
+          "cursor-not-allowed",
+          "pointer-events-none"
+        );
+      });
+    }
+
+    // ========== QUICK ADD SECTION ==========
+    const quickBarcode = document.getElementById('quickBarcode');
+    const quickProductSearch = document.getElementById('quickProductSearch');
+    const quickProductId = document.getElementById('quickProductId');
+    const quickQty = document.getElementById('quickQty');
+    const quickPrice = document.getElementById('quickPrice');
+    const quickAddBtn = document.getElementById('quickAddBtn');
+    const quickBarcodeSuggest = document.getElementById('quickBarcodeSuggest');
+    const quickProductSuggest = document.getElementById('quickProductSuggest');
+
+    if (quickBarcode && quickBarcodeSuggest && quickProductSuggest) {
+      let quickBarcodeItems = [];
+      let quickBarcodeActiveIndex = -1;
+      let quickProductItems = [];
+      let quickProductActiveIndex = -1;
+      let barcodeInputTimer = null;
+      let lastBarcodeInputTime = 0;
+      const BARCODE_SCANNER_THRESHOLD = 50;
+      
+      quickBarcode.dataset.isScanner = 'false';
+
+
+      function clearQuickForm() {
+        quickBarcode.value = '';
+        quickProductSearch.value = '';
+        quickProductId.value = '';
+        quickQty.value = '1';
+        quickPrice.value = '';
+        const quickProductUnit = document.getElementById('quickProductUnit');
+        const quickUnitLabel = document.getElementById('quickUnitLabel');
+        const quickUomId = document.getElementById('quickUomId');
+        const quickSizePerUnit = document.getElementById('quickSizePerUnit');
+        const quickUnitToggle = document.getElementById('quickUnitToggle');
+        if (quickProductUnit) quickProductUnit.textContent = '';
+        if (quickUnitLabel) quickUnitLabel.textContent = '--';
+        if (quickUomId) quickUomId.value = '';
+        if (quickSizePerUnit) quickSizePerUnit.value = '1.000000';
+        if (quickUnitToggle) {
+          quickUnitToggle.dataset.currentUnit = 'bulk';
+          quickUnitToggle.disabled = true;
+          quickUnitToggle.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        quickBarcodeSuggest.classList.add('hidden');
+        quickProductSuggest.classList.add('hidden');
+        quickBarcode.focus();
+      }
+
+      function updateQuickBarcodeActive() {
+        if (!quickBarcodeSuggest) return;
+        const lis = quickBarcodeSuggest.querySelectorAll('li');
+        lis.forEach((li, idx) => {
+          li.classList.toggle('bg-blue-100', idx === quickBarcodeActiveIndex);
+          li.classList.toggle('text-slate-900', idx === quickBarcodeActiveIndex);
+        });
+      }
+
+      function updateQuickProductActive() {
+        if (!quickProductSuggest) return;
+        const lis = quickProductSuggest.querySelectorAll('li');
+        lis.forEach((li, idx) => {
+          li.classList.toggle('bg-blue-100', idx === quickProductActiveIndex);
+          li.classList.toggle('text-slate-900', idx === quickProductActiveIndex);
+        });
+      }
+
+      function renderQuickBarcodeSuggest(items) {
+        if (!quickBarcodeSuggest) return;
+        quickBarcodeItems = items;
+        quickBarcodeActiveIndex = -1;
+        quickBarcodeSuggest.innerHTML = '';
+        if (!items || !items.length) {
+          quickBarcodeSuggest.classList.add('hidden');
+          return;
+        }
+        items.forEach((it, idx) => {
+          const li = document.createElement('li');
+          li.dataset.index = String(idx);
+          li.className = 'px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-100 last:border-b-0';
+          li.innerHTML = `
+            <div class="font-semibold">${it.barcode || ''}</div>
+            <div class="text-xs text-slate-600">${it.name || ''}</div>
+          `;
+          li.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyQuickProduct(it);
+          });
+          quickBarcodeSuggest.appendChild(li);
+        });
+        quickBarcodeSuggest.classList.remove('hidden');
+        updateQuickBarcodeActive();
+      }
+
+      function renderQuickProductSuggest(items) {
+        if (!quickProductSuggest) return;
+        quickProductItems = items;
+        quickProductActiveIndex = -1;
+        quickProductSuggest.innerHTML = '';
+        if (!items || !items.length) {
+          quickProductSuggest.classList.add('hidden');
+          return;
+        }
+        items.forEach((it, idx) => {
+          const li = document.createElement('li');
+          li.dataset.index = String(idx);
+          li.className = 'px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-100 last:border-b-0';
+          li.innerHTML = `
+            <div class="font-semibold">${it.name || ''}</div>
+            ${it.company_name ? `<div class="text-xs text-blue-600 font-medium">Company: ${it.company_name}</div>` : ''}
+            ${it.barcode ? `<div class="text-xs text-slate-500">Barcode: ${it.barcode}</div>` : ''}
+          `;
+          li.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            applyQuickProduct(it);
+          });
+          quickProductSuggest.appendChild(li);
+        });
+        quickProductSuggest.classList.remove('hidden');
+        updateQuickProductActive();
+      }
+
+      function findExistingProductRowInPR(productId) {
+        if (!productId) return null;
+        const rows = Array.from(body.querySelectorAll('tr.item-row'));
+        for (const row of rows) {
+          if (row.style.display === 'none') continue;
+          const delInput = row.querySelector('input[name$="-DELETE"]');
+          if (delInput && delInput.checked) continue;
+          const prodSelect = row.querySelector('select[name$="-product"]');
+          if (prodSelect && prodSelect.value === String(productId)) {
+            return row;
+          }
+        }
+        return null;
+      }
+
+      function isBlankRowPR(tr) {
+        const prodSelect = tr.querySelector('select[name$="-product"]');
+        const qty = tr.querySelector('input[name$="-quantity"]');
+        const price = tr.querySelector('input[name$="-unit_price"]');
+        return !(prodSelect && prodSelect.value) && !toNum(qty?.value) && !toNum(price?.value);
+      }
+
+      function addProductToPRTable(productInfo, qty, price, isScannerInput = false) {
+        // Find first blank row or create new
+        let targetRow = null;
+        const rows = Array.from(body.querySelectorAll('tr.item-row'));
+        
+        for (const row of rows) {
+          if (row.style.display === 'none') continue;
+          const del = row.querySelector('input[name$="-DELETE"]');
+          if (del && del.checked) continue;
+          if (isBlankRowPR(row)) {
+            targetRow = row;
+            break;
+          }
+        }
+
+        if (!targetRow) {
+          const lastRow = body.querySelector('tr.item-row:last-child');
+          if (lastRow) {
+            targetRow = lastRow.cloneNode(true);
+            targetRow.style.display = '';
+            targetRow.querySelectorAll('input, select').forEach((el) => {
+              if (!el.name) return;
+              if (el.tagName === 'SELECT') el.selectedIndex = 0;
+              else if (el.type === 'checkbox') el.checked = false;
+              else el.value = '';
+            });
+            targetRow.querySelector('.line-total').textContent = '0.00';
+            const unitLabel = targetRow.querySelector('.unit-label');
+            const unitToggle = targetRow.querySelector('.unit-toggle');
+            if (unitLabel) unitLabel.textContent = '--';
+            if (unitToggle) {
+              unitToggle.dataset.currentUnit = 'bulk';
+              unitToggle.dataset.lowestUomId = '';
+              unitToggle.dataset.lowestUomCode = '';
+              unitToggle.dataset.bulkUomId = '';
+              unitToggle.dataset.bulkUomCode = '';
+              unitToggle.dataset.bulkSize = '1';
+            }
+            body.appendChild(targetRow);
+            if (totalEl) {
+              const current = parseInt(totalEl.value, 10) || 0;
+              totalEl.value = current + 1;
+              reindexRows();
+            }
+            wireRow(targetRow);
+          }
+        }
+
+        if (targetRow) {
+          const prodSelect = targetRow.querySelector('select[name$="-product"]');
+          const qtyInput = targetRow.querySelector('input[name$="-quantity"]');
+          const priceInput = targetRow.querySelector('input[name$="-unit_price"]');
+          const uomInput = targetRow.querySelector('input[name$="-uom"]');
+          const sizeInput = targetRow.querySelector('input[name$="-size_per_unit"]');
+          const unitToggle = targetRow.querySelector('.unit-toggle');
+          const unitLabel = targetRow.querySelector('.unit-label');
+
+          if (prodSelect) {
+            prodSelect.value = productInfo.id;
+          }
+          if (qtyInput) qtyInput.value = qty.toFixed(6);
+          if (priceInput) priceInput.value = price.toFixed(2);
+
+          // Store selected unit info from quick add (if provided) in the row's data attribute
+          if (productInfo.size_per_unit && productInfo.uom_id) {
+            targetRow.dataset.quickAddUomId = productInfo.uom_id;
+            targetRow.dataset.quickAddSizePerUnit = productInfo.size_per_unit;
+          }
+
+          // Initialize unit display - this will call initRowUnit which defaults to bulk if available
+          if (prodSelect && prodSelect.value) {
+            // Use setTimeout to ensure the row is fully set up before calling initRowUnit
+            setTimeout(async () => {
+              await initRowUnit(targetRow);
+              // If quick add provided a specific unit, apply it after initRowUnit
+              if (targetRow.dataset.quickAddUomId && targetRow.dataset.quickAddSizePerUnit) {
+                const quickUomId = targetRow.dataset.quickAddUomId;
+                const quickSize = targetRow.dataset.quickAddSizePerUnit;
+                const filteredProducts = getFilteredProducts();
+                const fullProductInfo = filteredProducts.find(p => p.id === productInfo.id);
+                if (fullProductInfo && uomInput && sizeInput) {
+                  uomInput.value = quickUomId;
+                  sizeInput.value = quickSize;
+                  // Update toggle and label
+                  if (unitToggle && unitLabel) {
+                    if (quickUomId === fullProductInfo.bulk_uom_id) {
+                      unitToggle.dataset.currentUnit = 'bulk';
+                      unitLabel.textContent = fullProductInfo.bulk_uom_code || '--';
+                    } else {
+                      unitToggle.dataset.currentUnit = 'lowest';
+                      unitLabel.textContent = fullProductInfo.uom_code || '--';
+                    }
+                  }
+                }
+                // Clean up
+                delete targetRow.dataset.quickAddUomId;
+                delete targetRow.dataset.quickAddSizePerUnit;
+              }
+            }, 0);
+          }
+
+          computeTotals();
+        }
+      }
+
+      function applyQuickProduct(info) {
+        quickBarcode.value = info.barcode || '';
+        quickProductSearch.value = info.name;
+        quickProductId.value = info.id;
+        quickPrice.value = (parseFloat(info.purchase_price || 0)).toFixed(2);
+        quickQty.value = '1';
+        
+        // Set up unit display and toggle - default to bulk if available
+        const quickProductUnit = document.getElementById('quickProductUnit');
+        const quickUnitToggle = document.getElementById('quickUnitToggle');
+        const quickUnitLabel = document.getElementById('quickUnitLabel');
+        const quickUomId = document.getElementById('quickUomId');
+        const quickSizePerUnit = document.getElementById('quickSizePerUnit');
+        
+        if (info.has_bulk && info.bulk_uom_id) {
+          // Default to bulk unit
+          if (quickUnitLabel) quickUnitLabel.textContent = info.bulk_uom_code || '--';
+          if (quickUomId) quickUomId.value = info.bulk_uom_id;
+          if (quickSizePerUnit) quickSizePerUnit.value = info.bulk_size || '1.000000';
+          if (quickUnitToggle) {
+            quickUnitToggle.dataset.currentUnit = 'bulk';
+            quickUnitToggle.dataset.lowestUomId = info.uom_id || '';
+            quickUnitToggle.dataset.lowestUomCode = info.uom_code || '';
+            quickUnitToggle.dataset.bulkUomId = info.bulk_uom_id || '';
+            quickUnitToggle.dataset.bulkUomCode = info.bulk_uom_code || '';
+            quickUnitToggle.dataset.bulkSize = info.bulk_size || '1';
+            quickUnitToggle.disabled = false;
+            quickUnitToggle.classList.remove('opacity-50', 'cursor-not-allowed');
+          }
+          if (quickProductUnit) quickProductUnit.textContent = `Unit: ${info.bulk_uom_code || ''}`;
+        } else {
+          // Use lower unit
+          if (quickUnitLabel) quickUnitLabel.textContent = info.uom_code || '--';
+          if (quickUomId) quickUomId.value = info.uom_id || '';
+          if (quickSizePerUnit) quickSizePerUnit.value = '1.000000';
+          if (quickUnitToggle) {
+            quickUnitToggle.dataset.currentUnit = 'lowest';
+            quickUnitToggle.dataset.lowestUomId = info.uom_id || '';
+            quickUnitToggle.dataset.lowestUomCode = info.uom_code || '';
+            quickUnitToggle.dataset.bulkUomId = '';
+            quickUnitToggle.dataset.bulkUomCode = '';
+            quickUnitToggle.dataset.bulkSize = '1';
+            quickUnitToggle.disabled = true;
+            quickUnitToggle.classList.add('opacity-50', 'cursor-not-allowed');
+          }
+          if (quickProductUnit) quickProductUnit.textContent = `Unit: ${info.uom_code || ''}`;
+        }
+        
+        quickBarcodeSuggest.classList.add('hidden');
+        quickProductSuggest.classList.add('hidden');
+        
+        setTimeout(() => {
+          quickQty.focus();
+          quickQty.select();
+        }, 100);
+      }
+
+      function handleBarcodeScanPR(barcode) {
+        const businessId = businessSelect ? businessSelect.value : "";
+        if (!businessId) {
+          alert('Please select a business first');
+          quickBarcode.value = '';
+          if (businessSelect) businessSelect.focus();
+          return;
+        }
+
+        const filteredProducts = getFilteredProducts();
+        let productInfo = filteredProducts.find(p => p.barcode === barcode);
+        
+        if (!productInfo && PRODUCT_BY_BARCODE[barcode]) {
+          const barcodeInfo = PRODUCT_BY_BARCODE[barcode];
+          const fullProduct = filteredProducts.find(p => p.id === barcodeInfo.id);
+          if (fullProduct && fullProduct.business_id === businessId) {
+            productInfo = {
+              id: barcodeInfo.id,
+              name: barcodeInfo.name,
+              barcode: barcode,
+              purchase_price: barcodeInfo.purchase_price,
+              uom_id: fullProduct?.uom_id || '',
+              uom_code: fullProduct?.uom_code || '',
+              bulk_uom_id: fullProduct?.bulk_uom_id || '',
+              bulk_uom_code: fullProduct?.bulk_uom_code || '',
+              bulk_size: fullProduct?.bulk_size || '1',
+              has_bulk: fullProduct?.has_bulk || false,
+              business_id: fullProduct?.business_id || businessId,
+            };
+          }
+        }
+
+        if (!productInfo) {
+          // Product not found - show error message instead of opening modal
+          alert(`Product with barcode "${barcode}" not found in the selected business.\n\nPlease ensure the product exists before adding it to the return.`);
+          quickBarcode.value = '';
+          quickBarcode.focus();
+          return;
+        }
+
+        applyQuickProduct(productInfo);
+      }
+
+      quickBarcode.addEventListener('keydown', (e) => {
+        const now = Date.now();
+        const timeSinceLastKey = now - lastBarcodeInputTime;
+        lastBarcodeInputTime = now;
+
+        const isLikelyScanner = timeSinceLastKey > 0 && timeSinceLastKey < BARCODE_SCANNER_THRESHOLD;
+
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          quickBarcode.dataset.isScanner = isLikelyScanner ? 'true' : 'false';
+        }
+      });
+
+      quickBarcode.addEventListener('keydown', (e) => {
+        const hasList = !quickBarcodeSuggest.classList.contains('hidden') && quickBarcodeItems.length > 0;
+
+        if (e.key === 'ArrowDown' && hasList) {
+          e.preventDefault();
+          quickBarcodeActiveIndex = (quickBarcodeActiveIndex < quickBarcodeItems.length - 1) ? quickBarcodeActiveIndex + 1 : 0;
+          updateQuickBarcodeActive();
+          return;
+        }
+        
+        if (e.key === 'ArrowUp' && hasList) {
+          e.preventDefault();
+          quickBarcodeActiveIndex = (quickBarcodeActiveIndex > 0) ? quickBarcodeActiveIndex - 1 : quickBarcodeItems.length - 1;
+          updateQuickBarcodeActive();
+          return;
+        }
+        
+        if (e.key === 'Enter') {
+          e.preventDefault();
+
+          if (quickBarcode.dataset.isScanner === 'true') {
+            const code = (quickBarcode.value || '').trim();
+            if (code) {
+              handleBarcodeScanPR(code);
+              return;
+            }
+          }
+
+          if (hasList && quickBarcodeActiveIndex >= 0) {
+            applyQuickProduct(quickBarcodeItems[quickBarcodeActiveIndex]);
+            return;
+          }
+
+          const code = (quickBarcode.value || '').trim();
+          if (!code) {
+            quickProductSearch.focus();
+            return;
+          }
+
+          const businessId = businessSelect ? businessSelect.value : "";
+          if (!businessId) {
+            alert('Please select a business first');
+            quickBarcode.value = '';
+            if (businessSelect) businessSelect.focus();
+            return;
+          }
+
+          const filteredProducts = getFilteredProducts();
+          let direct = filteredProducts.find(p => p.barcode === code);
+          if (!direct && PRODUCT_BY_BARCODE[code]) {
+            const barcodeInfo = PRODUCT_BY_BARCODE[code];
+            const fullProduct = filteredProducts.find(p => p.id === barcodeInfo.id);
+            if (fullProduct && fullProduct.business_id === businessId) {
+              direct = {
+                id: barcodeInfo.id,
+                name: barcodeInfo.name,
+                barcode: code,
+                purchase_price: barcodeInfo.purchase_price,
+                uom_id: fullProduct?.uom_id || '',
+                uom_code: fullProduct?.uom_code || '',
+                bulk_uom_id: fullProduct?.bulk_uom_id || '',
+                bulk_uom_code: fullProduct?.bulk_uom_code || '',
+                bulk_size: fullProduct?.bulk_size || '1',
+                has_bulk: fullProduct?.has_bulk || false,
+                business_id: fullProduct?.business_id || businessId,
+              };
+            }
+          }
+
+          if (!direct) {
+            // Product not found - show error message instead of opening modal
+            alert(`Product with barcode "${code}" not found in the selected business.\n\nPlease ensure the product exists before adding it to the return.`);
+            quickBarcode.value = '';
+            quickBarcode.focus();
+            return;
+          }
+          
+          applyQuickProduct(direct);
+          return;
+        }
+        
+        if (e.key === 'Escape' && hasList) {
+          e.preventDefault();
+          quickBarcodeSuggest.classList.add('hidden');
+        }
+        
+        if (e.key === 'Tab' && !e.shiftKey) {
+          quickBarcodeSuggest.classList.add('hidden');
+        }
+      });
+
+      quickBarcode.addEventListener('input', () => {
+        const q = (quickBarcode.value || '').trim().toLowerCase();
+        if (!q) {
+          quickBarcodeSuggest.classList.add('hidden');
+          return;
+        }
+        
+        if (barcodeInputTimer) {
+          clearTimeout(barcodeInputTimer);
+        }
+
+        if (quickBarcode.dataset.isScanner !== 'true') {
+          const filteredProducts = getFilteredProducts();
+          const matches = filteredProducts.filter(p => {
+            const barcodeMatch = p.barcode && p.barcode.toLowerCase().includes(q);
+            const companyMatch = p.company_name && p.company_name.toLowerCase().includes(q);
+            return barcodeMatch || companyMatch;
+          }).slice(0, 20);
+          renderQuickBarcodeSuggest(matches);
+        } else {
+          barcodeInputTimer = setTimeout(() => {
+            const finalCode = (quickBarcode.value || '').trim();
+            if (finalCode) {
+              handleBarcodeScanPR(finalCode);
+            }
+          }, 100);
+        }
+      });
+
+      if (quickProductSearch) {
+        quickProductSearch.addEventListener('input', () => {
+          const q = (quickProductSearch.value || '').trim().toLowerCase();
+          if (!q) {
+            quickProductSuggest.classList.add('hidden');
+            quickProductId.value = '';
+            quickPrice.value = '';
+            return;
+          }
+          const filteredProducts = getFilteredProducts();
+          const matches = filteredProducts.filter(p => {
+            const nameMatch = p.name && p.name.toLowerCase().includes(q);
+            const companyMatch = p.company_name && p.company_name.toLowerCase().includes(q);
+            return nameMatch || companyMatch;
+          }).slice(0, 30);
+          renderQuickProductSuggest(matches);
+        });
+
+        quickProductSearch.addEventListener('keydown', (e) => {
+          const hasList = !quickProductSuggest.classList.contains('hidden') && quickProductItems.length > 0;
+
+          if (e.key === 'ArrowDown' && hasList) {
+            e.preventDefault();
+            quickProductActiveIndex = (quickProductActiveIndex < quickProductItems.length - 1) ? quickProductActiveIndex + 1 : 0;
+            updateQuickProductActive();
+            return;
+          }
+          
+          if (e.key === 'ArrowUp' && hasList) {
+            e.preventDefault();
+            quickProductActiveIndex = (quickProductActiveIndex > 0) ? quickProductActiveIndex - 1 : quickProductItems.length - 1;
+            updateQuickProductActive();
+            return;
+          }
+          
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (hasList && quickProductActiveIndex >= 0) {
+              applyQuickProduct(quickProductItems[quickProductActiveIndex]);
+              return;
+            }
+            if (quickProductItems.length === 1) {
+              applyQuickProduct(quickProductItems[0]);
+              return;
+            }
+            quickQty.focus();
+          }
+          
+          if (e.key === 'Escape' && hasList) {
+            e.preventDefault();
+            quickProductSuggest.classList.add('hidden');
+          }
+        });
+      }
+
+      if (quickQty) {
+        quickQty.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            quickPrice.focus();
+            quickPrice.select();
+          }
+        });
+      }
+
+      if (quickPrice) {
+        quickPrice.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const productId = quickProductId.value;
+            if (!productId) {
+              alert('Please select a product first');
+              return;
+            }
+            
+            const filteredProducts = getFilteredProducts();
+            const productInfo = filteredProducts.find(p => p.id === productId);
+            if (!productInfo) {
+              alert('Product not found for selected business');
+              return;
+            }
+            
+            const qty = toNum(quickQty.value) || 1;
+            const price = toNum(quickPrice.value) || productInfo.purchase_price || 0;
+            
+            if (qty <= 0) {
+              alert('Please enter a valid quantity');
+              quickQty.focus();
+              return;
+            }
+            
+            if (price <= 0) {
+              alert('Please enter a valid price');
+              quickPrice.focus();
+              return;
+            }
+            
+            addProductToPRTable(productInfo, qty, price, false);
+            clearQuickForm();
+          }
+        });
+      }
+
+      // Quick unit toggle handler
+      const quickUnitToggle = document.getElementById('quickUnitToggle');
+      const quickUomId = document.getElementById('quickUomId');
+      const quickSizePerUnit = document.getElementById('quickSizePerUnit');
+      
+      if (quickUnitToggle) {
+        quickUnitToggle.addEventListener('click', function() {
+          const currentUnit = this.dataset.currentUnit;
+          const lowestUomId = this.dataset.lowestUomId;
+          const lowestUomCode = this.dataset.lowestUomCode;
+          const bulkUomId = this.dataset.bulkUomId;
+          const bulkUomCode = this.dataset.bulkUomCode;
+          const bulkSize = this.dataset.bulkSize;
+          const quickUnitLabel = document.getElementById('quickUnitLabel');
+          const quickProductUnit = document.getElementById('quickProductUnit');
+          
+          if (!bulkUomId) return; // No bulk unit available
+          
+          if (currentUnit === 'lowest') {
+            // Switch to bulk
+            this.dataset.currentUnit = 'bulk';
+            if (quickUnitLabel) quickUnitLabel.textContent = bulkUomCode;
+            if (quickUomId) quickUomId.value = bulkUomId;
+            if (quickSizePerUnit) quickSizePerUnit.value = bulkSize;
+            if (quickProductUnit) quickProductUnit.textContent = `Unit: ${bulkUomCode}`;
+          } else {
+            // Switch to lowest
+            this.dataset.currentUnit = 'lowest';
+            if (quickUnitLabel) quickUnitLabel.textContent = lowestUomCode;
+            if (quickUomId) quickUomId.value = lowestUomId;
+            if (quickSizePerUnit) quickSizePerUnit.value = '1.000000';
+            if (quickProductUnit) quickProductUnit.textContent = `Unit: ${lowestUomCode}`;
+          }
+        });
+      }
+      
+      if (quickAddBtn) {
+        quickAddBtn.addEventListener('click', () => {
+          const productId = quickProductId.value;
+          const qty = toNum(quickQty.value);
+          const price = toNum(quickPrice.value);
+          const selectedUomId = quickUomId ? quickUomId.value : null;
+          const selectedSizePerUnit = quickSizePerUnit ? toNum(quickSizePerUnit.value) : 1;
+
+          if (!productId) {
+            alert('Please select a product first');
+            quickProductSearch.focus();
+            return;
+          }
+
+          if (!qty || qty <= 0) {
+            alert('Please enter a valid quantity');
+            quickQty.focus();
+            return;
+          }
+
+          if (!price || price <= 0) {
+            alert('Please enter a valid price');
+            quickPrice.focus();
+            return;
+          }
+
+          const filteredProducts = getFilteredProducts();
+          const productInfo = filteredProducts.find(p => p.id === productId);
+          if (!productInfo) {
+            alert('Product not found for selected business');
+            return;
+          }
+          
+          // Override productInfo with selected unit
+          const productInfoWithUnit = {
+            ...productInfo,
+            uom_id: selectedUomId || productInfo.uom_id,
+            uom_code: quickUnitToggle && quickUnitToggle.dataset.currentUnit === 'bulk' 
+              ? productInfo.bulk_uom_code 
+              : productInfo.uom_code,
+            size_per_unit: selectedSizePerUnit
+          };
+
+          addProductToPRTable(productInfoWithUnit, qty, price, false);
+          clearQuickForm();
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (quickBarcodeSuggest && !quickBarcodeSuggest.contains(e.target) && e.target !== quickBarcode) {
+          quickBarcodeSuggest.classList.add('hidden');
+        }
+        if (quickProductSuggest && !quickProductSuggest.contains(e.target) && e.target !== quickProductSearch) {
+          quickProductSuggest.classList.add('hidden');
+        }
+      });
+
+      if (!rescanBarcode) {
+        quickBarcode.focus();
+      }
+    }
+  })();
+</script>
+{% endblock %}

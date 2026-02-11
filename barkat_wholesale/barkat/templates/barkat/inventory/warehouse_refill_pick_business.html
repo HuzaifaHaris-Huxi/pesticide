@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Choose Business — Refill {{ warehouse.code }}{% endblock %}
+{% block content %}
+<div class="p-4 md:p-6">
+  <h1 class="text-2xl font-bold mb-4">Refill — {{ warehouse.code }} / {{ warehouse.name }}</h1>
+  <p class="mb-3 text-slate-600">Select a business to proceed.</p>
+
+  <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+    {% for b in businesses %}
+      <a href="{% url 'warehouse_refill' warehouse.id %}?business={{ b.id }}"
+         class="block rounded-lg border border-slate-300 px-4 py-3 hover:bg-slate-50">
+        {{ b.name }}
+      </a>
+    {% empty %}
+      <div class="text-slate-500">No businesses found.</div>
+    {% endfor %}
+  </div>
+
+  <div class="mt-6">
+    <a href="{% url 'warehouse_detail' warehouse.id %}" class="text-slate-700 hover:underline">Back to warehouse</a>
+  </div>
+</div>
+{% endblock %}

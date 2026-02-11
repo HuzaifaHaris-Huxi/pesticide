@@ -1,0 +1,138 @@
+{% extends "base.html"%}
+{% load static %}
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="rotate-ccw" class="w-7 h-7"></i>
+      <span>Sales Returns — {{ business.name }}</span>
+    </h1>
+
+    <a href="{% url 'sr_add' %}?business={{ business.id }}"
+       class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">
+      + New Return
+    </a>
+  </div>
+
+  <!-- Tabs -->
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      <a href="{% url 'sr_list' %}"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium text-slate-600 border-slate-300 hover:bg-slate-200">
+        All
+      </a>
+
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        {% if b.id == business.id %}
+          <a href="{% url 'sr_list_business' b.id %}"
+             aria-current="page"
+             data-tint="{{ color }}"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+            {{ b.name }}
+          </a>
+        {% else %}
+          <a href="{% url 'sr_list_business' b.id %}"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                    text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+            {{ b.name }}
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Search -->
+  <form method="get" class="mb-3 flex gap-2">
+    <input name="q"
+           value="{{ request.GET.q }}"
+           type="search"
+           placeholder="Search customer, status, id…"
+           class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">Filter</button>
+    <a href="{% url 'sr_list_business' business.id %}" class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">Reset</a>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Return #</th>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Customer</th>
+          <th class="px-4 py-2 text-left">Status</th>
+          <th class="px-4 py-2 text-right">Subtotal</th>
+          <th class="px-4 py-2 text-right">Tax %</th>
+          <th class="px-4 py-2 text-right">Discount %</th>
+          <th class="px-4 py-2 text-right">Net Refund</th>
+          <th class="px-4 py-2 text-right">Refunded</th>
+          <th class="px-4 py-2 text-right">Remaining</th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="srBody" class="transition-colors">
+        {% for sr in returns %}
+          <tr class="border-t">
+            <td class="px-4 py-2">#{{ sr.id }}</td>
+            <td class="px-4 py-2">{{ sr.created_at|date:"Y-m-d" }}</td>
+            <td class="px-4 py-2">
+              {% if sr.customer_id %}{{ sr.customer.display_name }}{% else %}{{ sr.customer_name|default:"Walk-in" }}{% endif %}
+            </td>
+            <td class="px-4 py-2">{{ sr.get_status_display|default:sr.status }}</td>
+            <td class="px-4 py-2 text-right">₨ {{ sr.total_amount|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">{{ sr.tax_percent|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">{{ sr.discount_percent|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right font-semibold">₨ {{ sr.net_total|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">₨ {{ sr.refunded_total|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right">₨ {{ sr.refund_remaining|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right whitespace-nowrap">
+              <a href="{% url 'sr_edit' sr.pk %}"
+                 class="inline-flex items-center gap-1 rounded-md border border-indigo-300 text-indigo-700 px-2 py-1 text-xs hover:bg-indigo-50">Edit</a>
+              <a href="{% url 'sr_delete' sr.pk %}"
+                 class="inline-flex items-center gap-1 rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50 ml-1">Delete</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="11" class="px-4 py-6 text-center text-slate-500">
+              No sales returns for {{ business.name }}.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <div class="mt-4 flex items-center gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q }}" class="px-3 py-1 border rounded">Prev</a>
+      {% endif %}
+      <span class="text-sm text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q }}" class="px-3 py-1 border rounded">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block all_scripts %}
+<script>
+  // Tint tbody based on active business tab color (same pattern as orders)
+  (function () {
+    const activeTab = document.querySelector('[aria-current="page"][data-tint]');
+    const tint = activeTab ? activeTab.getAttribute("data-tint") : "slate";
+    const tblBody = document.getElementById("srBody");
+    const map = {
+      indigo: "bg-indigo-50",
+      emerald: "bg-emerald-50",
+      rose: "bg-rose-50",
+      amber: "bg-amber-50",
+      slate: "bg-slate-50",
+    };
+    Object.values(map).forEach(c => tblBody.classList.remove(c));
+    tblBody.classList.add(map[tint] || "bg-slate-50");
+  })();
+</script>
+{% endblock %}

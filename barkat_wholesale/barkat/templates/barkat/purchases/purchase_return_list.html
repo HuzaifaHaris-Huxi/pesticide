@@ -1,0 +1,136 @@
+{# templates/barkat/purchases/purchase_return_list.html #}
+{% extends "base.html"%}
+{% load static %}
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="rotate-ccw" class="w-7 h-7"></i>
+      <span>Purchase Returns</span>
+    </h1>
+
+    <a
+      href="{% url 'pr_add' %}"
+      class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800"
+    >
+      + New Return
+    </a>
+  </div>
+
+  {# Business tabs #}
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      {# All #}
+      <a
+        href="{% url 'pr_list' %}"
+        aria-current="page"
+        data-tint="slate"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-slate-700 text-white border-slate-700 shadow-md"
+      >
+        All
+      </a>
+      {# Businesses #}
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        <a
+          href="{% url 'pr_list_business' b.id %}"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                 text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900"
+        >
+          {{ b.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Search #}
+  <form method="get" class="mb-3 flex gap-2">
+    <input
+      name="q"
+      value="{{ request.GET.q }}"
+      type="search"
+      placeholder="Search vendor, status, id…"
+      class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+    />
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">
+      Filter
+    </button>
+    <a
+      href="{% url 'pr_list' %}"
+      class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50"
+    >Reset</a>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">PR #</th>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Business</th>
+          <th class="px-4 py-2 text-left">Vendor</th>
+          <th class="px-4 py-2 text-left">Status</th>
+          <th class="px-4 py-2 text-right">Subtotal</th>
+          <th class="px-4 py-2 text-right">Tax %</th>
+          <th class="px-4 py-2 text-right">Discount %</th>
+          <th class="px-4 py-2 text-right">Net Total</th>
+          <th class="px-4 py-2 text-right">Refunded</th>
+          <th class="px-4 py-2 text-right">Remaining</th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in returns %}
+        <tr class="border-t">
+          <td class="px-4 py-2">#{{ pr.id }}</td>
+          <td class="px-4 py-2">{{ pr.created_at|date:"Y-m-d" }}</td>
+          <td class="px-4 py-2">{{ pr.business.name }}</td>
+          <td class="px-4 py-2">{{ pr.supplier.display_name }}</td>
+          <td class="px-4 py-2">
+            {{ pr.get_status_display|default:pr.status }}
+          </td>
+          <td class="px-4 py-2 text-right">
+            ₨ {{ pr.total_cost|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right">
+            {{ pr.tax_percent|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right">
+            {{ pr.discount_percent|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right font-semibold">
+            ₨ {{ pr.net_total|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right">
+            ₨ {{ pr.refunded_total|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right">
+            ₨ {{ pr.refund_remaining|floatformat:2 }}
+          </td>
+          <td class="px-4 py-2 text-right whitespace-nowrap">
+            <a
+              href="{% url 'pr_edit' pr.pk %}"
+              class="inline-flex items-center gap-1 rounded-md border border-indigo-300 text-indigo-700 px-2 py-1 text-xs hover:bg-indigo-50"
+            >
+              Edit
+            </a>
+            <a
+              href="{% url 'pr_delete' pr.pk %}"
+              class="inline-flex items-center gap-1 rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50 ml-1"
+            >
+              Delete
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="12" class="px-4 py-6 text-center text-slate-500">
+            No purchase returns found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

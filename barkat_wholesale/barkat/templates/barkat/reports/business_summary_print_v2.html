@@ -1,0 +1,418 @@
+<!-- barkat/templates/barkat/reports/business_summary_print_v2.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Summary Report - {{ business.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #000;
+        }
+        
+        .header h1 {
+            font-size: 20pt;
+            margin-bottom: 5px;
+        }
+        
+        .header .info {
+            font-size: 10pt;
+            color: #555;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            background-color: #333;
+            color: white;
+            padding: 8px 10px;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        table th,
+        table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        
+        table td {
+            font-size: 10pt;
+        }
+        
+        table td:last-child,
+        table th:last-child {
+            text-align: right;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background-color: #f5f5f5;
+        }
+        
+        .amount {
+            font-weight: bold;
+        }
+        
+        .positive {
+            color: #27ae60;
+        }
+        
+        .negative {
+            color: #e74c3c;
+        }
+        
+        .summary-box {
+            border: 2px solid #333;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-row.total {
+            font-weight: bold;
+            font-size: 12pt;
+            background-color: #e8f8f5;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #ddd;
+            font-size: 9pt;
+            color: #777;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>BUSINESS SUMMARY REPORT</h1>
+        <div class="info">
+            <strong>{{ business.name }}</strong> ({{ business.code }})<br>
+            Period: {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}<br>
+            Generated: {{ report.generated_at|date:"d M Y, H:i" }}
+        </div>
+    </div>
+
+    <!-- Opening Balance -->
+    <div class="section">
+        <div class="section-title">OPENING BALANCE ({{ start_date|date:"d M Y" }})</div>
+        <table>
+            <tr>
+                <td><strong>Cash in Hand</strong></td>
+                <td class="amount">Rs. {{ report.opening_balance.cash|floatformat:2 }}</td>
+            </tr>
+            {% for bank_name, balance in report.opening_balance.bank_accounts.items %}
+            <tr>
+                <td>{{ bank_name }}</td>
+                <td class="amount">Rs. {{ balance|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>TOTAL OPENING BALANCE</strong></td>
+                <td class="amount">Rs. {{ report.opening_balance.total|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Sales -->
+    <div class="section">
+        <div class="section-title">SALES SUMMARY</div>
+        <table>
+            <tr>
+                <td><strong>Total Sales Amount</strong></td>
+                <td class="amount positive">Rs. {{ report.sales.total_sales_amount|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Amount Received ({{ report.sales.receipt_percentage|floatformat:1 }}%)</td>
+                <td class="amount positive">Rs. {{ report.sales.total_received|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td><strong>Credit Outstanding</strong></td>
+                <td class="amount negative">Rs. {{ report.sales.credit_outstanding|floatformat:2 }}</td>
+            </tr>
+        </table>
+        
+        <strong style="display: block; margin: 10px 0 5px 0;">Sales Receipts Breakdown:</strong>
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment Method</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cash</td>
+                    <td class="amount">Rs. {{ report.sales.receipts.cash|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Bank Transfer</td>
+                    <td class="amount">Rs. {{ report.sales.receipts.bank_transfer|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Cheques (Pending)</td>
+                    <td class="amount">Rs. {{ report.sales.receipts.cheque_pending|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Cheques (Deposited)</td>
+                    <td class="amount">Rs. {{ report.sales.receipts.cheque_deposited|floatformat:2 }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>TOTAL</strong></td>
+                    <td class="amount">Rs. {{ report.sales.total_received|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Purchases -->
+    <div class="section">
+        <div class="section-title">PURCHASES SUMMARY</div>
+        <table>
+            <tr>
+                <td><strong>Total Purchases Amount</strong></td>
+                <td class="amount negative">Rs. {{ report.purchases.total_purchases_amount|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Amount Paid ({{ report.purchases.payment_percentage|floatformat:1 }}%)</td>
+                <td class="amount negative">Rs. {{ report.purchases.total_paid|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td><strong>Payables Outstanding</strong></td>
+                <td class="amount negative">Rs. {{ report.purchases.payables_outstanding|floatformat:2 }}</td>
+            </tr>
+        </table>
+        
+        <strong style="display: block; margin: 10px 0 5px 0;">Purchase Payments Breakdown:</strong>
+        <table>
+            <thead>
+                <tr>
+                    <th>Payment Method</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cash</td>
+                    <td class="amount">Rs. {{ report.purchases.payments.cash|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Bank Transfer</td>
+                    <td class="amount">Rs. {{ report.purchases.payments.bank_transfer|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td>Cheque</td>
+                    <td class="amount">Rs. {{ report.purchases.payments.cheque|floatformat:2 }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>TOTAL</strong></td>
+                    <td class="amount">Rs. {{ report.purchases.total_paid|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Expenses -->
+    <div class="section">
+        <div class="section-title">EXPENSES SUMMARY</div>
+        <table>
+            <tr>
+                <td><strong>Total Expenses</strong></td>
+                <td class="amount negative">Rs. {{ report.expenses.total_expenses|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Cash Paid</td>
+                <td class="amount">Rs. {{ report.expenses.cash_paid|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Bank Paid</td>
+                <td class="amount">Rs. {{ report.expenses.bank_paid|floatformat:2 }}</td>
+            </tr>
+        </table>
+        
+        {% if report.expenses.by_category %}
+        <strong style="display: block; margin: 10px 0 5px 0;">By Category:</strong>
+        <table>
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, amount in report.expenses.by_category.items %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td class="amount">Rs. {{ amount|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- Bank Deposits -->
+    <div class="section">
+        <div class="section-title">BANK DEPOSITS</div>
+        <table>
+            <tr>
+                <td>Cash Deposited</td>
+                <td class="amount">Rs. {{ report.deposits.cash_deposited|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Cheques Deposited</td>
+                <td class="amount">Rs. {{ report.deposits.cheque_deposited|floatformat:2 }}</td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>TOTAL DEPOSITED</strong></td>
+                <td class="amount">Rs. {{ report.deposits.total_deposited|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Current Position -->
+    <div class="section">
+        <div class="section-title">CURRENT POSITION ({{ end_date|date:"d M Y" }})</div>
+        <table>
+            <tr>
+                <td><strong>Cash in Hand</strong></td>
+                <td class="amount">Rs. {{ report.current_position.cash_in_hand|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td><strong>Cheques in Hand (Pending)</strong></td>
+                <td class="amount">Rs. {{ report.current_position.cheques_in_hand|floatformat:2 }}</td>
+            </tr>
+            {% for bank_name, balance in report.current_position.bank_balances.items %}
+            <tr>
+                <td>{{ bank_name }}</td>
+                <td class="amount">Rs. {{ balance|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td><strong>TOTAL LIQUID ASSETS</strong></td>
+                <td class="amount">Rs. {{ report.current_position.total_liquid_assets|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Closing Balance -->
+    <div class="section">
+        <div class="section-title">CLOSING BALANCE CALCULATION</div>
+        <div class="summary-box">
+            <div class="summary-row">
+                <span>Opening Balance</span>
+                <span class="amount">Rs. {{ report.closing_balance.breakdown.opening_balance|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row">
+                <span>+ Sales Received</span>
+                <span class="amount positive">Rs. {{ report.closing_balance.breakdown.add_sales_received|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row">
+                <span>- Purchases Paid</span>
+                <span class="amount negative">Rs. {{ report.closing_balance.breakdown.less_purchases_paid|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row">
+                <span>- Expenses Paid</span>
+                <span class="amount negative">Rs. {{ report.closing_balance.breakdown.less_expenses_paid|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row">
+                <span>= Net Cash Flow</span>
+                <span class="amount">Rs. {{ report.closing_balance.breakdown.net_cash_flow|floatformat:2 }}</span>
+            </div>
+            <div class="summary-row total">
+                <span>CLOSING BALANCE</span>
+                <span class="amount">Rs. {{ report.closing_balance.calculated_closing|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <table>
+            <tr>
+                <td><strong>Calculated Closing</strong></td>
+                <td class="amount">Rs. {{ report.closing_balance.calculated_closing|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td><strong>Actual Closing</strong></td>
+                <td class="amount">Rs. {{ report.closing_balance.actual_closing|floatformat:2 }}</td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>Difference</strong></td>
+                <td class="amount {% if report.closing_balance.difference >= 0 %}positive{% else %}negative{% endif %}">
+                    Rs. {{ report.closing_balance.difference|floatformat:2 }}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>{{ business.name }} - Business Summary Report</p>
+        <p>Report Generated on {{ report.generated_at|date:"d M Y, H:i" }}</p>
+    </div>
+
+    <script>
+        // Auto-print on load
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

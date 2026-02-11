@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="credit-card" class="w-7 h-7"></i>
+      <span>{% if object %}Edit{% else %}New{% endif %} Expense</span>
+    </h1>
+    <a href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'finance_expense_list' %}{% endif %}"
+       class="rounded-lg px-3 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100">
+      Back
+    </a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data"
+        class="bg-white rounded-xl border border-slate-200 p-4 md:p-6"
+        id="expenseForm">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="mb-4 rounded-lg border border-rose-300 bg-rose-50 text-rose-800 p-3">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.business.label }}</label>
+        {{ form.business }}
+        {% if form.business.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.business.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.date.label }}</label>
+        {{ form.date }}
+        {% if form.date.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.date.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.category.label }}</label>
+        {{ form.category }}
+        {% if form.category.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.category.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.amount.label }}</label>
+        {{ form.amount }}
+        {% if form.amount.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-600 mb-1">{{ form.description.label }}</label>
+        {{ form.description }}
+        {% if form.description.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.description.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.reference.label }}</label>
+        {{ form.reference }}
+        {% if form.reference.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.reference.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.attachment.label }}</label>
+        {{ form.attachment }}
+        {% if form.attachment.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.attachment.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- CONDITIONAL: Staff for Salary -->
+      <div id="wrapStaff" class="hidden">
+        <label class="block text-sm text-slate-600 mb-1">{{ form.staff.label }}</label>
+        {{ form.staff }}
+        <p class="text-xs text-slate-500 mt-1">Shown only for Salary.</p>
+        {% if form.staff.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.staff.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- CONDITIONAL: Party for Purchases/Other Items -->
+      <div id="wrapParty" class="hidden">
+        <label class="block text-sm text-slate-600 mb-1">{{ form.party.label }}</label>
+        {{ form.party }}
+        <p class="text-xs text-slate-500 mt-1">Shown for Purchases/Other Items.</p>
+        {% if form.party.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.party.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- CONDITIONAL: Purchase Order for Purchases/Other Items -->
+      <div id="wrapPO" class="hidden">
+        <label class="block text-sm text-slate-600 mb-1">{{ form.purchase_order.label }}</label>
+        {{ form.purchase_order }}
+        {% if form.purchase_order.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.purchase_order.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">{{ form.payment_source.label }}</label>
+        {{ form.payment_source }}
+        {% if form.payment_source.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.payment_source.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div id="bankField" class="md:col-span-2">
+        <label class="block text-sm text-slate-600 mb-1">{{ form.bank_account.label }}</label>
+        {{ form.bank_account }}
+        {% if form.bank_account.errors %}<p class="text-xs text-rose-600 mt-1">{{ form.bank_account.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="mt-6 flex items-center gap-2">
+      <button
+        id="btnExpenseSave"
+        class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800"
+        type="submit"
+      >
+        Save
+      </button>
+      <a class="rounded-lg px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100"
+         href="{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'finance_expense_list' %}{% endif %}">
+        Cancel
+      </a>
+      {% if object %}
+        <a class="ml-auto rounded-lg px-4 py-2 border border-rose-300 text-rose-700 hover:bg-rose-50"
+           href="{% url 'finance_expense_delete' object.pk %}">
+          Delete
+        </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block all_scripts %}
+<script>
+  (function () {
+    const CAT_SALARY   = "salary";
+    const CAT_PURCHASE = "purchase";
+
+    const selCategory = document.getElementById("id_category");
+    const selSource   = document.getElementById("id_payment_source");
+
+    const wrapStaff = document.getElementById("wrapStaff");
+    const wrapParty = document.getElementById("wrapParty");
+    const wrapPO    = document.getElementById("wrapPO");
+    const bankWrap  = document.getElementById("bankField");
+
+    const fldParty  = document.getElementById("id_party");
+    const fldStaff  = document.getElementById("id_staff");
+
+    function show(el){ el && el.classList.remove("hidden"); }
+    function hide(el){ el && el.classList.add("hidden"); }
+
+    function toggleByCategory() {
+      const v = selCategory ? selCategory.value : "";
+
+      // Reset required flags
+      if (fldParty) fldParty.required = false;
+      if (fldStaff) fldStaff.required = false;
+
+      // Default. hide all conditional groups
+      hide(wrapStaff); hide(wrapParty); hide(wrapPO);
+
+      if (v === CAT_SALARY) {
+        show(wrapStaff);
+        if (fldStaff) fldStaff.required = true; // Salary needs staff
+      } else if (v === CAT_PURCHASE) {
+        show(wrapParty); show(wrapPO);
+        if (fldParty) fldParty.required = true; // Purchases need party
+      }
+    }
+
+    function toggleBank() {
+      const val = (selSource && selSource.value) || "cash";
+      if (!bankWrap) return;
+      bankWrap.classList.toggle("hidden", val !== "bank");
+    }
+
+    toggleByCategory();
+    toggleBank();
+
+    if (selCategory) selCategory.addEventListener("change", toggleByCategory);
+    if (selSource)   selSource.addEventListener("change", toggleBank);
+
+    // submit protection and Saving... state
+    const form = document.getElementById("expenseForm");
+    const saveBtn = document.getElementById("btnExpenseSave");
+    let isSubmitting = false;
+
+    if (form && saveBtn) {
+      form.addEventListener("submit", function (e) {
+        if (isSubmitting) {
+          e.preventDefault();
+          return;
+        }
+        isSubmitting = true;
+
+        if (!saveBtn.dataset.originalText) {
+          saveBtn.dataset.originalText = saveBtn.textContent;
+        }
+        const currentText = (saveBtn.textContent || "").trim().toLowerCase();
+        let newText = "Processing...";
+        if (
+          currentText.includes("save") ||
+          currentText.includes("create") ||
+          currentText.includes("update")
+        ) {
+          newText = "Saving...";
+        }
+        saveBtn.textContent = newText;
+        saveBtn.classList.add(
+          "opacity-70",
+          "cursor-not-allowed",
+          "pointer-events-none"
+        );
+      });
+    }
+  })();
+</script>
+{% endblock %}

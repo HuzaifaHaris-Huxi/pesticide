@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-1">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="book-open" class="w-7 h-7"></i>
+      <span>
+        Ledgers
+        {% if business %}. {{ business.name }}{% else %}. {{ all_business_label }}{% endif %}
+      </span>
+    </h1>
+  </div>
+
+  <p class="text-sm text-slate-600 mb-3">
+    Business:
+    <span class="font-semibold text-indigo-600">
+      {% if all_mode %}{{ all_business_label }}{% else %}{{ business.name }}{% endif %}
+    </span>
+  </p>
+
+  {# Business buttons + balances link #}
+  <div class="mb-3">
+    <div class="flex items-center justify-between gap-2 border-b border-slate-300">
+      <div class="flex gap-2 overflow-x-auto pb-1" data-tabs="businesses">
+        {# All Button #}
+        {% if not business %}
+          <a
+            href="{% url 'ledgers_list' %}?kind={{ kind }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+            aria-current="page"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                   bg-slate-700 text-white border-slate-700 shadow-md">
+            {{ all_business_label }}
+          </a>
+        {% else %}
+          <a
+            href="{% url 'ledgers_list' %}?kind={{ kind }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                   text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-slate-600 hover:text-slate-900">
+            {{ all_business_label }}
+          </a>
+        {% endif %}
+
+        {# Business Buttons #}
+        {% for b in businesses %}
+          <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' 'sky' 'violet' 'teal' 'fuchsia' as color %}</span>
+
+          {% if business and business.id == b.id %}
+            <a
+              href="{% url 'ledgers_list' %}?kind={{ kind }}&business={{ b.id }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+              aria-current="page"
+              data-tint="{{ color }}"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                     bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+              {{ b.name }}
+            </a>
+          {% else %}
+            <a
+              href="{% url 'ledgers_list' %}?kind={{ kind }}&business={{ b.id }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                     text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+              {{ b.name }}
+            </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {# Right side link to party balances #}
+      <a
+        href="{% url 'party_balances' %}"
+        class="bg-gray-400 text-white px-4 py-2 rounded-full ml-4 whitespace-nowrap inline-flex items-center gap-1 text-xs sm:text-sm text-slate-600 hover:text-slate-900"
+      >
+        Customer & Supplier balances
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  {# Tabs. Customers . Suppliers . Staff #}
+  <div class="mb-3 border-b border-slate-300">
+    {% with cur=kind %}
+    <div class="flex gap-2">
+      <a href="{% url 'ledgers_list' %}?kind=customer{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
+         class="px-4 py-2 rounded-t-lg text-sm border-b-2
+                {% if cur == 'customer' %}
+                  border-indigo-600 text-indigo-700 font-medium
+                {% else %}
+                  border-transparent text-slate-600 hover:text-slate-800
+                {% endif %}">
+        Customers
+      </a>
+      <a href="{% url 'ledgers_list' %}?kind=supplier{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
+         class="px-4 py-2 rounded-t-lg text-sm border-b-2
+                {% if cur == 'supplier' %}
+                  border-indigo-600 text-indigo-700 font-medium
+                {% else %}
+                  border-transparent text-slate-600 hover:text-slate-800
+                {% endif %}">
+        Suppliers
+      </a>
+      <a href="{% url 'ledgers_list' %}?kind=staff{% if business %}&business={{ business.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
+         class="px-4 py-2 rounded-t-lg text-sm border-b-2
+                {% if cur == 'staff' %}
+                  border-indigo-600 text-indigo-700 font-medium
+                {% else %}
+                  border-transparent text-slate-600 hover:text-slate-800
+                {% endif %}">
+        Staff
+      </a>
+    </div>
+    {% endwith %}
+  </div>
+
+  {# Search #}
+  <div class="flex flex-wrap items-end gap-3 mb-4">
+    <form class="flex-1">
+      <input
+        id="ledger-search"
+        name="q"
+        value="{{ q }}"
+        placeholder="Search by name, phone, email..."
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+        hx-get="{% url 'ledgers_list' %}?kind={{ kind }}{% if business %}&business={{ business.id }}{% endif %}"
+        hx-trigger="keyup changed delay:200ms"
+        hx-target="#ledger-table"
+        hx-include="#ledger-search"
+        hx-push-url="true"
+        autocomplete="off"
+      />
+    </form>
+    {% if business %}
+      <span class="text-sm text-slate-600">
+        Current:
+        <span class="font-semibold text-indigo-600">{{ business.code }}</span>
+      </span>
+    {% else %}
+      <span class="text-sm text-slate-600">
+        Showing:
+        <span class="font-semibold text-slate-600">{{ all_business_label }}</span>
+      </span>
+    {% endif %}
+  </div>
+
+  {# Table (HTMX target is inside partial) #}
+  {% include "barkat/finance/_ledgers_table.html" with page_obj=page_obj kind=kind business=business q=q %}
+
+</div>
+{% endblock %}

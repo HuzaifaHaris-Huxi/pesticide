@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="settings" class="w-7 h-7"></i>
+      <span>User Settings</span>
+    </h1>
+  </div>
+
+  <div class="max-w-2xl">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <form method="post">
+        {% csrf_token %}
+        
+        <div class="space-y-6">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Barcode Printer Settings</h2>
+            
+            <div class="space-y-4">
+              <div>
+                <label for="{{ form.business_name.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                  Business Name for Labels
+                </label>
+                <p class="text-xs text-slate-500 mb-2">
+                  Enter the business name that will be displayed on barcode labels (this can be different from your registered businesses).
+                </p>
+                {{ form.business_name }}
+                {% if form.business_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ form.business_name.errors.0 }}</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <label for="{{ form.barcode_printer_name.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                  Barcode Printer Name
+                </label>
+                <p class="text-xs text-slate-500 mb-2">
+                  Enter the exact Windows printer name (e.g., BC-LP1300). This printer will be used for silent barcode label printing.
+                </p>
+                {{ form.barcode_printer_name }}
+                {% if form.barcode_printer_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ form.barcode_printer_name.errors.0 }}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 pt-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Sale Order Defaults</h2>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">
+                Default Payment Method in Sale Order
+              </label>
+              <p class="text-xs text-slate-500 mb-3">
+                When creating a new sale order, this option will be auto-selected. Choose Cash for immediate payment or On Credit when the customer pays later.
+              </p>
+              <div class="flex flex-wrap gap-4">
+                {% for value, label in form.default_sale_payment_method.field.choices %}
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="{{ form.default_sale_payment_method.name }}" value="{{ value }}"
+                         class="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                         {% if form.default_sale_payment_method.value == value %}checked{% endif %}>
+                  <span class="text-sm font-medium text-slate-700">{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              {% if form.default_sale_payment_method.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ form.default_sale_payment_method.errors.0 }}</p>
+              {% endif %}
+            </div>
+            
+            <div class="mt-4">
+              <label for="{{ form.default_sale_business.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                Default Business for Sale Orders
+              </label>
+              <p class="text-xs text-slate-500 mb-2">
+                Auto-select this business when creating a new sale order. Leave as "None" to select manually each time.
+              </p>
+              {{ form.default_sale_business }}
+              {% if form.default_sale_business.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ form.default_sale_business.errors.0 }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Dashboard Metrics Privacy</h2>
+            <p class="text-sm text-slate-600 mb-3">
+              Check the metrics you want to hide behind a password on the dashboard. You must have a password set below for this to work.
+            </p>
+            <div class="space-y-3">
+              <label class="flex items-center gap-2 cursor-pointer">
+                {{ form.protect_receivables }}
+                <span class="text-sm font-medium text-slate-700">Protect Total Receivables</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                {{ form.protect_payables }}
+                <span class="text-sm font-medium text-slate-700">Protect Total Payables</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                {{ form.protect_inventory }}
+                <span class="text-sm font-medium text-slate-700">Protect Total Inventory Value</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                {{ form.protect_cash_in_hand }}
+                <span class="text-sm font-medium text-slate-700">Protect Cash in Hand</span>
+              </label>
+            </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Order Cancellation Password</h2>
+            <p class="text-sm text-slate-600 mb-3">
+              A separate password (not your login) used to confirm cancelling orders, viewing supplier ledgers, and party-balances suppliers. If you do not set one, no password is required anywhere. You can remove it later.
+            </p>
+            {% if has_cancellation_password %}
+              <p class="text-xs text-emerald-600 mb-2">Password is set. Enter current + new to change, or check "Remove" to clear it.</p>
+            {% else %}
+              <p class="text-xs text-amber-600 mb-2">No password set. No popups or gates for cancel, supplier ledger, or party-balances.</p>
+            {% endif %}
+            <div class="space-y-3">
+              {% if has_cancellation_password %}
+              <div class="flex items-center gap-2">
+                <label for="id_remove_cancellation_password" class="checkbox-label flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  {{ form.remove_cancellation_password }}
+                  {{ form.remove_cancellation_password.label }}
+                </label>
+                <span class="text-xs text-slate-500">{{ form.remove_cancellation_password.help_text }}</span>
+              </div>
+              {% if form.remove_cancellation_password.errors %}
+                <p class="text-red-600 text-xs">{{ form.remove_cancellation_password.errors.0 }}</p>
+              {% endif %}
+              {% endif %}
+              <div>
+                <label for="id_cancellation_password_old" class="block text-sm font-medium text-slate-700 mb-1">{{ form.cancellation_password_old.label }}</label>
+                {{ form.cancellation_password_old }}
+                <p class="text-xs text-slate-500 mt-1">{{ form.cancellation_password_old.help_text }}</p>
+                {% if form.cancellation_password_old.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ form.cancellation_password_old.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                <label for="id_cancellation_password_new" class="block text-sm font-medium text-slate-700 mb-1">{{ form.cancellation_password_new.label }}</label>
+                {{ form.cancellation_password_new }}
+                <p class="text-xs text-slate-500 mt-1">{{ form.cancellation_password_new.help_text }}</p>
+                {% if form.cancellation_password_new.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ form.cancellation_password_new.errors.0 }}</p>
+                {% endif %}
+              </div>
+            </div>
+            <div class="border-t border-slate-200 pt-6">
+              <h2 class="text-lg font-semibold text-rose-800 mb-4 flex items-center gap-2">
+                <i data-feather="tool" class="w-5 h-5"></i>
+                <span>System Maintenance</span>
+              </h2>
+              <div class="bg-rose-50 border border-rose-100 rounded-lg p-4">
+                <p class="text-sm text-rose-800 font-medium mb-1">Recalculate All Totals</p>
+                <p class="text-xs text-rose-600 mb-3">
+                  If the dashboard numbers or party balances seem incorrect, use this to force a full system-wide recalculation of all cached summaries and balances.
+                </p>
+                <a href="{% url 'recalculate_all_totals' %}" 
+                   onclick="return confirm('This will rebuild all cached balances and dashboard stats from scratch. Continue?')"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded hover:bg-rose-700 transition-colors">
+                  <i data-feather="refresh-cw" class="w-3.5 h-3.5"></i>
+                  Recalculate Now
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 pt-4 border-t border-slate-200">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Save Settings
+            </button>
+            <a
+              href="{% url 'products_list' %}"
+              class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

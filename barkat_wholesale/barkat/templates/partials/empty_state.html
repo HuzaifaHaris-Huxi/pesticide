@@ -1,0 +1,111 @@
+{# templates/partials/empty_state.html #}
+<div class="flex flex-col items-center justify-center py-12">
+  <div class="relative">
+    {# Main illustration #}
+    <svg class="w-64 h-64" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {# Background circle #}
+      <circle cx="200" cy="150" r="100" fill="url(#gradient1)" opacity="0.1"/>
+      
+      {# Document stack #}
+      <rect x="140" y="80" width="120" height="140" rx="8" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2"/>
+      <rect x="150" y="70" width="120" height="140" rx="8" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="2"/>
+      <rect x="160" y="60" width="120" height="140" rx="8" fill="#FFFFFF" stroke="#6B7280" stroke-width="2"/>
+      
+      {# Lines on document #}
+      <line x1="180" y1="90" x2="260" y2="90" stroke="#E5E7EB" stroke-width="4" stroke-linecap="round"/>
+      <line x1="180" y1="110" x2="240" y2="110" stroke="#E5E7EB" stroke-width="4" stroke-linecap="round"/>
+      <line x1="180" y1="130" x2="250" y2="130" stroke="#E5E7EB" stroke-width="4" stroke-linecap="round"/>
+      <line x1="180" y1="150" x2="230" y2="150" stroke="#E5E7EB" stroke-width="4" stroke-linecap="round"/>
+      <line x1="180" y1="170" x2="245" y2="170" stroke="#E5E7EB" stroke-width="4" stroke-linecap="round"/>
+      
+      {# Magnifying glass #}
+      <circle cx="250" cy="150" r="35" fill="none" stroke="#4F46E5" stroke-width="6"/>
+      <line x1="275" y1="175" x2="300" y2="200" stroke="#4F46E5" stroke-width="6" stroke-linecap="round"/>
+      
+      {# Question mark in magnifying glass #}
+      <text x="250" y="160" font-family="Arial, sans-serif" font-size="30" font-weight="bold" text-anchor="middle" fill="#4F46E5">?</text>
+      
+      {# Decorative elements #}
+      <circle cx="100" cy="100" r="5" fill="#FCA5A5" opacity="0.6"/>
+      <circle cx="120" cy="180" r="7" fill="#86EFAC" opacity="0.6"/>
+      <circle cx="300" cy="90" r="6" fill="#93C5FD" opacity="0.6"/>
+      <circle cx="320" cy="160" r="4" fill="#FBBF24" opacity="0.6"/>
+      
+      {# Gradient definition #}
+      <defs>
+        <linearGradient id="gradient1" x1="100" y1="50" x2="300" y2="250">
+          <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:0.5" />
+          <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:0.5" />
+        </linearGradient>
+      </defs>
+    </svg>
+    
+    {# Animated floating particles #}
+    <div class="absolute top-10 left-10 w-3 h-3 bg-indigo-400 rounded-full animate-bounce opacity-60"></div>
+    <div class="absolute top-20 right-10 w-2 h-2 bg-purple-400 rounded-full animate-ping opacity-60"></div>
+    <div class="absolute bottom-10 left-20 w-4 h-4 bg-blue-400 rounded-full animate-pulse opacity-60"></div>
+  </div>
+
+  <div class="text-center mt-8 max-w-md">
+    <h3 class="text-2xl font-bold text-gray-900 mb-2">No Transactions Found</h3>
+    <p class="text-gray-600 mb-6">
+      {% if date_from or date_to %}
+        There are no transactions for the selected date range.
+      {% else %}
+        There are no transactions to display for this ledger.
+      {% endif %}
+    </p>
+    
+    <div class="space-y-3">
+      <div class="flex items-center justify-center gap-2 text-sm text-gray-500">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Try adjusting your date filters</span>
+      </div>
+      
+      <div class="flex items-center justify-center gap-2 text-sm text-gray-500">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Check if the correct business is selected</span>
+      </div>
+      
+      <div class="flex items-center justify-center gap-2 text-sm text-gray-500">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Verify that transactions have been recorded</span>
+      </div>
+    </div>
+
+    <div class="mt-8 flex justify-center gap-4">
+      <a href="?{% if all_mode %}business=all{% else %}business={{ business.id }}{% endif %}"
+         class="inline-flex items-center px-4 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-all">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Clear Filters
+      </a>
+      
+      <a href="{% url 'ledgers_list' %}"
+         class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 font-medium shadow-sm transition-all">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Back to List
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+</style>

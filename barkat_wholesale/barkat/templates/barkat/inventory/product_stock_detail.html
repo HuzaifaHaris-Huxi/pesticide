@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-2">
+        <i data-feather="activity" class="w-7 h-7"></i>
+        <span>Stock Movements</span>
+      </h1>
+      <p class="text-sm text-slate-600 mt-1">
+        {{ product.business.name }} · {{ product.name }}
+        {% if product.sku %}({{ product.sku }}){% endif %}
+        · Base: {{ product.uom.symbol|default:product.uom.code }}{% if product.bulk_uom %} · Bulk: {{ product.bulk_uom.code }}{% endif %}
+      </p>
+    </div>
+    <a href="{% url 'stock_status' %}"
+       class="rounded-lg px-3 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 text-sm">
+      Back to stock list
+    </a>
+  </div>
+
+  <form method="get" class="mb-4 flex flex-wrap gap-2 items-end">
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">From date</label>
+      <input type="date" name="start" value="{{ start }}"
+             class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">To date</label>
+      <input type="date" name="end" value="{{ end }}"
+             class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+    </div>
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800 text-sm">
+      Apply
+    </button>
+    <a href="{% url 'product_stock_detail' product.id %}"
+       class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50 text-sm">
+      Reset
+    </a>
+  </form>
+
+  <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="text-xs font-medium text-slate-500 mb-1">Current stock (base)</div>
+      <div class="text-2xl font-semibold text-slate-900">{{ product.stock_qty|floatformat:2 }} {{ product.uom.symbol|default:product.uom.code }}</div>
+      {% if product.bulk_stock_status %}
+        <div class="text-xs text-emerald-600 font-medium mt-1">{{ product.bulk_stock_status }}</div>
+      {% endif %}
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="text-xs font-medium text-slate-500 mb-1">Total IN (filtered, base unit)</div>
+      <div class="text-xl font-semibold text-emerald-600">{{ total_in|floatformat:2 }} {{ product.uom.code }}</div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white p-4">
+      <div class="text-xs font-medium text-slate-500 mb-1">Total OUT (filtered, base unit)</div>
+      <div class="text-xl font-semibold text-rose-600">{{ total_out|floatformat:2 }} {{ product.uom.code }}</div>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Type</th>
+          <th class="px-4 py-2 text-left">Party (Vendor/Customer)</th>
+          <th class="px-4 py-2 text-right">Qty IN</th>
+          <th class="px-4 py-2 text-left">Unit</th>
+          <th class="px-4 py-2 text-right">Qty OUT</th>
+          <th class="px-4 py-2 text-left">Unit</th>
+          <th class="px-4 py-2 text-right">Running balance (base)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+          <tr class="border-t">
+            <td class="px-4 py-2 whitespace-nowrap">{{ m.date|date:"Y-m-d H:i" }}</td>
+            <td class="px-4 py-2">{{ m.type }}</td>
+            <td class="px-4 py-2">{{ m.party }}</td>
+            <td class="px-4 py-2 text-right">
+              {% if m.qty_in %}{{ m.display_qty_in|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-slate-600">{% if m.qty_in %}{{ m.display_unit_in }}{% else %}—{% endif %}</td>
+            <td class="px-4 py-2 text-right">
+              {% if m.qty_out %}{{ m.display_qty_out|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-slate-600">{% if m.qty_out %}{{ m.display_unit_out }}{% else %}—{% endif %}</td>
+            <td class="px-4 py-2 text-right">{{ m.balance|floatformat:2 }} {{ product.uom.code }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="px-4 py-6 text-center text-slate-500">
+              No stock movements found for this product with current filters.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

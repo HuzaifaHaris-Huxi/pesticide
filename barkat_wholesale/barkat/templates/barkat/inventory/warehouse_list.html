@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Warehouses{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6" >
+
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">Warehouses</h1>
+    <a href="{% url 'warehouse_create' %}"
+       class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-700">
+      + New Warehouse
+    </a>
+  </div>
+
+  <form method="get" class="mb-4">
+    <div class="flex gap-2">
+      <input type="text" name="q" value="{{ query }}"
+             class="w-full rounded-md border border-slate-300 px-3 py-2"
+             placeholder="Search by name, code, or address">
+      <button class="rounded-md border border-slate-300 px-3 py-2 bg-white hover:bg-slate-50">Search</button>
+    </div>
+  </form>
+
+  <div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-slate-700">
+        <tr>
+          <th class="py-2 px-3 text-left">Code</th>
+          <th class="py-2 px-3 text-left">Name</th>
+          <th class="py-2 px-3 text-left">Address</th>
+          <th class="py-2 px-3 text-left">Active</th>
+          <th class="py-2 px-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wh in page_obj %}
+          <tr class="border-t">
+            <td class="py-2 px-3 font-mono">{{ wh.code }}</td>
+            <td class="py-2 px-3">{{ wh.name }}</td>
+            <td class="py-2 px-3 text-slate-600">{{ wh.address|default:"—" }}</td>
+            <td class="py-2 px-3">
+              {% if wh.is_active %}
+                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700 text-xs">Active</span>
+              {% else %}
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 text-xs">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="py-2 px-3 text-right">
+              <a href="{% url 'warehouse_detail' wh.pk %}"
+                 class="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-slate-700 hover:bg-slate-50">
+                View
+              </a>
+              <a href="{% url 'warehouse_update' wh.pk %}"
+                 class="inline-flex items-center rounded-md bg-slate-800 px-2.5 py-1.5 text-white hover:bg-slate-900 ml-1">
+                Edit
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="py-6 px-3 text-center text-slate-500">No warehouses yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- pagination -->
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-4 flex items-center justify-between">
+    <div class="text-sm text-slate-600">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ query }}&page={{ page_obj.previous_page_number }}"
+           class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">Previous</a>
+      {% else %}
+        <span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 cursor-not-allowed">Previous</span>
+      {% endif %}
+
+      {% if page_obj.has_next %}
+        <a href="?q={{ query }}&page={{ page_obj.next_page_number }}"
+           class="rounded-md border border-slate-300 bg-white px-3 py-1.5 hover:bg-slate-50">Next</a>
+      {% else %}
+        <span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-400 cursor-not-allowed">Next</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

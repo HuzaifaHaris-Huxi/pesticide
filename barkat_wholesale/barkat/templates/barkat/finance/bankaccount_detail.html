@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}Bank account details{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6 bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen">
+
+  <!-- Top header and back button, no print -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 no-print">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">
+        Bank account ledger
+      </h1>
+      <p class="text-sm text-slate-600 mt-1">
+        {{ account.bank_name|default:"Cash account" }}. {{ account.name }}
+      </p>
+      <p class="text-xs text-slate-500 mt-1">
+        Account no. {{ account.account_number|default:"N/A" }}. Branch. {{ account.branch|default:"N/A" }}
+      </p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <a
+        href="{% url 'bankaccount_list' %}"
+        class="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs md:text-sm font-medium text-slate-700 hover:bg-slate-100"
+      >
+        <span aria-hidden="true">←</span>
+        <span>Back to accounts</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Totals summary, no print -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6 no-print">
+    <div class="rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm">
+      <div class="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">
+        Opening balance (period)
+      </div>
+      <div class="mt-1 text-lg font-bold text-slate-800">
+        Rs. {{ totals.opening_balance }}
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 shadow-sm">
+      <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">
+        Total in
+      </div>
+      <div class="mt-1 text-lg font-bold text-emerald-800">
+        Rs. {{ totals.total_in }}
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-rose-200 bg-rose-50/90 p-3 shadow-sm">
+      <div class="text-[11px] font-semibold text-rose-700 uppercase tracking-wide">
+        Total out
+      </div>
+      <div class="mt-1 text-lg font-bold text-rose-800">
+        Rs. {{ totals.total_out }}
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-indigo-200 bg-indigo-50/90 p-3 shadow-sm">
+      <div class="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">
+        Current balance
+      </div>
+      <div class="mt-1 text-lg font-bold {% if totals.current_balance < 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+        Rs. {{ totals.current_balance }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Date filter and print, no print -->
+  <div class="mb-4 no-print">
+    <form id="filterForm" method="get" class="grid grid-cols-1 md:grid-cols-5 gap-3 w-full lg:w-auto">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">From</label>
+        <input
+          type="date"
+          name="date_from"
+          value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+          class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">To</label>
+        <input
+          type="date"
+          name="date_to"
+          value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+          class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+      </div>
+
+      <div class="flex items-end">
+        <button
+          type="submit"
+          class="w-full md:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm"
+        >
+          Filter
+        </button>
+      </div>
+
+      <div class="flex items-end">
+        <a
+          href="?"
+          class="w-full md:w-auto px-4 py-2 border-2 border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-center"
+        >
+          Clear
+        </a>
+      </div>
+
+      <div class="flex items-end">
+        <button
+          type="button"
+          id="btnPrint"
+          class="w-full md:w-auto px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm"
+        >
+          Print
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PRINT HEADER (only in print) -->
+  <div class="hidden print:block bg-white rounded-md border border-slate-300 p-3 mb-3">
+    <div class="flex justify-between items-start gap-4">
+      <div>
+        <div class="text-base font-bold text-slate-900">
+          {{ account.bank_name|default:"Cash account" }}
+        </div>
+        <div class="text-xs text-slate-700">
+          {{ account.name }}
+        </div>
+        <div class="mt-1 text-[11px] text-slate-600">
+          Account no. {{ account.account_number|default:"N/A" }}
+        </div>
+        <div class="text-[11px] text-slate-600">
+          Branch. {{ account.branch|default:"N/A" }}
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-sm font-bold text-slate-900">
+          Bank account ledger
+        </div>
+        <div class="text-[11px] text-slate-600">
+          Date range.
+          {% if date_from %}{{ date_from|date:"Y-m-d" }}{% else %}Start{% endif %}
+          to
+          {% if date_to %}{{ date_to|date:"Y-m-d" }}{% else %}Today{% endif %}
+        </div>
+        <div class="text-[11px] text-slate-600">
+          Printed. {% now "Y-m-d H:i" %}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-2 mt-2">
+      <div class="border border-slate-200 rounded p-1.5">
+        <div class="text-[9px] text-slate-600 uppercase font-semibold">Opening balance</div>
+        <div class="text-[11px] font-bold text-slate-900">
+          Rs. {{ totals.opening_balance }}
+        </div>
+      </div>
+      <div class="border border-emerald-200 rounded p-1.5">
+        <div class="text-[9px] text-emerald-700 uppercase font-semibold">Total in</div>
+        <div class="text-[11px] font-bold text-emerald-800">
+          Rs. {{ totals.total_in }}
+        </div>
+      </div>
+      <div class="border border-rose-200 rounded p-1.5">
+        <div class="text-[9px] text-rose-700 uppercase font-semibold">Total out</div>
+        <div class="text-[11px] font-bold text-rose-800">
+          Rs. {{ totals.total_out }}
+        </div>
+      </div>
+      <div class="border border-indigo-200 rounded p-1.5">
+        <div class="text-[9px] text-indigo-700 uppercase font-semibold">Current balance</div>
+        <div class="text-[11px] font-bold {% if totals.current_balance < 0 %}text-rose-700{% else %}text-emerald-700{% endif %}">
+          Rs. {{ totals.current_balance }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main table -->
+  <div class="rounded-xl border-2 border-indigo-200 overflow-hidden shadow-md bg-white print:shadow-none print:border">
+    <table class="w-full text-sm">
+      <thead class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white print:bg-white print:text-slate-900 print:border-b print:border-slate-300">
+        <tr class="text-left">
+          <th class="px-3 py-2 text-xs font-semibold print:px-2 print:py-1.5">Date</th>
+          <th class="px-3 py-2 text-xs font-semibold print:px-2 print:py-1.5">Type</th>
+          <th class="px-3 py-2 text-xs font-semibold print:px-2 print:py-1.5">Reference</th>
+          <th class="px-3 py-2 text-xs font-semibold print:px-2 print:py-1.5">Description</th>
+          <th class="px-3 py-2 text-xs font-semibold print:px-2 print:py-1.5">Source</th>
+          <th class="px-3 py-2 text-xs font-semibold text-right print:px-2 print:py-1.5">In</th>
+          <th class="px-3 py-2 text-xs font-semibold text-right print:px-2 print:py-1.5">Out</th>
+          <th class="px-3 py-2 text-xs font-semibold text-right print:px-2 print:py-1.5">Running balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in flows %}
+          <tr class="border-t border-slate-100 hover:bg-indigo-50/40 print:hover:bg-white">
+            <td class="px-3 py-2 text-sm text-slate-700 align-top print:px-2 print:py-1.5">
+              {{ f.date|date:"Y-m-d" }}
+            </td>
+            <td class="px-3 py-2 text-xs align-top print:px-2 print:py-1.5">
+              {% if f.flow_type == "in" %}
+                <span class="inline-flex px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px]">
+                  In
+                </span>
+              {% else %}
+                <span class="inline-flex px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px]">
+                  Out
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-xs text-slate-700 align-top print:px-2 print:py-1.5">
+              {{ f.display_reference|default:"" }}
+            </td>
+            <td class="px-3 py-2 text-xs text-slate-600 align-top print:px-2 print:py-1.5">
+              {{ f.display_description|default:f.description }}
+            </td>
+            <td class="px-3 py-2 text-[11px] text-slate-600 align-top print:px-2 print:py-1.5">
+              {{ f.source_label }}
+            </td>
+            <td class="px-3 py-2 text-sm text-right text-emerald-700 align-top print:px-2 print:py-1.5">
+              {% if f.flow_type == "in" %}
+                {{ f.amount }}
+              {% else %}
+                <span class="text-slate-300">.</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-sm text-right text-rose-700 align-top print:px-2 print:py-1.5">
+              {% if f.flow_type == "out" %}
+                {{ f.amount }}
+              {% else %}
+                <span class="text-slate-300">.</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-sm text-right align-top print:px-2 print:py-1.5">
+              <span class="{% if f.running_balance < 0 %}text-rose-700{% else %}text-emerald-700{% endif %} font-semibold">
+                {{ f.running_balance }}
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="px-3 py-6 text-center text-slate-500 text-sm">
+              No transactions found for this account.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not print_mode %}
+  <!-- Pagination, no print -->
+  <div class="flex justify-between items-center mt-4 bg-white rounded-lg border border-slate-200 px-4 py-2 shadow-sm no-print">
+    <div class="text-xs sm:text-sm font-medium text-slate-700">
+      Page <span class="text-indigo-600 font-bold">{{ page_obj.number }}</span>
+      of <span class="text-indigo-600 font-bold">{{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a
+          href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.previous_page_number }}"
+          class="px-3 py-1.5 border border-indigo-400 bg-white text-indigo-700 rounded-md hover:bg-indigo-50 text-xs sm:text-sm"
+        >
+          ← Previous
+        </a>
+      {% else %}
+        <span class="px-3 py-1.5 border border-slate-200 bg-slate-50 text-slate-400 rounded-md text-xs sm:text-sm">
+          ← Previous
+        </span>
+      {% endif %}
+
+      {% if page_obj.has_next %}
+        <a
+          href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.next_page_number }}"
+          class="px-3 py-1.5 border border-indigo-400 bg-white text-indigo-700 rounded-md hover:bg-indigo-50 text-xs sm:text-sm"
+        >
+          Next →
+        </a>
+      {% else %}
+        <span class="px-3 py-1.5 border border-slate-200 bg-slate-50 text-slate-400 rounded-md text-xs sm:text-sm">
+          Next →
+        </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Print styles -->
+<style>
+@media print {
+  #sidebar, .sidebar, nav, header, footer, .no-print {
+    display: none !important;
+  }
+
+  #content, main, .content, .page {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .overflow-hidden,
+  .overflow-auto,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-scroll,
+  .min-h-screen,
+  .max-h-screen,
+  .h-screen {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  th, td {
+    border: 1px solid #e5e7eb;
+  }
+
+  tbody, thead, tfoot, tr, td, th {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .bg-gradient-to-br,
+  .bg-gradient-to-r {
+    background: #fff !important;
+  }
+
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  .sticky, .fixed {
+    position: static !important;
+    top: auto !important;
+  }
+
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+</style>
+
+{% if print_mode %}
+<script>
+  window.addEventListener("load", function () {
+    try { window.print(); } catch (e) {}
+  });
+</script>
+{% else %}
+<script>
+  (function () {
+    const btnPrint = document.getElementById("btnPrint");
+    const form = document.getElementById("filterForm");
+    if (!btnPrint || !form) return;
+
+    btnPrint.addEventListener("click", function () {
+      const params = new URLSearchParams(new FormData(form));
+      params.set("print", "1");
+      const url = `${location.pathname}?${params.toString()}`;
+      window.open(url, "_blank");
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

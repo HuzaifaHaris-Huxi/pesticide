@@ -1,0 +1,754 @@
+<!-- barkat/templates/barkat/reports/business_summary_v2.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Summary Report - {{ selected_business.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #2c3e50;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header .business-info {
+            color: #7f8c8d;
+            font-size: 18px;
+        }
+        
+        .filter-section {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        
+        .filter-group select,
+        .filter-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #229954;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .action-buttons {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        
+        .action-buttons .btn {
+            margin-left: 10px;
+        }
+        
+        .summary-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            background-color: #34495e;
+            color: white;
+            padding: 12px 15px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            background-color: #fff;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s;
+        }
+        
+        .summary-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .summary-card.highlight {
+            background-color: #e8f8f5;
+            border-color: #27ae60;
+        }
+        
+        .summary-card.warning {
+            background-color: #fef5e7;
+            border-color: #f39c12;
+        }
+        
+        .summary-card.danger {
+            background-color: #fadbd8;
+            border-color: #e74c3c;
+        }
+        
+        .card-label {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .card-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .card-value.positive {
+            color: #27ae60;
+        }
+        
+        .card-value.negative {
+            color: #e74c3c;
+        }
+        
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .detail-table th,
+        .detail-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .detail-table th {
+            background-color: #34495e;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        
+        .detail-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .detail-table td:last-child,
+        .detail-table th:last-child {
+            text-align: right;
+        }
+        
+        .detail-table .amount {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .detail-table .amount.positive {
+            color: #27ae60;
+        }
+        
+        .detail-table .amount.negative {
+            color: #e74c3c;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background-color: #ecf0f1 !important;
+            font-size: 16px;
+        }
+        
+        .breakdown-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .breakdown-item.total {
+            font-weight: bold;
+            font-size: 18px;
+            background-color: #e8f8f5;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        
+        .breakdown-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .breakdown-value {
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .percentage-badge {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+        }
+        
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            
+            .filter-section,
+            .action-buttons,
+            .btn {
+                display: none !important;
+            }
+            
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-table {
+                font-size: 14px;
+            }
+            
+            .detail-table th,
+            .detail-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Business Summary Report</h1>
+            <div class="business-info">
+                {{ selected_business.name }} ({{ selected_business.code }})
+            </div>
+            <div style="color: #95a5a6; font-size: 14px; margin-top: 5px;">
+                Period: {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <form method="GET" action="">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="business_id">Select Business:</label>
+                        <select name="business_id" id="business_id" required>
+                            {% for biz in businesses %}
+                            <option value="{{ biz.id }}" {% if biz.id == selected_business.id %}selected{% endif %}>
+                                {{ biz.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="start_date">Start Date:</label>
+                        <input type="date" name="start_date" id="start_date" value="{{ start_date|date:'Y-m-d' }}" required>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="end_date">End Date:</label>
+                        <input type="date" name="end_date" id="end_date" value="{{ end_date|date:'Y-m-d' }}" required>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <button type="submit" class="btn btn-primary">Generate Report</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button onclick="window.print()" class="btn btn-success">🖨️ Print Report</button>
+            <a href="?business_id={{ selected_business.id }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&format=json" 
+               class="btn btn-secondary" download>💾 Export JSON</a>
+        </div>
+
+        {% if report %}
+        
+        <!-- Opening Balance Section -->
+        <div class="summary-section">
+            <div class="section-title">💰 Opening Balance ({{ start_date|date:"d M Y" }})</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-label">Cash in Hand</div>
+                    <div class="card-value">Rs. {{ report.opening_balance.cash|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Total Bank Balance</div>
+                    <div class="card-value">Rs. {{ report.opening_balance.total_bank|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">Total Opening Balance</div>
+                    <div class="card-value">Rs. {{ report.opening_balance.total|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            {% if report.opening_balance.bank_accounts %}
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Bank Account</th>
+                        <th>Opening Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bank_name, balance in report.opening_balance.bank_accounts.items %}
+                    <tr>
+                        <td>{{ bank_name }}</td>
+                        <td class="amount">Rs. {{ balance|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Sales Section -->
+        <div class="summary-section">
+            <div class="section-title">📈 Sales Summary</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-label">Total Sales</div>
+                    <div class="card-value positive">Rs. {{ report.sales.total_sales_amount|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">Amount Received</div>
+                    <div class="card-value positive">Rs. {{ report.sales.total_received|floatformat:2 }}</div>
+                    <span class="percentage-badge">{{ report.sales.receipt_percentage|floatformat:1 }}%</span>
+                </div>
+                <div class="summary-card warning">
+                    <div class="card-label">Credit Outstanding</div>
+                    <div class="card-value negative">Rs. {{ report.sales.credit_outstanding|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px 0; color: #2c3e50;">💵 Sales Receipts Breakdown</h3>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Payment Method</th>
+                        <th>Amount Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>💵 Cash</td>
+                        <td class="amount positive">Rs. {{ report.sales.receipts.cash|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>🏦 Bank Transfer</td>
+                        <td class="amount positive">Rs. {{ report.sales.receipts.bank_transfer|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>📄 Cheques (Pending)</td>
+                        <td class="amount">Rs. {{ report.sales.receipts.cheque_pending|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>✅ Cheques (Deposited)</td>
+                        <td class="amount positive">Rs. {{ report.sales.receipts.cheque_deposited|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>TOTAL RECEIVED</td>
+                        <td class="amount positive">Rs. {{ report.sales.total_received|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Purchases Section -->
+        <div class="summary-section">
+            <div class="section-title">🛒 Purchases Summary</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-label">Total Purchases</div>
+                    <div class="card-value negative">Rs. {{ report.purchases.total_purchases_amount|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">Amount Paid</div>
+                    <div class="card-value negative">Rs. {{ report.purchases.total_paid|floatformat:2 }}</div>
+                    <span class="percentage-badge">{{ report.purchases.payment_percentage|floatformat:1 }}%</span>
+                </div>
+                <div class="summary-card warning">
+                    <div class="card-label">Payables Outstanding</div>
+                    <div class="card-value negative">Rs. {{ report.purchases.payables_outstanding|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px 0; color: #2c3e50;">💳 Purchase Payments Breakdown</h3>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Payment Method</th>
+                        <th>Amount Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>💵 Cash</td>
+                        <td class="amount negative">Rs. {{ report.purchases.payments.cash|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>🏦 Bank Transfer</td>
+                        <td class="amount negative">Rs. {{ report.purchases.payments.bank_transfer|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>📄 Cheque</td>
+                        <td class="amount negative">Rs. {{ report.purchases.payments.cheque|floatformat:2 }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>TOTAL PAID</td>
+                        <td class="amount negative">Rs. {{ report.purchases.total_paid|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Expenses Section -->
+        <div class="summary-section">
+            <div class="section-title">💸 Expenses Summary</div>
+            <div class="summary-grid">
+                <div class="summary-card danger">
+                    <div class="card-label">Total Expenses</div>
+                    <div class="card-value negative">Rs. {{ report.expenses.total_expenses|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Cash Paid</div>
+                    <div class="card-value negative">Rs. {{ report.expenses.cash_paid|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Bank Paid</div>
+                    <div class="card-value negative">Rs. {{ report.expenses.bank_paid|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            {% if report.expenses.by_category %}
+            <h3 style="margin: 20px 0 10px 0; color: #2c3e50;">📋 Expenses by Category</h3>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category, amount in report.expenses.by_category.items %}
+                    <tr>
+                        <td>{{ category }}</td>
+                        <td class="amount negative">Rs. {{ amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td>TOTAL EXPENSES</td>
+                        <td class="amount negative">Rs. {{ report.expenses.total_expenses|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Deposits Section -->
+        <div class="summary-section">
+            <div class="section-title">🏦 Bank Deposits Summary</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-label">Cash Deposited</div>
+                    <div class="card-value">Rs. {{ report.deposits.cash_deposited|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">Cheques Deposited</div>
+                    <div class="card-value">Rs. {{ report.deposits.cheque_deposited|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">Total Deposited</div>
+                    <div class="card-value">Rs. {{ report.deposits.total_deposited|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            {% if report.deposits.by_bank_account %}
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Bank Account</th>
+                        <th>Amount Deposited</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bank_name, amount in report.deposits.by_bank_account.items %}
+                    <tr>
+                        <td>{{ bank_name }}</td>
+                        <td class="amount">Rs. {{ amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Current Position Section -->
+        <div class="summary-section">
+            <div class="section-title">📊 Current Position ({{ end_date|date:"d M Y" }})</div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="card-label">💵 Cash in Hand</div>
+                    <div class="card-value positive">Rs. {{ report.current_position.cash_in_hand|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">📄 Cheques in Hand</div>
+                    <div class="card-value">Rs. {{ report.current_position.cheques_in_hand|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="card-label">🏦 Total Bank Balance</div>
+                    <div class="card-value positive">Rs. {{ report.current_position.total_bank|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">💎 Total Liquid Assets</div>
+                    <div class="card-value positive">Rs. {{ report.current_position.total_liquid_assets|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            {% if report.current_position.bank_balances %}
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Bank Account</th>
+                        <th>Current Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bank_name, balance in report.current_position.bank_balances.items %}
+                    <tr>
+                        <td>{{ bank_name }}</td>
+                        <td class="amount positive">Rs. {{ balance|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Closing Balance Section -->
+        <div class="summary-section">
+            <div class="section-title">🎯 Closing Balance & Summary</div>
+            
+            <div class="breakdown-section">
+                <div class="breakdown-item">
+                    <span class="breakdown-label">Opening Balance</span>
+                    <span class="breakdown-value">Rs. {{ report.closing_balance.breakdown.opening_balance|floatformat:2 }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">➕ Sales Received</span>
+                    <span class="breakdown-value positive">Rs. {{ report.closing_balance.breakdown.add_sales_received|floatformat:2 }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">➖ Purchases Paid</span>
+                    <span class="breakdown-value negative">Rs. {{ report.closing_balance.breakdown.less_purchases_paid|floatformat:2 }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">➖ Expenses Paid</span>
+                    <span class="breakdown-value negative">Rs. {{ report.closing_balance.breakdown.less_expenses_paid|floatformat:2 }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">= Net Cash Flow</span>
+                    <span class="breakdown-value {% if report.closing_balance.breakdown.net_cash_flow >= 0 %}positive{% else %}negative{% endif %}">
+                        Rs. {{ report.closing_balance.breakdown.net_cash_flow|floatformat:2 }}
+                    </span>
+                </div>
+                <div class="breakdown-item total">
+                    <span class="breakdown-label">💰 CLOSING BALANCE</span>
+                    <span class="breakdown-value positive">Rs. {{ report.closing_balance.calculated_closing|floatformat:2 }}</span>
+                </div>
+            </div>
+            
+            <div class="summary-grid" style="margin-top: 20px;">
+                <div class="summary-card highlight">
+                    <div class="card-label">Calculated Closing</div>
+                    <div class="card-value">Rs. {{ report.closing_balance.calculated_closing|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card highlight">
+                    <div class="card-label">Actual Closing</div>
+                    <div class="card-value">Rs. {{ report.closing_balance.actual_closing|floatformat:2 }}</div>
+                </div>
+                <div class="summary-card {% if report.closing_balance.difference == 0 %}highlight{% else %}danger{% endif %}">
+                    <div class="card-label">Difference</div>
+                    <div class="card-value {% if report.closing_balance.difference >= 0 %}positive{% else %}negative{% endif %}">
+                        Rs. {{ report.closing_balance.difference|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+            
+            {% if report.closing_balance.difference != 0 %}
+            <div class="alert alert-warning" style="margin-top: 20px;">
+                <strong>⚠️ Note:</strong> There is a difference of Rs. {{ report.closing_balance.difference|floatformat:2 }} 
+                between calculated and actual closing balance. This may be due to transactions recorded outside the period 
+                or pending entries.
+            </div>
+            {% else %}
+            <div class="alert alert-success" style="margin-top: 20px;">
+                <strong>✅ Verified:</strong> Calculated and actual closing balances match perfectly!
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Report Footer -->
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #ecf0f1; color: #7f8c8d;">
+            <p>Report Generated on {{ report.generated_at|date:"d M Y, H:i" }}</p>
+            <p style="font-size: 12px;">{{ selected_business.name }} - Business Summary Report</p>
+        </div>
+
+        {% else %}
+        <div class="alert alert-info">
+            <strong>ℹ️ No data available.</strong> Please select a business and date range to generate the report.
+        </div>
+        {% endif %}
+
+    </div>
+</body>
+</html>

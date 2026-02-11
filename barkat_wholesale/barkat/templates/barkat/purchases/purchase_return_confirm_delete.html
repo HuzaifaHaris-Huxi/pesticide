@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto p-6">
+  <h1 class="text-xl font-semibold mb-4">Delete Purchase Return</h1>
+  <p class="mb-6">Are you sure you want to delete Purchase Return <strong>#{{ object.id }}</strong>?</p>
+  <form method="post">{% csrf_token %}
+    <button class="rounded-lg px-4 py-2 bg-rose-600 text-white hover:bg-rose-500">Delete</button>
+    <a href="{% url 'pr_edit' object.id %}" class="ml-2 rounded-lg px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100">Cancel</a>
+  </form>
+</div>
+{% endblock %}

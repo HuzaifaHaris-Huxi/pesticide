@@ -1,0 +1,137 @@
+{% load static tailwind_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Login</title>
+    <link
+      rel="shortcut icon"
+      href="{% static 'images/favicon.ico' %}"
+      type="image/x-icon"
+    />
+    {% tailwind_css %}
+  </head>
+
+  <body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
+    <main class="mx-auto max-w-6xl px-4 pt-10 pb-20">
+      {% if messages %}
+      <div class="mb-6 space-y-2">
+        {% for message in messages %}
+        <div
+          class="rounded-xl border p-3 text-sm {% if message.tags == 'error' %} border-rose-200 bg-rose-50 text-rose-800 {% elif message.tags == 'warning' %} border-amber-200 bg-amber-50 text-amber-900 {% elif message.tags == 'success' %} border-emerald-200 bg-emerald-50 text-emerald-900 {% else %} border-slate-200 bg-white text-slate-700 {% endif %}"
+        >
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="min-h-[70vh] grid place-items-center">
+        <div class="w-full max-w-md">
+          <div
+            class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <div class="mb-6 text-center">
+              <img
+                src="{% static 'images/barkat_logo.svg' %}"
+                class="w-40 mx-auto mb-4"
+                alt="Barkat"
+              />
+              <h1 class="text-xl font-semibold text-slate-900">Sign in</h1>
+              <p class="text-sm text-slate-500">
+                Use your username and password
+              </p>
+            </div>
+
+            {% if form.non_field_errors %}
+            <div
+              class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800 text-sm"
+            >
+              {% for err in form.non_field_errors %}
+              <p>{{ err }}</p>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate class="space-y-4">
+              {% csrf_token %} {% if next %}<input
+                type="hidden"
+                name="next"
+                value="{{ next }}"
+              />{% endif %}
+
+              <!-- Username -->
+              <div>
+                <label
+                  for="id_username"
+                  class="mb-1 block text-sm text-slate-700"
+                  >Username</label
+                >
+                <input
+                  id="id_username"
+                  name="username"
+                  type="text"
+                  required
+                  autofocus
+                  value="{{ form.username.value|default_if_none:'' }}"
+                  class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 outline-none focus:border-[#3F88C8] focus:ring-1 focus:ring-[#3F88C8]"
+                  placeholder="e.g. muhammad"
+                />
+                {% if form.username.errors %}
+                <p class="mt-1 text-xs text-rose-600">
+                  {{ form.username.errors|join:", " }}
+                </p>
+                {% endif %}
+              </div>
+
+              <!-- Password -->
+              <div>
+                <div class="flex items-center justify-between">
+                  <label
+                    for="id_password"
+                    class="mb-1 block text-sm text-slate-700"
+                    >Password</label
+                  >
+                </div>
+                <input
+                  id="id_password"
+                  name="password"
+                  type="password"
+                  required
+                  class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 outline-none focus:border-[#3F88C8] focus:ring-1 focus:ring-[#3F88C8]"
+                  placeholder="Your password"
+                />
+                {% if form.password.errors %}
+                <p class="mt-1 text-xs text-rose-600">
+                  {{ form.password.errors|join:", " }}
+                </p>
+                {% endif %}
+              </div>
+
+              <!-- Submit -->
+              <button
+                type="submit"
+                class="inline-flex w-full items-center justify-center rounded-xl bg-[#3F88C8] px-4 py-2.5 text-white font-medium hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#3F88C8] focus:ring-offset-2 focus:ring-offset-white"
+              >
+                Login
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="border-t border-slate-200">
+      <div
+        class="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-slate-500"
+      >
+        © 2025 Barkat · Qonkar Technologies · All rights reserved
+      </div>
+    </footer>
+  </body>
+</html>

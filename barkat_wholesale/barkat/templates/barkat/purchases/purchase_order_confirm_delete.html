@@ -1,0 +1,27 @@
+{# templates/barkat/purchases/purchase_order_confirm_delete.html #} 
+{% extends "base.html" %} {% block content %}
+<div class="max-w-xl mx-auto p-6">
+  <h1 class="text-xl font-semibold mb-4">Delete Purchase Order</h1>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <p class="mb-4">
+      Are you sure you want to delete
+      <strong>PO #{{ object.id }}</strong> ({{ object.vendor.display_name }})?
+    </p>
+
+    <form method="post" class="flex items-center gap-2">
+      {% csrf_token %}
+      <a
+        href="{% url 'po_list' %}"
+        class="px-4 py-2 rounded border border-slate-300 hover:bg-slate-50"
+        >Cancel</a
+      >
+      <button
+        class="px-4 py-2 rounded bg-rose-600 text-white hover:bg-rose-700"
+      >
+        Yes, delete
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

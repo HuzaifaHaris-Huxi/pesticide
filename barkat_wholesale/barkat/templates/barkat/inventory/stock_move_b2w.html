@@ -1,0 +1,98 @@
+{# templates/barkat/inventory/stock_move_b2w.html #}
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold">Stock Move — Business → Warehouse</h1>
+    {% if business %}
+      <a href="{% url 'business_stock_status' business.id %}" class="text-slate-700 hover:underline">Back</a>
+    {% else %}
+      <a href="{% url 'stock_status' %}" class="text-slate-700 hover:underline">Back</a>
+    {% endif %}
+  </div>
+
+  <form method="get" class="mb-4 grid md:grid-cols-3 gap-3">
+    <div>
+      <label class="block text-sm mb-1">Business</label>
+      <select name="business" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2" onchange="this.form.submit()">
+        <option value="">Select business…</option>
+        {% for b in businesses %}
+          <option value="{{ b.id }}" {% if business and b.id == business.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Destination Warehouse</label>
+      <select name="dest_warehouse" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2" {% if not business %}disabled{% endif %} onchange="this.form.submit()">
+        <option value="">Select warehouse…</option>
+        {% for wh in warehouses %}
+          <option value="{{ wh.id }}" {% if dest_wh and wh.id == dest_wh.id %}selected{% endif %}>{{ wh.code }} — {{ wh.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-end">
+      <button class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">Apply</button>
+    </div>
+  </form>
+
+  {% if business and dest_wh %}
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="bg-white p-6 rounded-xl border border-slate-200 grid md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm mb-1">Business</label>
+        <input class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2" value="{{ business.name }}" readonly>
+        <input type="hidden" name="business" value="{{ business.id }}">
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Destination Warehouse</label>
+        <input class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2" value="{{ dest_wh.code }} — {{ dest_wh.name }}" readonly>
+        <input type="hidden" name="dest_warehouse" value="{{ dest_wh.id }}">
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Reference (optional)</label>
+        <input type="text" name="reference" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl border border-slate-200 overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-2 text-left">Product</th>
+            <th class="px-4 py-2 text-left">SKU</th>
+            <th class="px-4 py-2 text-left">UOM</th>
+            <th class="px-4 py-2 text-right">Business Qty</th>
+            <th class="px-4 py-2 text-right">Move Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+            <tr class="border-t">
+              <td class="px-4 py-2">{{ p.name }}</td>
+              <td class="px-4 py-2">{{ p.sku }}</td>
+              <td class="px-4 py-2">{{ p.uom.symbol|default:p.uom.code }}</td>
+              <td class="px-4 py-2 text-right">{{ p.stock_qty|floatformat:2 }}</td>
+              <td class="px-4 py-2 text-right w-40">
+                <input name="qty_{{ p.id }}" type="number" step="0.000001" min="0"
+                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right">
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No products found for {{ business.name }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pt-2">
+      <button class="rounded-lg px-4 py-2 bg-slate-900 text-white hover:bg-slate-800">Post Moves</button>
+    </div>
+  </form>
+  {% endif %}
+
+</div>
+{% endblock %}

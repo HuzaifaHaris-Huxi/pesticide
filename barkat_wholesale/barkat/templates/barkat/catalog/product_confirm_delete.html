@@ -1,0 +1,29 @@
+{% extends "base.html" %} {% block content %}
+<div class="p-4 md:p-6">
+  <div class="rounded-xl border border-slate-200 bg-white p-6 max-w-xl">
+    <h1 class="text-xl font-semibold mb-2">Delete Product</h1>
+    <p class="text-slate-600 mb-4">
+      Are you sure you want to delete
+      <strong>{{ product.name }}</strong> (SKU: {{ product.sku }})? This is a
+      soft delete — you can’t see it in lists after this.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="flex items-center justify-end gap-2">
+        <a
+          href="{% url 'products_list' %}"
+          class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200"
+          >Cancel</a
+        >
+        <button
+          type="submit"
+          class="px-3 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500"
+        >
+          Delete
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

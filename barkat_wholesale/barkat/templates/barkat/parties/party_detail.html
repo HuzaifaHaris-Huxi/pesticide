@@ -1,0 +1,179 @@
+{# templates/barkat/parties/party_details.html #} {% extends "base.html" %} {%
+load static %} {% block content %}
+<div class="p-4 md:p-6 space-y-4">
+  {# Breadcrumb + Back #}
+  <div class="flex items-center justify-between">
+    <nav class="text-sm text-slate-600">
+      <a href="{% url 'customers_list' %}" class="hover:underline">Customers</a>
+      <span class="mx-2">/</span>
+      <span class="text-slate-900 font-medium">Details</span>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <a
+        href="{% url 'party_update' party.id %}"
+        class="inline-flex items-center gap-2 rounded-lg px-3 py-2 border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+      >
+        <i data-feather="edit-2" class="w-4 h-4"></i> Edit
+      </a>
+      <a
+        href="{% url 'customers_list' %}"
+        class="inline-flex items-center gap-2 rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50"
+      >
+        <i data-feather="arrow-left" class="w-4 h-4"></i> Back
+      </a>
+    </div>
+  </div>
+
+  {# Header Card #}
+  <div
+    class="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm"
+  >
+    <div
+      class="flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+    >
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-semibold text-slate-900">
+            {{ party.display_name }}
+          </h1>
+
+          {# Type badge #} {% if party.type == 'CUSTOMER' %}
+          <span
+            class="inline-flex items-center rounded-full bg-sky-50 text-sky-700 border border-sky-200 px-3 py-0.5 text-xs font-medium"
+          >
+            Customer
+          </span>
+          {% elif party.type == 'VENDOR' %}
+          <span
+            class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-3 py-0.5 text-xs font-medium"
+          >
+            Vendor
+          </span>
+          {% else %}
+          <span
+            class="inline-flex items-center rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-3 py-0.5 text-xs font-medium"
+          >
+            Customer & Vendor
+          </span>
+          {% endif %} {# Status badge #} {% if party.is_active %}
+          <span
+            class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-xs"
+          >
+            Active
+          </span>
+          {% else %}
+          <span
+            class="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs"
+          >
+            Inactive
+          </span>
+          {% endif %}
+        </div>
+
+        {% if party.legal_name %}
+        <p class="mt-1 text-slate-600 text-sm">
+          Legal name:
+          <span class="font-medium text-slate-800">{{ party.legal_name }}</span>
+        </p>
+        {% endif %}
+      </div>
+
+      {# Quick Stats #}
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2 w-full md:w-auto">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500">
+            Opening Balance
+          </div>
+          <div class="text-slate-900 font-semibold">
+            {{ party.opening_balance|default:"0.00" }}
+          </div>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500">
+            Default Business
+          </div>
+          <div class="text-slate-900 font-semibold">
+            {{ party.default_business.name|default:"—" }}
+          </div>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500">
+            GST / Sales Tax
+          </div>
+          <div class="text-slate-900 font-semibold">
+            {{ party.gst_number|default:"—" }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Two-column info #}
+  <div class="grid md:grid-cols-2 gap-4">
+    <div
+      class="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm"
+    >
+      <div class="flex items-center gap-2 mb-3">
+        <i data-feather="user" class="w-4 h-4 text-slate-500"></i>
+        <h2 class="font-semibold text-slate-800">Contact</h2>
+      </div>
+      <dl class="grid grid-cols-3 gap-y-2 text-sm">
+        <dt class="col-span-1 text-slate-500">Phone</dt>
+        <dd class="col-span-2 text-slate-900">{{ party.phone|default:"—" }}</dd>
+
+        <dt class="col-span-1 text-slate-500">Email</dt>
+        <dd class="col-span-2 text-slate-900 break-all">
+          {{ party.email|default:"—" }}
+        </dd>
+
+        <dt class="col-span-1 text-slate-500">City</dt>
+        <dd class="col-span-2 text-slate-900">{{ party.city|default:"—" }}</dd>
+
+        <dt class="col-span-1 text-slate-500">Address</dt>
+        <dd class="col-span-2 text-slate-900 whitespace-pre-line">
+          {{ party.address|default:"—" }}
+        </dd>
+      </dl>
+    </div>
+
+    <div
+      class="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm"
+    >
+      <div class="flex items-center gap-2 mb-3">
+        <i data-feather="clock" class="w-4 h-4 text-slate-500"></i>
+        <h2 class="font-semibold text-slate-800">Audit</h2>
+      </div>
+      <dl class="grid grid-cols-3 gap-y-2 text-sm">
+        <dt class="col-span-1 text-slate-500">Created</dt>
+        <dd class="col-span-2 text-slate-900">
+          {{ party.created_at|date:"M d, Y H:i" }} by
+          <span class="font-medium">{{ party.created_by|default:"—" }}</span>
+        </dd>
+
+        <dt class="col-span-1 text-slate-500">Updated</dt>
+        <dd class="col-span-2 text-slate-900">
+          {{ party.updated_at|date:"M d, Y H:i" }} by
+          <span class="font-medium">{{ party.updated_by|default:"—" }}</span>
+        </dd>
+
+        <dt class="col-span-1 text-slate-500">Status</dt>
+        <dd class="col-span-2 text-slate-900">
+          {% if party.is_active %}Active{% else %}Inactive{% endif %}
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+
+
+ 
+</div>
+{% endblock %} {% block all_scripts %}
+<script src="https://unpkg.com/feather-icons"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (window.feather) feather.replace();
+  });
+</script>
+{% endblock %}

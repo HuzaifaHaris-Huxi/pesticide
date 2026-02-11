@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="max-w-2xl mx-auto bg-white border border-slate-200 rounded-2xl p-6">
+    <h1 class="text-2xl font-bold mb-4">Delete Sales Order</h1>
+
+    <div class="mb-4">
+      <p class="text-slate-700">
+        Are you sure you want to delete <span class="font-semibold">Sales Order #{{ object.id }}</span>?
+      </p>
+      <ul class="mt-3 text-sm text-slate-600 space-y-1">
+        <li>Business: <span class="font-medium">{{ object.business.name }}</span></li>
+        <li>Customer:
+          <span class="font-medium">
+            {% if object.customer_id %}
+              {{ object.customer.display_name }}
+            {% else %}
+              {{ object.customer_name|default:"Walk-in" }}
+            {% endif %}
+          </span>
+        </li>
+        <li>Status: <span class="font-medium">{{ object.get_status_display|default:object.status }}</span></li>
+        <li>Net Total: <span class="font-semibold">₨ {{ object.net_total|floatformat:2 }}</span></li>
+      </ul>
+
+      <div class="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+        Deleting this order will also delete its line items and applied receipts (bridges).
+        Any related <span class="font-semibold">Payment</span> records remain in cash/bank,
+        but their amounts will become available as unapplied.
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="flex items-center gap-2">
+        <button class="rounded-lg px-4 py-2 bg-rose-600 text-white hover:bg-rose-700" type="submit">
+          Yes, delete
+        </button>
+        <a href="{% url 'so_edit' object.pk %}" class="rounded-lg px-4 py-2 border border-slate-300 hover:bg-slate-50">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

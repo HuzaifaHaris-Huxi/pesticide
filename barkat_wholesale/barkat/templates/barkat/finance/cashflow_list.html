@@ -1,0 +1,63 @@
+{# templates/barkat/finance/cashflow_list.html #} {% extends "base.html" %} {%
+block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="book-open" class="w-7 h-7"></i>
+      <span>Cash / Bank Ledger</span>
+    </h1>
+  </div>
+
+  <form method="get" class="mb-3 grid md:grid-cols-5 gap-2">
+    {{ filter_form.q }} {{ filter_form.flow_type }} {{ filter_form.bank_account
+    }} {{ filter_form.date_from }} {{ filter_form.date_to }}
+
+    <div class="md:col-span-5 flex gap-2">
+      <button
+        class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800"
+      >
+        Filter
+      </button>
+      <a
+        href="{% url 'cashflow_list' %}"
+        class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50"
+        >Reset</a
+      >
+    </div>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Type</th>
+          <th class="px-4 py-2 text-left">Bank</th>
+          <th class="px-4 py-2 text-left">Description</th>
+          <th class="px-4 py-2 text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t">
+          <td class="px-4 py-2">{{ r.date }}</td>
+          <td class="px-4 py-2">{{ r.get_flow_type_display }}</td>
+          <td class="px-4 py-2">
+            {% if r.bank_account %}{{ r.bank_account.bank_name|default:"Bank" }}
+            — {{ r.bank_account.name }}{% else %}Cash{% endif %}
+          </td>
+          <td class="px-4 py-2">{{ r.description|default:"—" }}</td>
+          <td class="px-4 py-2 text-right">₨ {{ r.amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-4 py-6 text-center text-slate-500">
+            No entries.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="refresh-ccw" class="w-7 h-7"></i>
+      <span>Bank & Cash Movements</span>
+    </h1>
+    <a href="{% url 'movement_add' %}" class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">
+      + New Movement
+    </a>
+  </div>
+
+  <form method="get" class="mb-3 grid md:grid-cols-4 gap-2">
+    <input
+      type="search"
+      name="q"
+      value="{{ request.GET.q }}"
+      placeholder="Search…"
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+    />
+    <select name="type" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+      <option value="">All Types</option>
+      <option value="deposit"        {% if request.GET.type == 'deposit' %}selected{% endif %}>Deposit</option>
+      <option value="cheque_deposit" {% if request.GET.type == 'cheque_deposit' %}selected{% endif %}>Cheque deposit</option>
+      <option value="withdraw"       {% if request.GET.type == 'withdraw' %}selected{% endif %}>Withdraw</option>
+      <option value="transfer"       {% if request.GET.type == 'transfer' %}selected{% endif %}>Transfer</option>
+      <option value="fee"            {% if request.GET.type == 'fee' %}selected{% endif %}>Fee</option>
+      <option value="interest"       {% if request.GET.type == 'interest' %}selected{% endif %}>Interest</option>
+      <option value="cheque_payment" {% if request.GET.type == 'cheque_payment' %}selected{% endif %}>Cheque payment</option>
+    </select>
+    <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">
+      Filter
+    </button>
+    <a href="{% url 'movement_list' %}" class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">
+      Reset
+    </a>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Date</th>
+          <th class="px-4 py-2 text-left">Type</th>
+          <th class="px-4 py-2 text-left">From</th>
+          <th class="px-4 py-2 text-left">To</th>
+          <th class="px-4 py-2 text-left">Party</th>
+          <th class="px-4 py-2 text-left">Purchase order</th>
+          <th class="px-4 py-2 text-left">Method</th>
+          <th class="px-4 py-2 text-left">Ref</th>
+          <th class="px-4 py-2 text-right">Amount</th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+        <tr class="border-t">
+          <td class="px-4 py-2">{{ m.date }}</td>
+          <td class="px-4 py-2">{{ m.get_movement_type_display }}</td>
+
+          <td class="px-4 py-2">
+            {% if m.from_bank %}
+              {{ m.from_bank.bank_name|default:"Bank" }} - {{ m.from_bank.name }}
+            {% else %}
+              Cash
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-2">
+            {% if m.to_bank %}
+              {{ m.to_bank.bank_name|default:"Bank" }} - {{ m.to_bank.name }}
+            {% else %}
+              Cash
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-2">
+            {% if m.party %}
+              {{ m.party.display_name }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-2">
+            {% if m.purchase_order %}
+              <div>
+                PO #{{ m.purchase_order.id }}
+              </div>
+              <div class="text-xs text-slate-500">
+                {{ m.purchase_order.created_at|date:"Y-m-d" }}
+              </div>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-2">
+            {{ m.method|default:"-" }}
+          </td>
+
+          <td class="px-4 py-2">
+            {{ m.reference_no|default:"-" }}
+          </td>
+
+          <td class="px-4 py-2 text-right">
+            ₨ {{ m.amount|floatformat:2 }}
+          </td>
+
+          <td class="px-4 py-2 text-right whitespace-nowrap">
+            <a
+              href="{% url 'movement_edit' m.pk %}"
+              class="inline-flex items-center gap-1 rounded-md border border-indigo-300 text-indigo-700 px-2 py-1 text-xs hover:bg-indigo-50"
+            >
+              Edit
+            </a>
+            <a
+              href="{% url 'movement_delete' m.pk %}"
+              class="inline-flex items-center gap-1 rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50 ml-1"
+            >
+              Delete
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="px-4 py-6 text-center text-slate-500">
+            No movements yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody> 
+    </table>
+  </div>
+</div>
+{% endblock %}

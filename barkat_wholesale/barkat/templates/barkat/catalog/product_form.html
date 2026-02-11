@@ -1,0 +1,327 @@
+{# barkat/templates/barkat/catalog/product_form.html #}
+{% extends "base.html"%}
+{% load static %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-semibold">
+      {% if form.instance.pk %}Edit{% else %}Add{% endif %} Product
+    </h1>
+    <a href="{% url 'products_list' %}" class="rounded-lg px-3 py-2 bg-slate-100 hover:bg-slate-200">
+      ← Back to Products
+    </a>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <div class="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
+    <form method="post" enctype="multipart/form-data" novalidate id="productForm">
+      {% csrf_token %}
+
+      <div class="grid gap-4 md:grid-cols-2">
+        {# ... Business, Category, Name, SKU, Barcode fields remain same ... #}
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Business <span class="text-rose-500">*</span>
+          </label>
+          {{ form.business }}
+          {% if form.business.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.business.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Category</label>
+          {{ form.category }}
+          {% if form.category.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.category.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Name <span class="text-rose-500">*</span></label>
+          {{ form.name }}
+          {% if form.name.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.name.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Company/Brand Name</label>
+          {{ form.company_name }}
+          <p class="mt-1 text-xs text-slate-500">e.g., Lays, Coca-Cola, Nestle</p>
+          {% if form.company_name.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.company_name.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">SKU <span class="text-rose-500">*</span></label>
+          {{ form.sku }}
+          {% if form.sku.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.sku.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Barcode</label>
+          <div class="flex gap-2 items-end">
+            <div class="flex-1">
+              {{ form.barcode }}
+              {% if form.barcode.errors %}
+                <p class="mt-1 text-xs text-rose-600">{{ form.barcode.errors|join:", " }}</p>
+              {% endif %}
+            </div>
+            <button type="button" id="generateBarcodeBtn" 
+                    class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium whitespace-nowrap">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Generate
+            </button>
+          </div>
+          <p class="mt-1 text-xs text-slate-500">Leave empty to auto-generate on save, or click Generate to create now</p>
+        </div>
+
+        <div class="md:col-span-2 border-b border-slate-100 my-2"></div>
+
+        {# --- UNIT & BULK PACKAGING SECTION --- #}
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Base Unit (Lowest) <span class="text-rose-500">*</span>
+          </label>
+          {{ form.uom }}
+          <p class="mt-1 text-xs text-slate-500">e.g. KG, Liter, Gram</p>
+          {% if form.uom.errors %}
+            <p class="mt-1 text-xs text-rose-600">{{ form.uom.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Bulk Unit</label>
+                {{ form.bulk_uom }}
+                <p class="mt-1 text-xs text-slate-500">e.g. Bag, Carton</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Bulk Size</label>
+                {{ form.default_bulk_size }}
+                <p class="mt-1 text-xs text-slate-500">Qty in 1 Bulk Unit</p>
+            </div>
+        </div>
+
+        <div class="md:col-span-2 border-b border-slate-100 my-2"></div>
+
+        {# --- PRICES & STOCK --- #}
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Purchase Price</label>
+          {{ form.purchase_price }}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Sale Price</label>
+          {{ form.sale_price }}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Min Stock</label>
+          {{ form.min_stock }}
+        </div>
+
+        {% if form.current_stock %}
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Current opening stock</label>
+            {{ form.current_stock }}
+            <p class="mt-1 text-xs text-slate-500">Total quantity in Base Units.</p>
+          </div>
+        {% endif %}
+      </div>
+
+      {# ... Image Formset and Checkboxes logic remains exactly same as your snippet ... #}
+      {# [Keep your existing Image formset and Checkbox code here] #}
+
+      <div class="mt-6 flex items-center justify-end gap-2">
+        <a href="{% url 'products_list' %}" class="rounded-lg px-3 py-2 bg-slate-100 hover:bg-slate-200">Cancel</a>
+        {% if form.instance.pk %}
+        <button type="submit" class="rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-500">
+          Update Product
+        </button>
+        {% else %}
+        <button type="submit" name="add_another" value="1" class="rounded-lg px-3 py-2 bg-blue-600 text-white hover:bg-blue-500">
+          Save & Add Another
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+  <script>
+  (function () {
+    // Handle form submission buttons - disable buttons after click to prevent double submission
+    const form = document.getElementById('productForm');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        // Ensure CSRF token is present
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken || !csrfToken.value) {
+          console.error('CSRF token missing!');
+          e.preventDefault();
+          alert('Security token missing. Please refresh the page and try again.');
+          return false;
+        }
+        
+        // Disable buttons to prevent double submission
+        const submitButtons = form.querySelectorAll('button[type="submit"]');
+        submitButtons.forEach(btn => {
+          if (!btn.disabled) {
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = 'Saving...';
+            btn.dataset.originalText = originalText;
+          }
+        });
+        
+        // Let the form submit normally
+        return true;
+      });
+    }
+    
+    // Business change -> clear/disable category, then reload with ?business=<id>
+    const biz = document.getElementById("id_business");
+    const cat = document.getElementById("id_category");
+
+    if (biz && cat) {
+      biz.addEventListener("change", () => {
+        while (cat.options.length) cat.remove(0);
+        const opt = document.createElement("option");
+        opt.textContent = "Loading categories…";
+        opt.value = "";
+        cat.appendChild(opt);
+        cat.disabled = true;
+
+        const url = new URL(window.location.href);
+        const val = biz.value;
+        if (val) url.searchParams.set("business", val);
+
+        // preserve ?next=
+        const current = new URL(window.location.href);
+        const nextParam = current.searchParams.get("next");
+        if (nextParam) url.searchParams.set("next", nextParam);
+
+        window.location.href = url.toString();
+      });
+    }
+
+    // Barcode generation
+    const generateBarcodeBtn = document.getElementById("generateBarcodeBtn");
+    const barcodeInput = document.getElementById("id_barcode");
+    const businessSelect = document.getElementById("id_business");
+    
+    if (generateBarcodeBtn && barcodeInput) {
+      generateBarcodeBtn.addEventListener("click", async function() {
+        const businessId = businessSelect?.value;
+        if (!businessId) {
+          alert("Please select a business first");
+          businessSelect?.focus();
+          return;
+        }
+
+        // Get product ID if editing existing product
+        const productId = {% if form.instance.pk %}{{ form.instance.pk }}{% else %}null{% endif %};
+
+        // Disable button and show loading
+        generateBarcodeBtn.disabled = true;
+        const originalText = generateBarcodeBtn.innerHTML;
+        generateBarcodeBtn.innerHTML = `
+          <svg class="animate-spin h-4 w-4 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating...
+        `;
+
+        try {
+          const params = new URLSearchParams();
+          params.append("business_id", businessId);
+          if (productId) {
+            params.append("product_id", productId);
+          }
+
+          const response = await fetch("{% url 'generate_barcode_api' %}?" + params.toString(), {
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+            },
+          });
+
+          const data = await response.json();
+
+          if (data.ok && data.barcode) {
+            barcodeInput.value = data.barcode;
+            barcodeInput.focus();
+            
+            // Show success message
+            const toast = document.createElement("div");
+            toast.className = "fixed top-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg z-50";
+            toast.textContent = "Barcode generated: " + data.barcode;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+          } else {
+            alert("Failed to generate barcode: " + (data.error || "Unknown error"));
+          }
+        } catch (error) {
+          console.error("Error generating barcode:", error);
+          alert("Error generating barcode. Please try again.");
+        } finally {
+          generateBarcodeBtn.disabled = false;
+          generateBarcodeBtn.innerHTML = originalText;
+        }
+      });
+    }
+
+    // Image formset: add rows with the real prefix
+    const addBtn = document.getElementById('add-image-row');
+    const rows = document.getElementById('image-rows');
+    const emptyTpl = document.getElementById('image-empty-form');
+    const prefix = rows ? rows.getAttribute('data-prefix') : null;
+    const totalInput = prefix
+      ? document.querySelector(`[name="${prefix}-TOTAL_FORMS"]`)
+      : null;
+
+    function inputHtml(idx, name, extraAttrs) {
+      const id = `id_${prefix}-${idx}-${name}`;
+      const nm = `${prefix}-${idx}-${name}`;
+      return `<input ${extraAttrs} id="${id}" name="${nm}">`;
+    }
+    function checkboxHtml(idx, name) {
+      const id = `id_${prefix}-${idx}-${name}`;
+      const nm = `${prefix}-${idx}-${name}`;
+      return `<input type="checkbox" id="${id}" name="${nm}" class="h-4 w-4 rounded border-slate-600">`;
+    }
+
+    if (addBtn && rows && emptyTpl && totalInput && prefix) {
+      addBtn.addEventListener('click', () => {
+        const idx = parseInt(totalInput.value, 10);
+
+        let html = emptyTpl.innerHTML
+          .replaceAll('__prefix__-image',      inputHtml(idx, 'image', 'type="file" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"'))
+          .replaceAll('__prefix__-alt_text',   inputHtml(idx, 'alt_text', 'type="text" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"'))
+          .replaceAll('__prefix__-is_primary', checkboxHtml(idx, 'is_primary'))
+          .replaceAll('__prefix__-sort_order', inputHtml(idx, 'sort_order', 'type="number" min="0" step="1" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"'));
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html.trim();
+        rows.appendChild(wrapper.firstElementChild);
+
+        totalInput.value = idx + 1;
+      });
+    }
+  })();
+</script>
+
+{% endblock %}

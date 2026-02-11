@@ -1,0 +1,678 @@
+{% extends "base.html" %} {% load static %} {% block content %}
+<div class="p-4 md:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="box" class="w-7 h-7"></i>
+      <span>Product </span>
+    </h1>
+    <div class="flex items-center gap-2">
+      <button
+        id="exportProductsBtn"
+        type="button"
+        class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+        title="Export to CSV"
+      >
+        <i data-feather="download" class="w-4 h-4"></i>
+        <span>Export CSV</span>
+      </button>
+      <a
+        href="{% url 'product_create' %}"
+        class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800"
+      >
+        + New Product
+      </a>
+    </div>
+  </div>
+
+  {# Business buttons (navigate to per-business page) #}
+  <div class="mb-3">
+    <div
+      class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300"
+      data-tabs="businesses"
+    >
+      {# All Button #} {% if not business %}
+      <a
+        href="{% url 'products_list' %}"
+        aria-current="page"
+        data-tint="slate"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300 bg-slate-700 text-white border-slate-700 shadow-md"
+      >
+        All
+      </a>
+      {% else %}
+      <a
+        href="{% url 'products_list' %}"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300 text-slate-600 border-slate-300 hover:bg-slate-200"
+      >
+        All
+      </a>
+      {% endif %} {# Business Buttons #} {% for b in businesses %}
+      <span class="hidden"
+        >{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span
+      >
+
+      {% if business and business.id == b.id %}
+      <a
+        href="{% url 'business_products' b.id %}"
+        aria-current="page"
+        data-tint="{{ color }}"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                    bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md"
+      >
+        {{ b.name }}
+      </a>
+      {% else %}
+      <a
+        href="{% url 'business_products' b.id %}"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                    text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900"
+      >
+        {{ b.name }}
+      </a>
+      {% endif %} {% endfor %}
+    </div>
+  </div>
+
+  {# Filters and Search #}
+  <div class="mb-3 space-y-3">
+    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label for="prodSearch" class="text-sm text-slate-600">Search:</label>
+          <input
+            id="prodSearch"
+            type="search"
+            placeholder="Type to filter… (name, company, barcode, business)"
+            class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            autocomplete="off"
+          />
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label for="priceFilterOp" class="text-sm text-slate-600">Price:</label>
+          <select
+            id="priceFilterOp"
+            class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+          >
+            <option value="">All</option>
+            <option value="gte">≥ (Greater/Equal)</option>
+            <option value="lte">≤ (Less/Equal)</option>
+            <option value="eq">= (Equal)</option>
+          </select>
+          <input
+            id="priceFilterValue"
+            type="number"
+            step="0.01"
+            placeholder="Amount"
+            class="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            autocomplete="off"
+          />
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <label for="stockFilterOp" class="text-sm text-slate-600">Stock:</label>
+          <select
+            id="stockFilterOp"
+            class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+          >
+            <option value="">All</option>
+            <option value="gte">≥ (Greater/Equal)</option>
+            <option value="lte">≤ (Less/Equal)</option>
+            <option value="eq">= (Equal)</option>
+          </select>
+          <input
+            id="stockFilterValue"
+            type="number"
+            step="0.01"
+            placeholder="Quantity"
+            class="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <label for="prodPerPage" class="text-sm text-slate-600">Show</label>
+        <select
+          id="prodPerPage"
+          class="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+        >
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span class="text-sm text-slate-600">entries</span>
+      </div>
+    </div>
+    
+    {# Grand Total Stock Valuation #}
+    <div class="flex justify-end">
+      <div class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex items-center gap-3">
+        <span class="text-indigo-700 text-sm font-medium uppercase tracking-wider">Filtered Valuation:</span>
+        <span class="text-indigo-900 text-lg font-bold">Rs. <span id="dynamicGrandTotal">{{ grand_total_stock_value|floatformat:2 }}</span></span>
+      </div>
+    </div>
+  </div>
+
+  {# Table #}
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">ID</th>
+          <th class="px-4 py-2 text-left">Name</th>
+          <th class="px-4 py-2 text-left">Company</th>
+          <th class="px-4 py-2 text-left">Barcode</th>
+          <th class="px-4 py-2 text-left">Business</th>
+          <th class="px-4 py-2 text-right">Purchase Price</th>
+          <th class="px-4 py-2 text-right">Sale Price</th>
+          <th class="px-4 py-2 text-right">Stock</th>
+          <th class="px-4 py-2 text-right text-indigo-700 bg-indigo-50">Valuation</th>
+          <th class="px-4 py-2 text-center">Print Barcode</th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="prodBody">
+        {% for p in products %}
+        <tr
+          class="border-t"
+          data-biz="{{ p.business.name|default_if_none:'' }}"
+          data-company="{{ p.company_name|default_if_none:'' }}"
+        >
+          <td class="px-4 py-2">{{ p.id }}</td>
+          <td class="px-4 py-2 font-medium">{{ p.name }}</td>
+          <td class="px-4 py-2">
+            {% if p.company_name %}
+              <span class="text-blue-700 font-medium">{{ p.company_name }}</span>
+            {% else %}
+              <span class="text-slate-400 text-xs">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 font-mono text-sm">{{ p.barcode|default:"-" }}</td>
+          <td class="px-4 py-2">{{ p.business.name }}</td>
+          <td class="px-4 py-2 text-right">
+            <span class="text-slate-600">
+              {% if p.purchase_price %}
+                {{ p.purchase_price|floatformat:2 }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right">
+            <span class="font-semibold {% if p.sale_price and p.sale_price > 0 %}text-indigo-600{% else %}text-slate-400{% endif %}">
+              {% if p.sale_price %}
+                {{ p.sale_price|floatformat:2 }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right">
+            <span class="font-semibold {% if p.stock_qty and p.stock_qty > 0 %}text-emerald-700{% elif p.stock_qty == 0 %}text-slate-500{% else %}text-rose-600{% endif %}">
+              {{ p.stock_qty|default:0|floatformat:2 }}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right bg-indigo-50/30">
+            <span class="font-bold text-indigo-700">
+              {{ p.total_stock_value|default:0|floatformat:2 }}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-center">
+            {% if p.barcode %}
+            <button 
+              type="button" 
+              class="print-barcode-btn inline-flex items-center gap-1 rounded-md border border-blue-300 text-blue-700 px-2 py-1 text-xs hover:bg-blue-50"
+              data-product-id="{{ p.id }}"
+              data-barcode="{{ p.barcode }}"
+              data-product-name="{{ p.name }}"
+              title="Print Barcode"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Print
+            </button>
+            {% else %}
+            <span class="text-slate-400 text-xs">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-right whitespace-nowrap">
+            <a
+              href="{% url 'product_edit' p.id %}"
+              class="inline-flex items-center gap-1 rounded-md border border-indigo-300 text-indigo-700 px-2 py-1 text-xs hover:bg-indigo-50"
+              >Edit</a
+            >
+            <a
+              href="{% url 'product_delete' p.id %}"
+              class="inline-flex items-center gap-1 rounded-md border border-rose-300 text-rose-700 px-2 py-1 text-xs hover:bg-rose-50 ml-1"
+              >Delete</a
+            >
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="11" class="px-4 py-6 text-center text-slate-500">
+            No products found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination (client-side) #}
+  <div
+    class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+  >
+    <div id="prodInfo" class="text-sm text-slate-600">Showing 0 to 0 of 0</div>
+    <div class="flex items-center gap-1">
+      <button
+        id="prodFirst"
+        class="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-50"
+      >
+        First
+      </button>
+      <button
+        id="prodPrev"
+        class="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-50"
+      >
+        Prev
+      </button>
+      <span id="prodPage" class="px-3 py-1 text-sm text-slate-700"
+        >Page 1 / 1</span
+      >
+      <button
+        id="prodNext"
+        class="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-50"
+      >
+        Next
+      </button>
+      <button
+        id="prodLast"
+        class="px-3 py-1 rounded border border-slate-300 text-sm hover:bg-slate-50"
+      >
+        Last
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Print Barcode Modal -->
+<div id="printBarcodeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9998] flex items-center justify-center">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-semibold text-slate-800">Print Barcode Labels</h3>
+        <button
+          id="closePrintModal"
+          type="button"
+          class="text-slate-400 hover:text-slate-600"
+        >
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Product:
+          </label>
+          <p id="modalProductName" class="text-slate-800 font-medium"></p>
+        </div>
+        
+        <div>
+          <label for="printQuantity" class="block text-sm font-medium text-slate-700 mb-1">
+            Number of Labels to Print:
+          </label>
+          <input
+            type="number"
+            id="printQuantity"
+            min="1"
+            value="1"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter quantity"
+          />
+        </div>
+        
+        <p class="text-xs text-slate-500">
+          Labels will be printed at 38x28mm size, 2 labels per row.
+        </p>
+      </div>
+      
+      <div class="flex items-center gap-3 mt-6 pt-4 border-t border-slate-200">
+        <button
+          id="confirmPrintBtn"
+          type="button"
+          class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Print
+        </button>
+        <button
+          id="cancelPrintBtn"
+          type="button"
+          class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block all_scripts %}
+<script>
+  (function () {
+    const tbody = document.getElementById("prodBody");
+    const rowsAll = Array.from(tbody.querySelectorAll("tr"));
+    const inp = document.getElementById("prodSearch");
+    const sel = document.getElementById("prodPerPage");
+
+    const bFirst = document.getElementById("prodFirst");
+    const bPrev = document.getElementById("prodPrev");
+    const bNext = document.getElementById("prodNext");
+    const bLast = document.getElementById("prodLast");
+    const lblPg = document.getElementById("prodPage");
+    const lblInf = document.getElementById("prodInfo");
+
+    let searchTerm = "";
+    let perPage = parseInt(sel.value, 10) || 25;
+    let page = 1;
+
+    const norm = (s) => (s || "").toString().toLowerCase();
+
+    function matches(tr, term) {
+      if (!term) return true;
+      const t = norm(term);
+      const cells = tr.children;
+      // We check first 5 visible columns (ID, Name, Company, Barcode, Business)
+      // Skip Sale Price, Current Stock, Print Barcode, Actions for search
+      for (let i = 0; i < Math.min(5, cells.length); i++) {
+        if (norm(cells[i].textContent).includes(t)) return true;
+      }
+      if (norm(tr.getAttribute("data-biz")).includes(t)) return true;
+      if (norm(tr.getAttribute("data-company")).includes(t)) return true;
+      return false;
+    }
+    
+    function matchesPriceFilter(tr, op, val) {
+      if (!op || !val) return true;
+      const cells = tr.children;
+      // Sale Price is at index 6 (ID=0, Name=1, Company=2, Barcode=3, Business=4, Pur=5, Sale=6)
+      const priceCell = cells[6];
+      if (!priceCell) return true;
+      const priceText = priceCell.textContent.trim();
+      if (priceText === '-') return false; // No price means 0
+      
+      const priceVal = parseFloat(priceText.replace(/,/g, '')) || 0;
+      const filterVal = parseFloat(val);
+      
+      if (op === "gte") return priceVal >= filterVal;
+      if (op === "lte") return priceVal <= filterVal;
+      if (op === "eq") return Math.abs(priceVal - filterVal) < 0.01;
+      return true;
+    }
+    
+    function matchesStockFilter(tr, op, val) {
+      if (!op || !val) return true;
+      const cells = tr.children;
+      // Current Stock is at index 7
+      const stockCell = cells[7];
+      if (!stockCell) return true;
+      const stockText = stockCell.textContent.trim();
+      const stockVal = parseFloat(stockText.replace(/,/g, '')) || 0;
+      const filterVal = parseFloat(val);
+      
+      if (op === "gte") return stockVal >= filterVal;
+      if (op === "lte") return stockVal <= filterVal;
+      if (op === "eq") return Math.abs(stockVal - filterVal) < 0.01;
+      return true;
+    }
+
+    function matchesValuationFilter(tr, op, val) {
+      if (!op || !val) return true;
+      const cells = tr.children;
+      // Valuation is at index 8
+      const valCell = cells[8];
+      if (!valCell) return true;
+      const valText = valCell.textContent.trim();
+      const actualVal = parseFloat(valText.replace(/,/g, '')) || 0;
+      const filterVal = parseFloat(val);
+      
+      if (op === "gte") return actualVal >= filterVal;
+      if (op === "lte") return actualVal <= filterVal;
+      if (op === "eq") return Math.abs(actualVal - filterVal) < 0.01;
+      return true;
+    }
+
+    const filtered = () => {
+      const priceOp = document.getElementById("priceFilterOp").value;
+      const priceVal = document.getElementById("priceFilterValue").value;
+      const stockOp = document.getElementById("stockFilterOp").value;
+      const stockVal = document.getElementById("stockFilterValue").value;
+      
+      return rowsAll.filter((tr) => {
+        if (!matches(tr, searchTerm)) return false;
+        if (!matchesPriceFilter(tr, priceOp, priceVal)) return false;
+        if (!matchesStockFilter(tr, stockOp, stockVal)) return false;
+        return true;
+      });
+    };
+    const pagesOf = (total) => Math.max(1, Math.ceil(total / perPage));
+    const clamp = (p, maxp) => Math.min(Math.max(1, p), maxp);
+
+    function render() {
+      const items = filtered();
+      const total = items.length;
+      
+      // Dynamic Grand Total Calculation
+      let sum = 0;
+      items.forEach(tr => {
+        // Valuation is at index 8 (ID=0, Name=1, Co=2, Bar=3, Biz=4, Pur=5, Sale=6, Stock=7, Val=8)
+        const valCell = tr.children[8];
+        if (valCell) {
+          const valText = valCell.textContent.trim();
+          sum += parseFloat(valText.replace(/,/g, '')) || 0;
+        }
+      });
+      const dynamicTotalEl = document.getElementById("dynamicGrandTotal");
+      if (dynamicTotalEl) {
+        dynamicTotalEl.textContent = sum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      const pages = pagesOf(total);
+      page = clamp(page, pages);
+
+      const s = (page - 1) * perPage;
+      const e = Math.min(s + perPage, total);
+      const slice = items.slice(s, e);
+
+      tbody.innerHTML = "";
+      if (slice.length === 0) {
+        const tr = document.createElement("tr");
+        // Colspan updated to 11 to match new header count
+        tr.innerHTML = `<td colspan="11" class="px-4 py-6 text-center text-slate-500">No products found.</td>`;
+        tbody.appendChild(tr);
+      } else {
+        slice.forEach((tr) => tbody.appendChild(tr));
+      }
+
+      lblPg.textContent = `Page ${page} / ${pages}`;
+      const from = total === 0 ? 0 : s + 1,
+        to = total === 0 ? 0 : e;
+      lblInf.textContent = `Showing ${from} to ${to} of ${total}`;
+
+      [bFirst, bPrev].forEach((b) => {
+        b.disabled = page <= 1;
+        b.classList.toggle("opacity-50", b.disabled);
+      });
+      [bNext, bLast].forEach((b) => {
+        b.disabled = page >= pages;
+        b.classList.toggle("opacity-50", b.disabled);
+      });
+    }
+
+    inp.addEventListener("input", (e) => {
+      searchTerm = e.target.value || "";
+      page = 1;
+      render();
+    });
+    sel.addEventListener("change", (e) => {
+      perPage = parseInt(e.target.value, 10) || 25;
+      page = 1;
+      render();
+    });
+    
+    // Price and Stock filter handlers
+    document.getElementById("priceFilterOp").addEventListener("change", () => {
+      page = 1;
+      render();
+    });
+    document.getElementById("priceFilterValue").addEventListener("input", () => {
+      page = 1;
+      render();
+    });
+    document.getElementById("stockFilterOp").addEventListener("change", () => {
+      page = 1;
+      render();
+    });
+    document.getElementById("stockFilterValue").addEventListener("input", () => {
+      page = 1;
+      render();
+    });
+
+    bFirst.addEventListener("click", () => {
+      page = 1;
+      render();
+    });
+    
+    bPrev.addEventListener("click", () => {
+      page = Math.max(1, page - 1);
+      render();
+    });
+    bNext.addEventListener("click", () => {
+      page = page + 1;
+      render();
+    });
+    bLast.addEventListener("click", () => {
+      const t = filtered().length;
+      page = pagesOf(t);
+      render();
+    });
+
+    render();
+
+    // Export CSV functionality
+    document.getElementById('exportProductsBtn').addEventListener('click', function() {
+      // Get current search and filter values
+      const searchTerm = inp.value || '';
+      const businessFilter = new URLSearchParams(window.location.search).get('business') || '';
+      const priceOp = document.getElementById("priceFilterOp").value;
+      const priceVal = document.getElementById("priceFilterValue").value;
+      const stockOp = document.getElementById("stockFilterOp").value;
+      const stockVal = document.getElementById("stockFilterValue").value;
+      
+      // Build export URL with current filters
+      let exportUrl = '{% url "export_products_csv" %}';
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('q', searchTerm);
+      if (businessFilter) params.append('business', businessFilter);
+      if (priceOp && priceVal) {
+        params.append('price_op', priceOp);
+        params.append('price_val', priceVal);
+      }
+      if (stockOp && stockVal) {
+        params.append('stock_op', stockOp);
+        params.append('stock_val', stockVal);
+      }
+      
+      if (params.toString()) {
+        exportUrl += '?' + params.toString();
+      }
+      
+      // Trigger download
+      window.location.href = exportUrl;
+    });
+
+    // Print Barcode Modal
+    const printModal = document.getElementById('printBarcodeModal');
+    const printQuantityInput = document.getElementById('printQuantity');
+    let currentProductId = null;
+    
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.print-barcode-btn')) {
+        e.preventDefault();
+        const btn = e.target.closest('.print-barcode-btn');
+        currentProductId = btn.getAttribute('data-product-id');
+        const productName = btn.getAttribute('data-product-name');
+        
+        document.getElementById('modalProductName').textContent = productName;
+        printQuantityInput.value = '1';
+        printModal.classList.remove('hidden');
+        printQuantityInput.focus();
+      }
+    });
+    
+    // Close modal
+    document.getElementById('closePrintModal').addEventListener('click', function() {
+      printModal.classList.add('hidden');
+      currentProductId = null;
+    });
+    
+    document.getElementById('cancelPrintBtn').addEventListener('click', function() {
+      printModal.classList.add('hidden');
+      currentProductId = null;
+    });
+    
+    // Print button
+    document.getElementById('confirmPrintBtn').addEventListener('click', function() {
+      const quantity = parseInt(printQuantityInput.value, 10);
+      if (!quantity || quantity < 1) {
+        alert('Please enter a valid quantity (1 or more).');
+        return;
+      }
+      
+      if (!currentProductId) {
+        alert('No product selected.');
+        return;
+      }
+      
+      // Disable button during printing
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Printing...';
+      
+      // Send print request
+      fetch('{% url "print_barcode_labels" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+          product_ids: [parseInt(currentProductId, 10)],
+          quantities: {[currentProductId]: quantity}
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok) {
+          printModal.classList.add('hidden');
+          alert(data.message || 'Barcode labels printed successfully!');
+        } else {
+          alert('Error: ' + (data.error || 'Failed to print labels.'));
+        }
+      })
+      .catch(error => {
+        alert('Error: ' + error.message);
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Print';
+        currentProductId = null;
+      });
+    });
+  })();
+</script>
+{% endblock %}

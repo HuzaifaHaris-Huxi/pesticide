@@ -1,0 +1,27 @@
+{% extends "base.html" %} {% load static %} {% block content %}
+<div class="p-4 md:p-6">
+  <div class="max-w-xl rounded-xl border border-slate-200 bg-white p-6">
+    <h1 class="text-lg font-semibold mb-2">Delete Category</h1>
+    <p class="text-slate-700">
+      Are you sure you want to delete
+      <strong>{{ category.name }}</strong>
+      (Business: {{ category.business.name }})?
+    </p>
+
+    <form method="post" class="mt-6 flex items-center gap-2">
+      {% csrf_token %}
+      <a
+        href="{% url 'product_categories' %}"
+        class="rounded-lg px-3 py-2 bg-slate-100 hover:bg-slate-200"
+        >Cancel</a
+      >
+      <button
+        type="submit"
+        class="rounded-lg px-3 py-2 bg-rose-600 text-white hover:bg-rose-500"
+      >
+        Yes, Delete
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

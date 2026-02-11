@@ -1,0 +1,797 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+{% with request.GET.lang as print_lang %}
+<div class="max-w-7xl mx-auto p-6 bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen">
+
+{# Business tabs on the detail page #}
+{% if show_business_switcher %}
+  <div class="mb-4 no-print">
+    <div class="flex items-center justify-between gap-3 border-b border-slate-300 pb-1">
+
+      {# Left side . ALL + business tabs #}
+      <div class="flex gap-2 overflow-x-auto pb-1" data-tabs="businesses">
+
+        {# ALL tab #}
+        {% if all_mode %}
+          <a
+            {% if print_lang == 'ur' %}تمام{% else %}{{ all_business_label }}{% endif %}
+          </a>
+        {% else %}
+          <a
+            href="{% url 'ledger_detail' kind=kind entity_id=entity.id %}?business=all{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                   text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-slate-600 hover:text-slate-900">
+            {% if print_lang == 'ur' %}تمام{% else %}{{ all_business_label }}{% endif %}
+          </a>
+        {% endif %}
+
+        {# Business buttons by NAME #}
+        {% for b in businesses %}
+          <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' 'sky' 'violet' 'teal' 'fuchsia' as color %}</span>
+
+          {% if not all_mode and business and business.id == b.id %}
+            <a
+              href="{% url 'ledger_detail' kind=kind entity_id=entity.id %}?business={{ b.id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}"
+              aria-current="page"
+              data-tint="{{ color }}"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                     bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+              {{ b.name }}
+            </a>
+          {% else %}
+            <a
+              href="{% url 'ledger_detail' kind=kind entity_id=entity.id %}?business={{ b.id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300
+                     text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+              {{ b.name }}
+            </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {# Right side . toggle and back button #}
+      <div class="flex items-center gap-2 shrink-0">
+
+        {# Optional Customer/Supplier toggle for Party.BOTH #}
+        {% if other_kind %}
+          <a
+            href="{% url 'ledger_detail' kind=other_kind entity_id=entity.id %}?{% if all_mode %}business=all{% else %}business={{ business.id }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}"
+            class="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-medium text-slate-700 border-slate-300 hover:bg-slate-100"
+            title="Switch to {{ other_kind|title }} ledger for the same party">
+            {% if print_lang == 'ur' %}
+              بطور {{ other_kind|title }} دیکھیں
+            {% else %}
+              View as {{ other_kind|title }}
+            {% endif %}
+          </a>
+        {% endif %}
+
+        <a
+          href="{% url 'ledgers_list' %}"
+          class="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs md:text-sm font-medium text-slate-700 hover:bg-slate-100">
+          <span aria-hidden="true">←</span>
+          <span>
+            {% if print_lang == 'ur' %}واپس لیجر لسٹ پر{% else %}Back to ledger list{% endif %}
+          </span>
+        </a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+  <!-- Header + Date Filter -->
+  <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6 no-print">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-800">
+        {% if kind == 'staff' %}
+          {% if print_lang == 'ur' %}
+            <span class="text-purple-700">سٹاف لیجر</span>, {{ entity.full_name }}
+          {% else %}
+            <span class="text-purple-700">Staff Ledger</span>, {{ entity.full_name }}
+          {% endif %}
+        {% else %}
+          {% if print_lang == 'ur' %}
+            {% if is_both %}
+              <span class="text-indigo-700">دوطرفہ لیجر</span>, {{ entity.display_name }}
+            {% elif kind == 'customer' %}
+              <span class="text-indigo-700">کسٹمر لیجر</span>, {{ entity.display_name }}
+            {% elif kind == 'supplier' %}
+              <span class="text-indigo-700">سپلائر لیجر</span>, {{ entity.display_name }}
+            {% else %}
+              <span class="text-indigo-700">{{ kind|title }} Ledger</span>, {{ entity.display_name }}
+            {% endif %}
+          {% else %}
+            {% if is_both %}
+              <span class="text-indigo-700">Consolidated Ledger</span>, {{ entity.display_name }}
+            {% else %}
+              <span class="text-indigo-700">{{ kind|title }} Ledger</span>, {{ entity.display_name }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      </h1>
+      <p class="text-sm text-slate-600 mt-1">
+        {% if print_lang == 'ur' %}
+          بزنس۔
+        {% else %}
+          Business:
+        {% endif %}
+        <span class="font-semibold text-indigo-600">
+          {% if all_mode %}
+            {% if print_lang == 'ur' %}تمام بزنسز{% else %}{{ all_business_label }}{% endif %}
+          {% else %}
+            {{ business.name }}
+          {% endif %}
+        </span>
+      </p>
+    </div>
+
+    {# From . To filter form that persists params and drives print #}
+    <form id="rangeForm" method="get" class="grid grid-cols-1 md:grid-cols-6 gap-3 w-full lg:w-auto">
+      {% if all_mode %}
+        <input type="hidden" name="business" value="all">
+      {% else %}
+        <input type="hidden" name="business" value="{{ business.id }}">
+      {% endif %}
+      {% if print_lang %}
+        <input type="hidden" name="lang" value="{{ print_lang }}">
+      {% endif %}
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">
+          {% if print_lang == 'ur' %}سے{% else %}From{% endif %}
+        </label>
+        <input type="date" name="date_from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+               class="w-full rounded-lg border border-slate-300 px-3 py-2">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">
+          {% if print_lang == 'ur' %}تک{% else %}To{% endif %}
+        </label>
+        <input type="date" name="date_to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+               class="w-full rounded-lg border border-slate-300 px-3 py-2">
+      </div>
+
+      <div class="flex items-end">
+        <button type="submit"
+                class="w-full md:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">
+          {% if print_lang == 'ur' %}فلٹر{% else %}Filter{% endif %}
+        </button>
+      </div>
+
+      <div class="flex items-end">
+        <a href="?{% if all_mode %}business=all{% else %}business={{ business.id }}{% endif %}"
+           class="w-full md:w-auto px-4 py-2 border-2 border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 font-medium">
+          {% if print_lang == 'ur' %}کلئیر{% else %}Clear{% endif %}
+        </a>
+      </div>
+
+      <div class="flex items-end">
+        <button type="button" id="btnPrint"
+                class="w-full md:w-auto px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-md">
+          {% if print_lang == 'ur' %}پرنٹ (انگلش){% else %}Print (English){% endif %}
+        </button>
+      </div>
+
+      <div class="flex items-end">
+        <button type="button" id="btnPrintUrdu"
+                class="w-full md:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium shadow-md">
+          {% if print_lang == 'ur' %}پرنٹ (اردو){% else %}Print (Urdu){% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PRINT HEADER (visible only in print mode) -->
+  <div class="hidden print:block bg-white rounded-lg border border-slate-300 p-3 mb-3 print-header">
+    <div class="flex justify-between items-start gap-4">
+      <div>
+        {% if all_mode %}
+          <div class="text-base font-bold text-slate-800">
+            {% if print_lang == 'ur' %}تمام بزنسز{% else %}{{ all_business_label }}{% endif %}
+          </div>
+          <div class="text-xs text-slate-600">
+            {% if print_lang == 'ur' %}
+              تمام فعال بزنسز کا مجموعی لیجر
+            {% else %}
+              Combined ledger across all active businesses
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="text-base font-bold text-slate-800">
+            {{ business.legal_name|default:business.name }}
+          </div>
+          <div class="text-xs text-slate-600">
+            {% if print_lang == 'ur' %}بزنس کوڈ{% else %}Business Code:{% endif %}
+            {{ business.code }}
+          </div>
+          {% if business.address %}
+            <div class="text-xs text-slate-600">
+              {% if print_lang == 'ur' %}پتا{% else %}Address{% endif %}. {{ business.address }}
+            </div>
+          {% endif %}
+          {% if business.phone %}
+            <div class="text-xs text-slate-600">
+              {% if print_lang == 'ur' %}فون{% else %}Phone{% endif %}. {{ business.phone }}
+            </div>
+          {% endif %}
+          {% if business.email %}
+            <div class="text-xs text-slate-600">
+              {% if print_lang == 'ur' %}ای میل{% else %}Email{% endif %}. {{ business.email }}
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="text-right">
+        <div class="text-base font-bold text-slate-800">
+          {% if kind == 'staff' %}
+            {% if print_lang == 'ur' %}
+              سٹاف لیجر, {{ entity.full_name }}
+            {% else %}
+              Staff Ledger, {{ entity.full_name }}
+            {% endif %}
+          {% else %}
+            {% if print_lang == 'ur' %}
+              {% if is_both %}
+                دوطرفہ لیجر, {{ entity.display_name }}
+              {% elif kind == 'customer' %}
+                کسٹمر لیجر, {{ entity.display_name }}
+              {% elif kind == 'supplier' %}
+                سپلائر لیجر, {{ entity.display_name }}
+              {% else %}
+                {{ kind|title }} Ledger, {{ entity.display_name }}
+              {% endif %}
+              {% if is_both %}
+                <span class="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded uppercase align-middle">BOTH</span>
+              {% endif %}
+            {% else %}
+              {% if is_both %}
+                Consolidated Ledger, {{ entity.display_name }}
+                <span class="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded uppercase align-middle">BOTH</span>
+              {% else %}
+                {{ kind|title }} Ledger, {{ entity.display_name }}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="text-xs text-slate-600">
+          {% if print_lang == 'ur' %}
+            مدت۔
+          {% else %}
+            Date Range.
+          {% endif %}
+          {% if date_from %}{{ date_from|date:"M. d, Y" }}{% else %}{% if print_lang == 'ur' %}شروع{% else %}Start{% endif %}{% endif %}
+          {% if print_lang == 'ur' %} تا {% else %} to {% endif %}
+          {% if date_to %}{{ date_to|date:"M. d, Y" }}{% else %}{% if print_lang == 'ur' %}آج{% else %}Today{% endif %}{% endif %}
+        </div>
+        <div class="text-xs text-slate-600">
+          {% if print_lang == 'ur' %}پرنٹ کی تاریخ{% else %}Printed{% endif %}. {% now "Y-m-d H:i" %}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 mt-2">
+      <div class="border border-blue-200 rounded p-2">
+        <div class="text-[10px] text-blue-700 uppercase font-semibold">
+          {% if print_lang == 'ur' %}کل ڈیبٹ{% else %}Total Debit{% endif %}
+        </div>
+        <div class="text-sm font-bold">Rs. {{ totals.total_dr|floatformat:2 }}</div>
+      </div>
+      <div class="border border-emerald-200 rounded p-2">
+        <div class="text-[10px] text-emerald-700 uppercase font-semibold">
+          {% if print_lang == 'ur' %}کل کریڈٹ{% else %}Total Credit{% endif %}
+        </div>
+        <div class="text-sm font-bold">Rs. {{ totals.total_cr|floatformat:2 }}</div>
+      </div>
+      <div class="border border-amber-200 rounded p-2">
+        <div class="text-[10px] text-amber-700 uppercase font-semibold">
+          {% if print_lang == 'ur' %}بیلنس{% else %}Balance{% endif %}
+        </div>
+        <div class="text-sm font-bold">
+          Rs. {{ totals.balance_abs|floatformat:2 }} <span>({{ totals.balance_side }})</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totals (screen only) -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 no-print">
+    <div class="rounded-xl border-2 border-blue-300 bg-gradient-to-br from-white to-blue-50 p-4 shadow-md hover:shadow-lg transition-shadow">
+      <div class="text-blue-600 text-sm font-semibold uppercase tracking-wide mb-1">
+        {% if print_lang == 'ur' %}کل ڈیبٹ{% else %}Total Debit{% endif %}
+      </div>
+      <div class="text-2xl font-bold text-slate-800">Rs. {{ totals.total_dr|floatformat:2 }}</div>
+      <div class="mt-2 h-1 bg-blue-200 rounded-full">
+        <div class="h-1 bg-blue-500 rounded-full" style="width: 100%"></div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border-2 border-emerald-300 bg-gradient-to-br from-white to-emerald-50 p-4 shadow-md hover:shadow-lg transition-shadow">
+      <div class="text-emerald-600 text-sm font-semibold uppercase tracking-wide mb-1">
+        {% if print_lang == 'ur' %}کل کریڈٹ{% else %}Total Credit{% endif %}
+      </div>
+      <div class="text-2xl font-bold text-slate-800">Rs. {{ totals.total_cr|floatformat:2 }}</div>
+      <div class="mt-2 h-1 bg-emerald-200 rounded-full">
+        <div class="h-1 bg-emerald-500 rounded-full" style="width: 100%"></div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-md hover:shadow-lg transition-shadow">
+      <div class="text-amber-700 text-sm font-semibold uppercase tracking-wide mb-1">
+        {% if print_lang == 'ur' %}بیلنس{% else %}Balance{% endif %}
+      </div>
+      <div class="text-2xl font-bold text-slate-800">
+        Rs. {{ totals.balance_abs|floatformat:2 }}
+        <span class="text-lg {% if totals.balance_side == 'Dr' %}text-blue-600{% else %}text-emerald-600{% endif %}">
+          {{ totals.balance_side }}
+        </span>
+      </div>
+      <div class="mt-2 h-1 bg-amber-200 rounded-full">
+        <div class="h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" style="width: 100%"></div>
+      </div>
+    </div>
+  </div>
+
+  {# Cheque summary for this party #}
+  {% if cheque_payments %}
+    <div class="mb-6 cheque-section">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">
+            {% if print_lang == 'ur' %}
+              {% if is_both %}اس پارٹی کے چیک{% else %}اس {{ kind }} کے چیک{% endif %}
+            {% else %}
+              {% if is_both %}Cheques for this Party{% else %}Cheques for this {{ kind }}{% endif %}
+            {% endif %}
+          </h2>
+          <p class="text-xs text-slate-500">
+            {% if print_lang == 'ur' %}
+              منتخب مدت کے تمام چیک{% if all_mode %} تمام بزنسز میں{% else %} {{ business.name }} میں{% endif %}۔
+              پینڈنگ چیک صرف انفارمیشن کے لیے ہیں۔ ڈیبٹ کریڈٹ میں شامل نہیں۔
+            {% else %}
+              Includes all cheque payments{% if date_from or date_to %} in the selected date range{% endif %}{% if all_mode %} across all businesses{% else %} in {{ business.name }}{% endif %}.
+              Pending cheques are shown here but should not affect the Dr/Cr totals if excluded in the ledger logic.
+            {% endif %}
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
+            {% if print_lang == 'ur' %}پینڈنگ{% else %}Pending{% endif %}.
+            <span class="font-semibold">Rs. {{ cheque_pending_total|floatformat:2 }}</span>
+          </span>
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">
+            {% if print_lang == 'ur' %}جمع شدہ{% else %}Deposited{% endif %}.
+            <span class="font-semibold">Rs. {{ cheque_deposited_total|floatformat:2 }}</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+        <table class="min-w-full text-xs">
+          <thead class="bg-slate-50">
+            <tr class="text-left text-[11px] font-semibold text-slate-600">
+              <th class="px-3 py-2">
+                {% if print_lang == 'ur' %}تاریخ{% else %}Date{% endif %}
+              </th>
+              {% if all_mode %}
+                <th class="px-3 py-2">
+                  {% if print_lang == 'ur' %}بزنس{% else %}Business{% endif %}
+                </th>
+              {% endif %}
+              <th class="px-3 py-2 text-right">
+                {% if print_lang == 'ur' %}رقم{% else %}Amount{% endif %}
+              </th>
+              <th class="px-3 py-2">
+                {% if print_lang == 'ur' %}اسٹیٹس{% else %}Status{% endif %}
+              </th>
+              <th class="px-3 py-2">
+                {% if print_lang == 'ur' %}بینک{% else %}Bank{% endif %}
+              </th>
+              <th class="px-3 py-2">
+                {% if print_lang == 'ur' %}حوالہ{% else %}Reference{% endif %}
+              </th>
+              <th class="px-3 py-2">
+                {% if print_lang == 'ur' %}ڈائریکشن{% else %}Direction{% endif %}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ch in cheque_payments %}
+              <tr class="border-t border-slate-100">
+                <td class="px-3 py-2 align-top">{{ ch.date|date:"M. d" }}</td>
+                {% if all_mode %}
+                  <td class="px-3 py-2 align-top text-[11px] text-slate-700">
+                    {{ ch.business.code }}
+                  </td>
+                {% endif %}
+                <td class="px-3 py-2 align-top text-right font-semibold text-slate-800">
+                  {{ ch.amount|floatformat:2 }}
+                </td>
+                <td class="px-3 py-2 align-top">
+                  {% if ch.cheque_status %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px]
+                                 {% if ch.cheque_status == 'pending' %}
+                                   bg-amber-50 text-amber-700 border border-amber-200
+                                 {% elif ch.cheque_status == 'deposited' %}
+                                   bg-emerald-50 text-emerald-700 border border-emerald-200
+                                 {% else %}
+                                   bg-slate-50 text-slate-700 border border-slate-200
+                                 {% endif %}">
+                      {{ ch.get_cheque_status_display }}
+                    </span>
+                  {% else %}
+                    <span class="text-slate-400 text-[11px]">
+                      {% if print_lang == 'ur' %}سیٹ نہیں{% else %}Not set{% endif %}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-3 py-2 align-top text-[11px] text-slate-700">
+                  {% if ch.bank_account %}
+                    {{ ch.bank_account.name }}
+                  {% else %}
+                    <span class="text-slate-400">
+                      {% if print_lang == 'ur' %}کیش / سیٹ نہیں{% else %}Cash / Not set{% endif %}
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="px-3 py-2 align-top text-[11px] text-slate-600">
+                  {{ ch.reference|default:"" }}
+                </td>
+                <td class="px-3 py-2 align-top text-[11px] text-slate-700">
+                  {{ ch.get_direction_display }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Rows -->
+  <div class="rounded-xl border-2 border-indigo-200 overflow-hidden shadow-lg bg-white print:shadow-none print:border ledger-table-wrapper">
+    <table class="w-full text-sm ledger-table">
+      <thead class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white print:bg-white print:text-slate-900 print:border-b-2 print:border-slate-800">
+        <tr class="text-left">
+          <th class="px-4 py-3 w-24 print:w-20 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}تاریخ{% else %}Date{% endif %}
+          </th>
+          <th class="px-4 py-3 w-28 print:w-24 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}حوالہ{% else %}Reference{% endif %}
+          </th>
+          <th class="px-4 py-3 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}پروڈکٹ / تفصیل{% else %}Product / Note{% endif %}
+          </th>
+          <th class="px-4 py-3 text-right w-24 print:w-20 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}مقدار{% else %}Qty{% endif %}
+          </th>
+          <th class="px-4 py-3 text-right w-24 print:w-20 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}ریٹ{% else %}Rate/Amt{% endif %}
+          </th>
+          <th class="px-4 py-3 text-right w-24 print:w-24 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}ڈیبٹ{% else %}Debit (Dr){% endif %}
+          </th>
+          <th class="px-4 py-3 text-right w-24 print:w-24 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}کریڈٹ{% else %}Credit (Cr){% endif %}
+          </th>
+          <th class="px-4 py-3 text-right w-32 print:w-32 font-semibold print:font-bold print:px-2 print:py-1.5 border-b border-indigo-500 print:border-slate-800">
+            {% if print_lang == 'ur' %}بیلنس{% else %}Balance{% endif %}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if print_mode %}
+          {% for row in rows_all %}
+            <tr class="border-b border-slate-200 print:border-slate-300 align-top">
+              <td class="px-4 py-3 print:px-2 print:py-1">{{ row.date|date:"M. d" }}</td>
+              <td class="px-4 py-3 print:px-2 print:py-1 font-medium">{{ row.ref }}</td>
+              <td class="px-4 py-3 print:px-2 print:py-1">
+                <div class="flex flex-col">
+                  {% if row.product_name %}
+                    <span class="font-semibold text-slate-800">{{ row.product_name }}</span>
+                    {% if row.note and row.note != 'Sales Item' and row.note != 'Order Item' and row.note != 'Purchase Item' and row.note != 'Purchase Return Item' and row.note != 'Return Item' %}
+                      <span class="text-[10px] text-slate-500 italic">{{ row.note }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-slate-700 italic">{{ row.note }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="px-4 py-3 print:px-2 print:py-1 text-right">{{ row.quantity|default:"-" }}</td>
+              <td class="px-4 py-3 print:px-2 print:py-1 text-right">{{ row.unit_price|default:"-" }}</td>
+              <td class="px-4 py-3 print:px-2 print:py-1 text-right font-semibold text-blue-800">
+                {% if row.dr %}{{ row.dr|floatformat:2 }}{% else %}<span class="text-slate-300">·</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 print:px-2 print:py-1 text-right font-semibold text-emerald-800">
+                {% if row.cr %}{{ row.cr|floatformat:2 }}{% else %}<span class="text-slate-300">·</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 print:px-2 print:py-1 text-right font-bold whitespace-nowrap">
+                <span class="{% if row.run_side == 'Dr' %}text-blue-700{% else %}text-emerald-700{% endif %}">
+                  {{ row.run_amount|floatformat:2 }} {{ row.run_side }}
+                </span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" class="px-4 py-6 text-center text-sm">
+                {% if print_lang == 'ur' %}کوئی ٹرانزیکشن نہیں ملی{% else %}No transactions found{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          <!-- Print Footer for Closing Balance -->
+          <tr class="hidden print:table-row bg-slate-50 font-bold border-t-2 border-slate-800">
+            <td colspan="7" class="px-4 py-2 text-right">
+              {% if print_lang == 'ur' %}کل بیلنس{% else %}Closing Balance{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right whitespace-nowrap">
+              <span class="{% if totals.balance_side == 'Dr' %}text-blue-800{% else %}text-emerald-800{% endif %}">
+                Rs. {{ totals.balance_abs|floatformat:2 }} {{ totals.balance_side }}
+              </span>
+            </td>
+          </tr>
+        {% else %}
+          {% for row in page_obj.object_list %}
+            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
+              <td class="px-4 py-3 font-medium text-slate-700">{{ row.date|date:"M. d" }}</td>
+              <td class="px-4 py-3 font-medium text-indigo-600">{{ row.ref }}</td>
+              <td class="px-4 py-3">
+                <div class="flex flex-col">
+                  {% if row.product_name %}
+                    <span class="font-semibold text-slate-800">{{ row.product_name }}</span>
+                    {% if row.note and row.note != 'Sales Item' and row.note != 'Order Item' and row.note != 'Purchase Item' and row.note != 'Purchase Return Item' and row.note != 'Return Item' %}
+                      <span class="text-xs text-slate-500 italic">{{ row.note }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-slate-700 italic">{{ row.note }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ row.quantity|default:"-" }}</td>
+              <td class="px-4 py-3 text-right text-slate-600">{{ row.unit_price|default:"-" }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-blue-600">
+                {% if row.dr %}{{ row.dr|floatformat:2 }}{% else %}<span class="text-slate-300">·</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 text-right font-semibold text-emerald-600">
+                {% if row.cr %}{{ row.cr|floatformat:2 }}{% else %}<span class="text-slate-300">·</span>{% endif %}
+              </td>
+              <td class="px-4 py-3 text-right font-bold whitespace-nowrap">
+                <span class="{% if row.run_side == 'Dr' %}text-blue-700{% else %}text-emerald-700{% endif %}">
+                  {{ row.run_amount|floatformat:2 }} {{ row.run_side }}
+                </span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" class="px-4 py-12 text-center">
+                <div class="flex flex-col items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span class="text-slate-500 font-medium">{% if print_lang == 'ur' %}کوئی ٹرانزیکشن نہیں ملی{% else %}No transactions found{% endif %}</span>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+
+    </table>
+  </div>
+
+  {% if not print_mode %}
+  <div class="flex justify-between items-center mt-6 bg-white rounded-lg border-2 border-slate-200 px-4 py-3 shadow-md no-print">
+    <div class="text-sm font-medium text-slate-700">
+      {% if print_lang == 'ur' %}
+        صفحہ <span class="text-indigo-600 font-bold">{{ page_obj.number }}</span>
+        از
+        <span class="text-indigo-600 font-bold">{{ page_obj.paginator.num_pages }}</span>
+      {% else %}
+        Page <span class="text-indigo-600 font-bold">{{ page_obj.number }}</span> of
+        <span class="text-indigo-600 font-bold">{{ page_obj.paginator.num_pages }}</span>
+      {% endif %}
+    </div>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?{% if all_mode %}business=all{% else %}business={{ business.id }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}&page={{ page_obj.previous_page_number }}{% if print_lang %}&lang={{ print_lang }}{% endif %}"
+           class="px-4 py-2 border-2 border-indigo-400 bg-white text-indigo-700 rounded-lg hover:bg-indigo-50 hover:border-indigo-500 font-medium transition-all shadow-sm hover:shadow-md">
+           {% if print_lang == 'ur' %}← پچھلا{% else %}← Previous{% endif %}
+        </a>
+      {% else %}
+        <span class="px-4 py-2 border-2 border-slate-200 bg-slate-50 text-slate-400 rounded-lg cursor-not-allowed font-medium">
+          {% if print_lang == 'ur' %}← پچھلا{% else %}← Previous{% endif %}
+        </span>
+      {% endif %}
+
+      {% if page_obj.has_next %}
+        <a href="?{% if all_mode %}business=all{% else %}business={{ business.id }}{% endif %}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}&page={{ page_obj.next_page_number }}{% if print_lang %}&lang={{ print_lang }}{% endif %}"
+           class="px-4 py-2 border-2 border-indigo-400 bg-white text-indigo-700 rounded-lg hover:bg-indigo-50 hover:border-indigo-500 font-medium transition-all shadow-sm hover:shadow-md">
+           {% if print_lang == 'ur' %}اگلا →{% else %}Next →{% endif %}
+        </a>
+      {% else %}
+        <span class="px-4 py-2 border-2 border-slate-200 bg-slate-50 text-slate-400 rounded-lg cursor-not-allowed font-medium">
+          {% if print_lang == 'ur' %}اگلا →{% else %}Next →{% endif %}
+        </span>
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- Closing Balance Footer for Screen (Optional, but good for consistency) -->
+  <div class="hidden print:block mt-8 border-t-2 border-slate-800 pt-4 text-right no-print">
+      <p class="text-sm font-bold text-slate-800">
+        {% if print_lang == 'ur' %}کل بیلنس (آخری):{% else %}Closing Balance (Final):{% endif %}
+        Rs. {{ totals.balance_abs|floatformat:2 }} {{ totals.balance_side }}
+      </p>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- PRINT STYLES -->
+<style>
+@media print {
+  #sidebar, .sidebar, nav, header, footer, .no-print { display: none !important; }
+  
+  /* Autoloading optimization for print */
+  [data-items-row] { display: table-row !important; }
+  .ledger-table tr[data-items-row] td { 
+    padding: 0 !important; 
+    border-top: none !important;
+  }
+  .detail-card { 
+    border: none !important; 
+    padding: 1mm 2mm !important; 
+    box-shadow: none !important; 
+    background: transparent !important;
+  }
+  
+  /* Simplified receipt details in print */
+  .detail-card .payment-receipt-meta {
+    display: block !important;
+    font-size: 8pt !important;
+    color: #000 !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .detail-card .payment-receipt-meta > div {
+    display: inline-block !important;
+    margin-right: 4mm !important;
+  }
+
+
+
+  #content, main, .content, .page {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    font-size: 10pt !important;
+  }
+
+  .overflow-hidden, .overflow-auto, .overflow-y-auto, .overflow-x-auto, .overflow-scroll,
+  .min-h-screen, .max-h-screen, .h-screen, .print\:overflow-visible {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 15mm 10mm 15mm 15mm; /* Traditional margins: Left 15mm for filing */
+  }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  tbody, thead, tfoot, tr, td, th {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  th, td {
+    border: 1px solid #000 !important; /* Traditional black borders for print */
+    padding: 3px 5px !important;
+  }
+
+  .ledger-table thead th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold !important;
+    text-transform: uppercase;
+    font-size: 8.5pt;
+  }
+
+  .ledger-table-wrapper {
+    margin-top: 4mm !important;
+  }
+
+  .print-header {
+    margin-bottom: 4mm !important;
+    padding: 4mm !important;
+  }
+
+  .cheque-section {
+    margin-bottom: 4mm !important;
+  }
+
+  .bg-gradient-to-br, .bg-gradient-to-r { background: #fff !important; }
+  .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; }
+
+  .sticky, .fixed { position: static !important; top: auto !important; }
+
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
+  /* RTL for Urdu print. text direction right to left, numbers remain as-is */
+  {% if print_lang == 'ur' %}
+  body {
+    direction: rtl;
+    text-align: right;
+    font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Tahoma", sans-serif;
+  }
+  .ledger-table td,
+  .ledger-table th,
+  .print-header,
+  .cheque-section {
+    direction: rtl;
+    text-align: right;
+  }
+  .ledger-table td.text-right,
+  .ledger-table th.text-right {
+    text-align: left !important; /* amounts on the left edge when table is RTL */
+  }
+  {% endif %}
+}
+</style>
+
+{% if print_mode %}
+<script>
+  window.addEventListener('load', function () {
+    try { window.print(); } catch (e) {}
+  });
+</script>
+{% else %}
+<script>
+  // Autoloading: Toggle logic removed as rows are expanded by default
+
+
+  // Print in a new tab with print mode. English
+  (function () {
+    const btnPrint = document.getElementById('btnPrint');
+    const form = document.getElementById('rangeForm');
+    if (!btnPrint || !form) return;
+
+    btnPrint.addEventListener('click', function () {
+      const params = new URLSearchParams(new FormData(form));
+      params.set('print', '1');
+      params.delete('lang');  // force English print
+      const url = `${location.pathname}?${params.toString()}`;
+      window.open(url, '_blank');
+    });
+  })();
+
+  // Print in a new tab with print mode. Urdu
+  (function () {
+    const btnPrintUrdu = document.getElementById('btnPrintUrdu');
+    const form = document.getElementById('rangeForm');
+    if (!btnPrintUrdu || !form) return;
+
+    btnPrintUrdu.addEventListener('click', function () {
+      const params = new URLSearchParams(new FormData(form));
+      params.set('print', '1');
+      params.set('lang', 'ur');
+      const url = `${location.pathname}?${params.toString()}`;
+      window.open(url, '_blank');
+    });
+  })();
+</script>
+{% endif %}
+{% endwith %}
+{% endblock %}

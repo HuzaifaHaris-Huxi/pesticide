@@ -1,0 +1,136 @@
+:root {
+  --primary-color: #418AC9;
+  --secondary-color: #2BB5BC;
+  --tertiary-color: #97CA51;
+  --accent: var(--primary-color);
+  --accent2: var(--secondary-color);
+  --accent3: var(--tertiary-color);
+}
+
+/* Decorative blobs and subtle noise + glass vibe */
+body {
+  position: relative;
+  overflow: hidden;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.flex.min-h-screen {
+  height: 100vh;
+}
+
+main.flex-1 {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* Soft vignette to keep edges subtle */
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(60% 40% at 10% 20%,
+      rgba(255, 255, 255, 0.55),
+      transparent 20%),
+    radial-gradient(50% 30% at 90% 80%,
+      rgba(255, 255, 255, 0.3),
+      transparent 25%);
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
+
+/* Color blob 1 (top-left) */
+body::after {
+  content: "";
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  left: -12%;
+  top: -10%;
+  transform: rotate(15deg);
+  background: radial-gradient(circle at 30% 30%,
+      color-mix(in srgb, var(--primary-color) 60%, transparent),
+      transparent 40%),
+    radial-gradient(circle at 70% 70%,
+      color-mix(in srgb, var(--secondary-color) 45%, transparent),
+      transparent 55%);
+  filter: blur(60px) saturate(120%);
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Additional small accent blob (bottom-right) */
+.body-blob-2 {
+  position: absolute;
+  right: -8%;
+  bottom: -6%;
+  width: 420px;
+  height: 420px;
+  transform: rotate(-10deg);
+  background: radial-gradient(circle at 40% 40%,
+      color-mix(in srgb, var(--tertiary-color) 55%, transparent),
+      transparent 45%),
+    radial-gradient(circle at 70% 70%,
+      color-mix(in srgb, var(--secondary-color) 25%, transparent),
+      transparent 60%);
+  filter: blur(48px) saturate(120%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Make sure main content sits above decorative blobs */
+main {
+  position: relative;
+  z-index: 10;
+}
+
+/* Optional: subtle glass border highlight for dark-on-light contrast */
+main {
+  border-image: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.45),
+      rgba(255, 255, 255, 0.15)) 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  body::after {
+    width: 420px;
+    height: 420px;
+    filter: blur(44px);
+    left: -20%;
+    top: -18%;
+  }
+
+  .body-blob-2 {
+    width: 320px;
+    height: 320px;
+    right: -20%;
+    bottom: -18%;
+    filter: blur(40px);
+  }
+
+  main {
+    padding: 1.25rem;
+  }
+}
+
+
+
+  /* Sidebar collapsed state */
+  #sidebar[data-collapsed="true"] .nav-label,
+  #sidebar[data-collapsed="true"] .nav-caret,
+  #sidebar[data-collapsed="true"] .submenu {
+    display: none !important;
+  }
+  #sidebar[data-collapsed="true"] .nav-item {
+    justify-content: center;      /* center icons when collapsed */
+    padding-right: 0 !important;
+  }
+  /* Keep icons visible and crisp */
+  .nav-ico svg { width: 20px; height: 20px; }

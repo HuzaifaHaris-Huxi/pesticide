@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-6 px-4 pb-12">
+
+  {# Business tabs for cash out #}
+  <div class="mb-4 border-b border-slate-300 overflow-x-auto pb-1">
+    <div class="flex gap-2">
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        {% if business and b.id == business.id %}
+          <a
+            href="?business={{ b.id }}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-bold bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md whitespace-nowrap"
+            aria-current="page"
+          >
+            {{ b.name }}
+          </a>
+        {% else %}
+          <a
+            href="?business={{ b.id }}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-white text-slate-700 border-slate-300 hover:bg-slate-50 whitespace-nowrap"
+          >
+            {{ b.name }}
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <h2 class="text-xl font-bold mb-4 text-slate-800">{% if payment %}Edit{% else %}New{% endif %} Cash Payment (Cash Out)</h2>
+
+  <form method="post" class="bg-white shadow-lg rounded-xl p-6 space-y-5" id="cashOutForm" autocomplete="off">
+    {% csrf_token %}
+
+    {% if payment %}
+      <input type="hidden" name="payment_id" value="{{ payment.id }}">
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    {{ form.party_id }} {# hidden field #}
+
+    <div class="relative">
+      <label for="id_party_name" class="block text-sm font-semibold text-slate-700 mb-1">
+        Payee (Customer or Vendor)
+        <span id="partyBalanceBadge" class="ml-2 text-[10px] font-normal text-slate-500 hidden"></span>
+      </label>
+      {{ form.party_name }}
+      <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-medium">
+        Start typing name then click on a suggestion.
+      </p>
+      
+      <ul id="party-suggestions"
+          class="absolute left-0 right-0 mt-1 hidden max-h-48 overflow-auto rounded-lg border border-slate-300 bg-white shadow-lg z-50">
+      </ul>
+      
+      {% for error in form.party_name.errors %}
+        <p class="text-xs text-red-600 mt-1 font-medium">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Payment Date</label>
+        {{ form.date }}
+        {% for error in form.date.errors %}
+          <p class="text-xs text-red-600 mt-1 font-medium">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Amount</label>
+        {{ form.amount }}
+        {% for error in form.amount.errors %}
+          <p class="text-xs text-red-600 mt-1 font-medium">{{ error }}</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+      {{ form.override_cash_limit }}
+      <label for="id_override_cash_limit" class="text-sm font-medium text-amber-800">
+        {{ form.override_cash_limit.label }}
+      </label>
+      {% if form.override_cash_limit.help_text %}
+        <p class="text-[10px] text-amber-600 ml-auto hidden md:block">
+          {{ form.override_cash_limit.help_text }}
+        </p>
+      {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Voucher / Ref No.</label>
+        {{ form.ref_no }}
+        {% for error in form.ref_no.errors %}
+          <p class="text-xs text-red-600 mt-1 font-medium">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-1">Narration / Note</label>
+        {{ form.note }}
+        {% for error in form.note.errors %}
+          <p class="text-xs text-red-600 mt-1 font-medium">{{ error }}</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex flex-col md:flex-row items-center justify-end pt-4 gap-3 border-t border-slate-100">
+      <p id="printStatus" class="flex-1 text-xs font-semibold text-slate-500"></p>
+      
+      <div class="flex gap-2 w-full md:w-auto">
+        <button
+          id="btnSave"
+          type="submit"
+          class="flex-1 md:flex-none inline-flex justify-center items-center rounded-lg bg-slate-900 px-6 py-2 text-sm font-bold text-white hover:bg-slate-800 transition-colors shadow-md"
+        >
+          Save Only
+        </button>
+
+        <button
+          id="btnSavePrint"
+          type="button"
+          class="flex-1 md:flex-none inline-flex justify-center items-center rounded-lg bg-emerald-600 px-6 py-2 text-sm font-bold text-white hover:bg-emerald-500 transition-all shadow-md"
+        >
+          Save &amp; Print
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Party search logic (reused from quick_receipt)
+  (function() {
+    const input = document.getElementById("id_party_name");
+    const hiddenId = document.getElementById("id_party_id");
+    const suggestionsBox = document.getElementById("party-suggestions");
+    let timer = null;
+    let currentPartyId = null;
+    let activeIndex = -1;
+    let currentItems = [];
+
+    function clearSuggestions() {
+      suggestionsBox.innerHTML = "";
+      suggestionsBox.classList.add("hidden");
+      activeIndex = -1;
+    }
+
+    function renderSuggestions(items) {
+      currentItems = items;
+      activeIndex = -1;
+      suggestionsBox.innerHTML = "";
+      if (!items.length) {
+        suggestionsBox.classList.add("hidden");
+        return;
+      }
+      
+      items.forEach(function(p, idx) {
+        const li = document.createElement("li");
+        li.className = "px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-0";
+        li.innerHTML = `<span class="font-medium text-slate-800">${p.name}</span> <span class="text-[10px] text-slate-500 ml-2 italic">(${p.type})</span>`;
+        
+        li.addEventListener("mousedown", function(e) {
+          e.preventDefault();
+          input.value = p.name;
+          hiddenId.value = p.id;
+          currentPartyId = p.id;
+          clearSuggestions();
+          loadPartyBalance();
+        });
+        
+        suggestionsBox.appendChild(li);
+      });
+      suggestionsBox.classList.remove("hidden");
+    }
+
+    if (input) {
+      input.addEventListener("input", function() {
+        const q = this.value.trim();
+        hiddenId.value = "";
+        currentPartyId = null;
+        
+        if (timer) clearTimeout(timer);
+        if (!q.length) {
+          clearSuggestions();
+          return;
+        }
+
+        timer = setTimeout(function() {
+          fetch("{% url 'party_search' %}?q=" + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => renderSuggestions(data))
+            .catch(() => clearSuggestions());
+        }, 250);
+      });
+    }
+
+    async function loadPartyBalance() {
+      if (!currentPartyId) return;
+      try {
+        const resp = await fetch("{% url 'customer_balance_api' %}?customer_id=" + currentPartyId, {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          const badge = document.getElementById("partyBalanceBadge");
+          const side = data.side || "";
+          let textColor = side === "Dr" ? "text-emerald-600" : (side === "Cr" ? "text-rose-600" : "text-slate-500");
+          let label = side === "Dr" ? "Receivable" : (side === "Cr" ? "Payable" : "Balance");
+          badge.textContent = `(${label}: Rs. ${data.amount})`;
+          badge.className = `ml-2 text-[10px] font-medium ${textColor}`;
+          badge.classList.remove("hidden");
+        }
+      } catch (err) {}
+    }
+
+    document.addEventListener("click", e => {
+      if (!suggestionsBox.contains(e.target) && e.target !== input) clearSuggestions();
+    });
+    
+    // Initial load if editing
+    if (hiddenId && hiddenId.value) {
+        currentPartyId = hiddenId.value;
+        loadPartyBalance();
+    }
+  })();
+
+  // Double-submission prevention
+  (function() {
+    const form = document.getElementById("cashOutForm");
+    const btnSave = document.getElementById("btnSave");
+    const btnSavePrint = document.getElementById("btnSavePrint");
+    const statusEl = document.getElementById("printStatus");
+
+    if (!form || !btnSave || !btnSavePrint) return;
+
+    form.addEventListener("submit", function(e) {
+      // Disable both buttons to prevent double click
+      btnSave.disabled = true;
+      btnSavePrint.disabled = true;
+      btnSave.innerHTML = `<span class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...</span>`;
+    });
+
+    // Save & Print
+    btnSavePrint.addEventListener("click", function() {
+      if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="animate-pulse flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-emerald-600" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing & Print...</span>`;
+        statusEl.className = "mt-2 text-xs font-bold text-emerald-600 tracking-tight uppercase";
+      }
+
+      btnSave.disabled = true;
+      btnSavePrint.disabled = true;
+      btnSavePrint.innerHTML = `Wait...`;
+
+      const url = "{% url 'cash_out_print' %}";
+      const fd = new FormData(form);
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+      fetch(url, {
+        method: "POST",
+        body: fd,
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": csrfToken
+        }
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.ok) throw new Error(data.error || "Save error");
+          window.location.href = "{% url 'cash_out_list' %}";
+        })
+        .catch(err => {
+          if (statusEl) {
+            statusEl.textContent = "Error: " + err.message;
+            statusEl.className = "mt-2 text-xs font-bold text-red-600 uppercase";
+          }
+          btnSave.disabled = false;
+          btnSavePrint.disabled = false;
+          btnSavePrint.textContent = "Save & Print";
+        });
+    });
+  })();
+</script>
+
+<style>
+  input[type="text"], input[type="number"], select, textarea, input[type="date"] {
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    background: #fff;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #0f172a;
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05);
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+</style>
+{% endblock %}

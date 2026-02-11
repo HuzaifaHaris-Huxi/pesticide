@@ -1,0 +1,245 @@
+/* ===== DataTable Glassmorphism Styles ===== */
+button:hover {
+    cursor: pointer !important;
+}
+
+/* Table Structure & Transparency */
+table.dataTable.no-footer {
+    border-bottom: 0 !important;
+}
+
+/* Hover effects */
+table.dataTable tbody tr:hover {
+    background: rgba(248, 250, 252, 0.5) !important;
+    /* slate-50/50 */
+}
+
+/* Wrapper Layout */
+.dataTables_wrapper .dt-head,
+.dataTables_wrapper .dt-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Control Elements Base Styles - MAKE VISIBLE */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_processing,
+.dataTables_wrapper .dataTables_paginate {
+    color: rgb(71 85 105) !important;
+    /* slate-600 */
+    background: transparent;
+}
+
+/* Make labels visible */
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    color: rgb(71 85 105) !important;
+    /* slate-600 */
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Search Input - MAKE VISIBLE */
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: 0.5rem;
+    border: 1px solid rgb(100 116 139) !important;
+    /* slate-500 - more visible */
+    background: rgba(255, 255, 255, 0.9) !important;
+    /* More opaque */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    outline: none;
+    min-width: 240px;
+    transition: all 0.2s ease;
+    color: rgb(30 41 59) !important;
+    /* slate-800 - dark text */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Placeholder text */
+.dataTables_wrapper .dataTables_filter input::placeholder {
+    color: rgb(100 116 139) !important;
+    /* slate-500 */
+    opacity: 1 !important;
+    /* Ensure visibility */
+}
+
+.dataTables_wrapper .dataTables_filter input:focus {
+    border-color: rgb(59 130 246) !important;
+    /* blue-500 */
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+    background: rgba(255, 255, 255, 1) !important;
+    /* Solid white on focus */
+    color: rgb(30 41 59) !important;
+    /* slate-800 */
+}
+
+/* Length Select - MAKE VISIBLE */
+.dataTables_wrapper .dataTables_length select {
+    border-radius: 0.5rem;
+    border: 1px solid rgb(100 116 139) !important;
+    /* slate-500 - more visible */
+    background: rgba(255, 255, 255, 0.9) !important;
+    /* More opaque */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 0.4rem 2rem 0.4rem 0.75rem !important;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s ease;
+    color: rgb(30 41 59) !important;
+    /* slate-800 - dark text */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
+    background-position: right 0.5rem center !important;
+    background-repeat: no-repeat !important;
+    background-size: 1.5em 1.5em !important;
+}
+
+.dataTables_wrapper .dataTables_length select:focus {
+    border-color: rgb(59 130 246) !important;
+    /* blue-500 */
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+    background: rgba(255, 255, 255, 1) !important;
+    /* Solid white on focus */
+    color: rgb(30 41 59) !important;
+    /* slate-800 */
+}
+
+/* Info Text - MAKE VISIBLE */
+.dataTables_wrapper .dataTables_info {
+    color: rgb(71 85 105) !important;
+    /* slate-600 */
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 0;
+}
+
+/* Pagination Buttons */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    background: rgba(255, 255, 255, 0.9) !important;
+    /* More opaque */
+    border: 1px solid rgb(203 213 225) !important;
+    /* slate-300 */
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 1rem !important;
+    margin: 0 0.25rem !important;
+    color: rgb(71 85 105) !important;
+    /* slate-600 */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-size: 0.875rem !important;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    /* Solid white */
+    border-color: rgb(148 163 184) !important;
+    /* slate-400 */
+    color: rgb(30 41 59) !important;
+    /* slate-800 */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: rgb(59 130 246) !important;
+    /* Solid blue-500 */
+    border-color: rgb(59 130 246) !important;
+    color: rgb(255 255 255) !important;
+    /* white */
+    font-weight: 600;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    background: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Ensure proper spacing and visibility of controls */
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 1rem !important;
+}
+
+.dataTables_wrapper .dataTables_length {
+    margin-bottom: 1rem !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+
+    .dataTables_wrapper .dt-head,
+    .dataTables_wrapper .dt-foot {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .dataTables_wrapper .dataTables_length select {
+        margin-top: 0.5rem;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 1rem;
+    }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-color: rgb(100 116 139) !important;
+        color: rgb(30 41 59) !important;
+    }
+
+    .dataTables_wrapper .dataTables_filter input::placeholder {
+        color: rgb(100 116 139) !important;
+    }
+
+    .dataTables_wrapper .dataTables_info {
+        color: rgb(71 85 105) !important;
+    }
+}
+
+/* Custom scrollbar styling */
+.table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.5);
+}

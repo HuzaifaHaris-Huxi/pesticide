@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Financial Period Summary - Barkat POS{% endblock %}
+
+{% block content %}
+<!-- Print Button -->
+<button 
+    onclick="window.print()" 
+    class="print:hidden fixed top-24 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg shadow-lg hover:bg-slate-800 transition-all duration-200 hover:shadow-xl"
+>
+    <i data-feather="printer" class="w-4 h-4"></i>
+    <span class="font-medium">Print Report</span>
+</button>
+
+<div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-white print:p-8">
+    <!-- Report Header -->
+    <div class="text-center mb-8 pb-6 border-b-2 border-slate-900 print:mb-6">
+        <h1 class="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">Financial Period Summary</h1>
+        <p class="text-sm lg:text-base text-slate-600">{{ today|date:"l, F j, Y" }}</p>
+    </div>
+    
+    <!-- Performance Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8 print:gap-4 print:mb-6">
+        <!-- Total Sales Card -->
+        <div class="border-2 border-slate-900 p-5 bg-white print:break-inside-avoid">
+            <div class="text-xs font-semibold uppercase text-slate-600 mb-2">Total Sales</div>
+            <div class="text-lg font-bold text-slate-900 mb-1">Amount</div>
+            <div class="text-2xl lg:text-3xl font-bold text-slate-900 mb-3">
+                Rs. {{ total_sales|floatformat:2|intcomma }}
+            </div>
+            <div class="text-sm text-slate-700 space-y-1">
+                <div><span class="font-semibold">Total Receipt:</span> {{ sales_count }}</div>
+                <div><span class="font-semibold">Receipt Series:</span> {{ sales_series }}</div>
+                <div><span class="font-semibold">Cancelled:</span> {{ cancelled_count }} (Rs. {{ total_cancelled|floatformat:2|intcomma }})</div>
+            </div>
+        </div>
+        
+        <!-- Total Purchase Card -->
+        <div class="border-2 border-slate-900 p-5 bg-white print:break-inside-avoid">
+            <div class="text-xs font-semibold uppercase text-slate-600 mb-2">Total Purchase</div>
+            <div class="text-lg font-bold text-slate-900 mb-1">Amount</div>
+            <div class="text-2xl lg:text-3xl font-bold text-slate-900 mb-3">
+                Rs. {{ total_purchase|floatformat:2|intcomma }}
+            </div>
+            <div class="text-sm text-slate-700 space-y-1">
+                <div><span class="font-semibold">Purchase Series:</span> {{ po_series }}</div>
+                <div><span class="font-semibold">Pending:</span> {{ pending_po_count }}</div>
+            </div>
+        </div>
+        
+        <!-- Total Expense Card -->
+        <div class="border-2 border-slate-900 p-5 bg-white print:break-inside-avoid">
+            <div class="text-xs font-semibold uppercase text-slate-600 mb-2">Total Expense</div>
+            <div class="text-lg font-bold text-slate-900 mb-1">Amount</div>
+            <div class="text-2xl lg:text-3xl font-bold text-slate-900 mb-3">
+                Rs. {{ total_expenses|floatformat:2|intcomma }}
+            </div>
+            <div class="text-sm text-slate-700 space-y-1">
+                <div><span class="font-semibold">Landed PO:</span> Rs. {{ landed_po_expense|floatformat:2|intcomma }}</div>
+                <div><span class="font-semibold">Operating:</span> Rs. {{ operating_expense|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Amount IN Section -->
+    <div class="mb-8 print:mb-6 print:break-inside-avoid">
+        <h2 class="text-xl lg:text-2xl font-bold text-slate-900 mb-4">Amount IN</h2>
+        <div class="border-2 border-slate-900 p-4 lg:p-6 bg-slate-50">
+            <div class="flex flex-wrap items-center justify-between gap-2 lg:gap-4">
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Cash Via Sales Deposited</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ cash_sales|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">+</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Cash Via Receipt</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ cash_receipt|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">=</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Total Cash In</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ total_cash_in|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">|</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Sales Via Bank</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank_sales|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Receipt Via Bank</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank_receipt|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Bank</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ total_bank_deposits|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Amount OUT Section -->
+    <div class="mb-8 print:mb-6 print:break-inside-avoid">
+        <h2 class="text-xl lg:text-2xl font-bold text-slate-900 mb-4">Amount Out</h2>
+        <div class="border-2 border-slate-900 p-4 lg:p-6 bg-slate-50">
+            <div class="flex flex-wrap items-center justify-between gap-2 lg:gap-4">
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Purchase Order</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ po_payments|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">+</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">General Payment</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ general_payments|floatformat:2|intcomma }}</div>
+                </div>
+
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">+</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Sale Return Refund</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ sr_refunds|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">+</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Total Expense</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ total_expenses|floatformat:2|intcomma }}</div>
+                </div>
+                
+                <span class="text-xl lg:text-2xl font-bold text-slate-700 px-2">=</span>
+                
+                <div class="flex flex-col items-center min-w-[100px]">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-1 text-center">Total Cash Out</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ total_cash_out|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bank Details by Account -->
+    <div class="mb-8 print:mb-6">
+        <h2 class="text-xl lg:text-2xl font-bold text-slate-900 mb-4">Bank Details by Account</h2>
+        
+        {% for bank in bank_details %}
+        <div class="border-2 border-slate-900 mb-6 p-4 print:break-inside-avoid">
+            <div class="text-base lg:text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-900">
+                {{ bank.account.account_title }} (Current Balance)
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="text-center">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-2">Bank Sales Amount</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank.bank_sales_amount|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-2">Deposited (Cash)</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank.cash_deposited|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-2">Cheque Deposited</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank.cheque_deposited|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-2">Total Deposited</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank.total_deposited|floatformat:2|intcomma }}</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[10px] lg:text-xs font-semibold text-slate-600 uppercase mb-2">Total</div>
+                    <div class="text-sm lg:text-base font-bold text-slate-900">Rs. {{ bank.current_balance|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-slate-600 italic">No bank accounts found.</p>
+        {% endfor %}
+        
+        <div class="text-right">
+            <div class="text-lg lg:text-xl font-bold text-slate-900 mt-4 pt-4 border-t-2 border-slate-900 inline-block px-4">
+                <span class="mr-4">Grand Total of All Banks:</span>
+                <span>Rs. {{ grand_total_banks|floatformat:2|intcomma }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Amount In Hand Summary -->
+    <div class="border-2 border-slate-900 p-6 bg-slate-50 print:break-inside-avoid">
+        <h2 class="text-lg lg:text-xl font-bold text-slate-900 mb-6">Amount In Hand</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-sm font-semibold text-slate-600 mb-2">Cash in Hand</div>
+                <div class="text-2xl lg:text-3xl font-bold text-slate-900">Rs. {{ cash_in_hand|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm font-semibold text-slate-600 mb-2">Cheque in Hand (pending)</div>
+                <div class="text-2xl lg:text-3xl font-bold text-slate-900">Rs. {{ cheques_pending|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="text-center">
+                <div class="text-sm font-semibold text-slate-600 mb-2">All Bank Balance</div>
+                <div class="text-2xl lg:text-3xl font-bold text-slate-900">Rs. {{ all_bank_balance|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Feather icons
+    feather.replace();
+</script>
+{% endblock %}

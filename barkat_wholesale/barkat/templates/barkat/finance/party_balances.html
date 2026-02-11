@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Customer and Supplier Balances{% endblock %}
+
+{% block content %}
+<style>
+  .balance-card { transition: all 0.2s ease; }
+  .balance-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .checkbox-label { cursor: pointer; user-select: none; }
+  .checkbox-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+  
+  /* Print Optimization */
+  @media print {
+    .no-print { display: none !important; }
+    .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+  }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 py-6">
+  
+  <div class="mb-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Customer and Supplier Balances</h1>
+        <p class="text-slate-500 mt-1">Overview of all outstanding balances</p>
+      </div>
+      
+      <div class="flex flex-wrap items-center gap-3 bg-white rounded-lg border border-slate-200 p-3 shadow-sm no-print">
+        <span class="text-sm font-medium text-slate-700">Include:</span>
+        <label class="checkbox-label flex items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" id="printCustomers" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          Customers
+        </label>
+        {% if suppliers_unlocked %}
+        <label class="checkbox-label flex items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" id="printSuppliers" checked class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          Suppliers
+        </label>
+        {% endif %}
+
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="printReport()" class="inline-flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print report
+          </button>
+          <button type="button" onclick="exportExcel()" class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v4M4 20h16v-4M9 12h6M9 16h6M9 8h6"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200 no-print">
+    <a href="?business=" class="px-4 py-2 text-sm font-medium transition-all {% if not selected_biz_id %}border-b-2 border-blue-600 text-blue-600{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+      All Businesses
+    </a>
+    {% for b in businesses %}
+    <a href="?business={{ b.id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}{% if q %}&q={{ q }}{% endif %}" 
+       class="px-4 py-2 text-sm font-medium transition-all {% if selected_biz_id == b.id|stringformat:'s' %}border-b-2 border-blue-600 text-blue-600{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+      {{ b.name }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm no-print">
+    <form method="get" class="flex flex-wrap items-end gap-4">
+      {% if selected_biz_id %}<input type="hidden" name="business" value="{{ selected_biz_id }}">{% endif %}
+      <div class="min-w-[160px]">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">From Date</label>
+        <input type="date" name="date_from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="min-w-[160px]">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">To Date</label>
+        <input type="date" name="date_to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500">
+      </div>
+      <button type="submit" class="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        Apply filters
+      </button>
+      {% if date_from or date_to %}
+      <a href="{% url 'party_balances' %}{% if selected_biz_id %}?business={{ selected_biz_id }}{% endif %}" class="text-sm text-slate-500 hover:text-slate-700 underline">Clear filters</a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if show_password_modal %}
+  <div id="partyBalancesModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+      {% csrf_token %}
+      <h3 class="text-lg font-semibold text-slate-800 mb-2">Party balances</h3>
+      <p class="text-sm text-slate-600 mb-4">Enter your <strong>cancellation password</strong> (User Settings) to view customer and supplier data. If you cancel, only customer data will be shown.</p>
+      <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+      <input type="password" id="pbModalPassword" autocomplete="off" class="w-full rounded-lg border border-slate-300 px-3 py-2 mb-4" placeholder="Enter password" />
+      <p id="pbModalError" class="text-sm text-rose-600 mb-3 hidden"></p>
+      <div class="flex gap-2">
+        <button type="button" id="pbModalSubmit" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">Submit</button>
+        <button type="button" id="pbModalCancel" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">Cancel</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <section id="customersSection" class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-slate-800">Customers</h2>
+          <p class="text-sm text-slate-500">{{ customer_rows|length }} record{{ customer_rows|length|pluralize }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm balance-card">
+      <table class="min-w-full" id="customersTable">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">S. No</th>
+            <th class="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer Name</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Previous Bal</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Sales (Dr)</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Paid (Cr)</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Remaining</th>
+            <th class="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide">Last Paid</th>
+            <th class="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in customer_rows %}
+          <tr class="hover:bg-slate-50/50 transition-colors">
+            <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+            <td class="px-3 py-2">
+              <div class="font-medium text-slate-800">
+                {{ row.party.display_name|default:"(No name)" }}
+                {% if row.party.type == 'BOTH' %}
+                <span class="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">BOTH</span>
+                {% endif %}
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">{{ row.party.phone }}</div>
+            </td>
+            <td class="px-3 py-2 text-right text-sm">Rs. {{ row.opening_abs|floatformat:2 }} {{ row.opening_side }}</td>
+            <td class="px-3 py-2 text-right text-sm text-emerald-700">Rs. {{ row.period_debit|floatformat:2 }}</td>
+            <td class="px-3 py-2 text-right text-sm text-rose-700">Rs. {{ row.period_credit|floatformat:2 }}</td>
+            <td class="px-3 py-2 text-right text-sm font-semibold">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {% if row.balance_side == 'Dr' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                Rs. {{ row.balance_abs|floatformat:2 }} {{ row.balance_side }}
+              </span>
+            </td>
+            <td class="px-3 py-2 text-center text-xs text-slate-600">{{ row.last_paid_date|date:"d/m/Y"|default:"-" }}</td>
+            <td class="px-3 py-2 text-center no-print">
+              <a href="{% url 'ledger_detail' kind='customer' entity_id=row.party.id %}?business=all" class="text-xs font-medium text-blue-600 hover:underline">Ledger</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">No records found</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if customer_rows %}
+        <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300">
+            <tr>
+                <td colspan="2" class="px-3 py-3 text-right text-xs uppercase text-slate-700">Grand Total</td>
+                <td class="px-3 py-3 text-right text-sm">Rs. {{ customer_totals.opening_abs|floatformat:2 }} {{ customer_totals.opening_side }}</td>
+                <td class="px-3 py-3 text-right text-sm text-emerald-700">Rs. {{ customer_totals.period_debit|floatformat:2 }}</td>
+                <td class="px-3 py-3 text-right text-sm text-rose-700">Rs. {{ customer_totals.period_credit|floatformat:2 }}</td>
+                <td class="px-3 py-3 text-right text-sm">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold {% if customer_totals.balance_side == 'Dr' %}text-red-700{% else %}text-green-700{% endif %}">
+                        Rs. {{ customer_totals.balance_abs|floatformat:2 }} {{ customer_totals.balance_side }}
+                    </span>
+                </td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </section>
+
+  {% if suppliers_unlocked %}
+  <section id="suppliersSection" class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-slate-800">Suppliers</h2>
+          <p class="text-sm text-slate-500">{{ supplier_rows|length }} record{{ supplier_rows|length|pluralize }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm balance-card">
+      <table class="min-w-full" id="suppliersTable">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">S. No</th>
+            <th class="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Supplier Name</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Previous Bal</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Purchase (Cr)</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Paid (Dr)</th>
+            <th class="px-3 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Remaining</th>
+            <th class="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide">Last Paid</th>
+            <th class="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in supplier_rows %}
+          <tr class="hover:bg-slate-50/50 transition-colors">
+            <td class="px-3 py-2 text-xs text-slate-500">{{ forloop.counter }}</td>
+            <td class="px-3 py-2">
+              <div class="font-medium text-slate-800">
+                {{ row.party.display_name|default:"(No name)" }}
+                {% if row.party.type == 'BOTH' %}
+                <span class="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">BOTH</span>
+                {% endif %}
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">{{ row.party.phone }}</div>
+            </td>
+            <td class="px-3 py-2 text-right text-sm">Rs. {{ row.opening_abs|floatformat:2 }} {{ row.opening_side }}</td>
+            <td class="px-3 py-2 text-right text-sm text-emerald-700">Rs. {{ row.period_credit|floatformat:2 }}</td>
+            <td class="px-3 py-2 text-right text-sm text-rose-700">Rs. {{ row.period_debit|floatformat:2 }}</td>
+            <td class="px-3 py-2 text-right text-sm font-semibold">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {% if row.balance_side == 'Cr' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                Rs. {{ row.balance_abs|floatformat:2 }} {{ row.balance_side }}
+              </span>
+            </td>
+            <td class="px-3 py-2 text-center text-xs text-slate-600">{{ row.last_paid_date|date:"d/m/Y"|default:"-" }}</td>
+            <td class="px-3 py-2 text-center no-print">
+              <a href="{% url 'ledger_detail' kind='supplier' entity_id=row.party.id %}?business=all" class="text-xs font-medium text-purple-600 hover:underline">Ledger</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">No records found</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if supplier_rows %}
+        <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300">
+            <tr>
+                <td colspan="2" class="px-3 py-3 text-right text-xs uppercase text-slate-700">Grand Total</td>
+                <td class="px-3 py-3 text-right text-sm">Rs. {{ supplier_totals.opening_abs|floatformat:2 }} {{ supplier_totals.opening_side }}</td>
+                <td class="px-3 py-3 text-right text-sm text-emerald-700">Rs. {{ supplier_totals.period_credit|floatformat:2 }}</td>
+                <td class="px-3 py-3 text-right text-sm text-rose-700">Rs. {{ supplier_totals.period_debit|floatformat:2 }}</td>
+                <td class="px-3 py-3 text-right text-sm">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold {% if supplier_totals.balance_side == 'Cr' %}text-red-700{% else %}text-green-700{% endif %}">
+                        Rs. {{ supplier_totals.balance_abs|floatformat:2 }} {{ supplier_totals.balance_side }}
+                    </span>
+                </td>
+                <td colspan="2"></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+{# Hidden data for print and export #}
+<script id="customerData" type="application/json">
+[
+  {% for row in customer_rows %}
+  {
+    "name": "{{ row.party.display_name|default:'(No name)'|escapejs }}",
+    "contact": "{{ row.party.phone|default:''|escapejs }}",
+    "opening": "{{ row.opening_abs|floatformat:2 }}{% if row.opening_side %} {{ row.opening_side }}{% endif %}",
+    "sales": "{{ row.period_debit|floatformat:2 }}",
+    "paid": "{{ row.period_credit|floatformat:2 }}",
+    "remaining": "{{ row.balance_abs|floatformat:2 }} {{ row.balance_side }}",
+    "last_paid": "{{ row.last_paid_date|date:'d/m/Y'|default:'-' }}"
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
+
+<script id="supplierData" type="application/json">
+[
+  {% for row in supplier_rows %}
+  {
+    "name": "{{ row.party.display_name|default:'(No name)'|escapejs }}",
+    "contact": "{{ row.party.phone|default:''|escapejs }}",
+    "opening": "{{ row.opening_abs|floatformat:2 }}{% if row.opening_side %} {{ row.opening_side }}{% endif %}",
+    "purchase": "{{ row.period_credit|floatformat:2 }}",
+    "paid": "{{ row.period_debit|floatformat:2 }}",
+    "remaining": "{{ row.balance_abs|floatformat:2 }} {{ row.balance_side }}",
+    "last_paid": "{{ row.last_paid_date|date:'d/m/Y'|default:'-' }}"
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
+
+{% if show_password_modal %}
+<script>
+(function() {
+  const modal = document.getElementById('partyBalancesModal');
+  const pass = document.getElementById('pbModalPassword');
+  const err = document.getElementById('pbModalError');
+  const submitBtn = document.getElementById('pbModalSubmit');
+  const cancelBtn = document.getElementById('pbModalCancel');
+  const reloadUrl = "{{ party_balances_reload_url|escapejs }}";
+
+  if (cancelBtn) cancelBtn.addEventListener('click', function() { modal.style.display = 'none'; });
+  if (submitBtn && pass) {
+    submitBtn.addEventListener('click', async function() {
+      const p = pass.value.trim();
+      if (!p) { err.textContent = 'Please enter the password.'; err.classList.remove('hidden'); return; }
+      err.classList.add('hidden');
+      submitBtn.disabled = true;
+      const fd = new FormData();
+      fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+      fd.append('password', p);
+      fd.append('action', 'party_balances');
+      try {
+        const r = await fetch('{% url "verify_cancellation_password_api" %}', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await r.json();
+        if (data.ok) { window.location.href = reloadUrl; return; }
+        err.textContent = data.error || 'Verification failed.';
+        err.classList.remove('hidden');
+      } catch (e) {
+        err.textContent = 'Network error. Please try again.';
+        err.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+})();
+</script>
+{% endif %}
+
+<script>
+function printReport() {
+  const printCustomers = document.getElementById('printCustomers').checked;
+  const printSuppliersEl = document.getElementById('printSuppliers');
+  const printSuppliers = printSuppliersEl ? printSuppliersEl.checked : false;
+  if (!printCustomers && !printSuppliers) { alert('Please select at least one section.'); return; }
+  
+  const customerData = JSON.parse(document.getElementById('customerData').textContent || '[]');
+  const supplierData = JSON.parse(document.getElementById('supplierData').textContent || '[]');
+  const printDate = new Date().toLocaleString();
+  
+  let customersHTML = '';
+  if (printCustomers) {
+    customersHTML = `
+      <div class="section">
+        <h2>Customers</h2>
+        <table>
+          <thead><tr><th>S.No</th><th>Customer</th><th>Opening</th><th>Sales</th><th>Paid</th><th>Remaining</th><th>Last Paid</th></tr></thead>
+          <tbody>
+            ${customerData.map((row, i) => `<tr><td>${i+1}</td><td>${row.name}<br><small>${row.contact}</small></td><td align="right">${row.opening}</td><td align="right">${row.sales}</td><td align="right">${row.paid}</td><td align="right"><b>${row.remaining}</b></td><td>${row.last_paid}</td></tr>`).join('')}
+            <tr style="background:#f1f5f9; font-weight:bold;">
+                <td colspan="2">GRAND TOTAL</td>
+                <td align="right">{{ customer_totals.opening_abs|floatformat:2 }} {{ customer_totals.opening_side }}</td>
+                <td align="right">${(customerData.reduce((a, b) => a + parseFloat(b.sales), 0)).toFixed(2)}</td>
+                <td align="right">${(customerData.reduce((a, b) => a + parseFloat(b.paid), 0)).toFixed(2)}</td>
+                <td align="right">{{ customer_totals.balance_abs|floatformat:2 }} {{ customer_totals.balance_side }}</td>
+                <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+  
+  let suppliersHTML = '';
+  if (printSuppliers) {
+    suppliersHTML = `
+      <div class="section">
+        <h2>Suppliers</h2>
+        <table>
+          <thead><tr><th>S.No</th><th>Supplier</th><th>Opening</th><th>Purchase</th><th>Paid</th><th>Remaining</th><th>Last Paid</th></tr></thead>
+          <tbody>
+            ${supplierData.map((row, i) => `<tr><td>${i+1}</td><td>${row.name}<br><small>${row.contact}</small></td><td align="right">${row.opening}</td><td align="right">${row.purchase}</td><td align="right">${row.paid}</td><td align="right"><b>${row.remaining}</b></td><td>${row.last_paid}</td></tr>`).join('')}
+            <tr style="background:#f1f5f9; font-weight:bold;">
+                <td colspan="2">GRAND TOTAL</td>
+                <td align="right">{{ supplier_totals.opening_abs|floatformat:2 }} {{ supplier_totals.opening_side }}</td>
+                <td align="right">${(supplierData.reduce((a, b) => a + parseFloat(b.purchase), 0)).toFixed(2)}</td>
+                <td align="right">${(supplierData.reduce((a, b) => a + parseFloat(b.paid), 0)).toFixed(2)}</td>
+                <td align="right">{{ supplier_totals.balance_abs|floatformat:2 }} {{ supplier_totals.balance_side }}</td>
+                <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><style>body{font-family:sans-serif;font-size:10pt;} table{width:100%;border-collapse:collapse;margin-bottom:20px;} th,td{border:1px solid #333;padding:4px;} th{background:#eee;} .header{text-align:center;border-bottom:2px solid #000;margin-bottom:20px;} </style></head><body><div class="header"><h1>Party Balances Report</h1><p>Generated: ${printDate}</p></div>${customersHTML}${suppliersHTML}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+function exportExcel() {
+  const includeCustomers = document.getElementById('printCustomers').checked;
+  const printSuppliersEl = document.getElementById('printSuppliers');
+  const includeSuppliers = printSuppliersEl ? printSuppliersEl.checked : false;
+  const customerData = JSON.parse(document.getElementById('customerData').textContent || '[]');
+  const supplierData = JSON.parse(document.getElementById('supplierData').textContent || '[]');
+
+  let html = '\uFEFF<html><head><meta charset="utf-8" /><style>table{border-collapse:collapse; direction:rtl;} th,td{border:1px solid #000; padding:5px; text-align:right;}</style></head><body dir="rtl">';
+
+  if (includeCustomers) {
+    html += '<h3>کسٹمرز کی تفصیل</h3><table><tr><th>نمبر شمار</th><th>نام</th><th>سابقہ بقایا</th><th>خریداری</th><th>جمع</th><th>بقایا</th><th>آخری ادائیگی</th></tr>';
+    customerData.forEach((r, i) => html += `<tr><td>${i+1}</td><td>${r.name}</td><td>${r.opening}</td><td>${r.sales}</td><td>${r.paid}</td><td>${r.remaining}</td><td>${r.last_paid}</td></tr>`);
+    html += `<tr style="font-weight:bold;"><td colspan="2">ٹوٹل</td><td>{{ customer_totals.opening_abs|floatformat:2 }} {{ customer_totals.opening_side }}</td><td>{{ customer_totals.period_debit|floatformat:2 }}</td><td>{{ customer_totals.period_credit|floatformat:2 }}</td><td>{{ customer_totals.balance_abs|floatformat:2 }} {{ customer_totals.balance_side }}</td><td></td></tr></table><br>`;
+  }
+
+  if (includeSuppliers) {
+    html += '<h3>سپلائرز کی تفصیل</h3><table><tr><th>نمبر شمار</th><th>نام</th><th>سابقہ بقایا</th><th>خریداری</th><th>جمع</th><th>بقایا</th><th>آخری ادائیگی</th></tr>';
+    supplierData.forEach((r, i) => html += `<tr><td>${i+1}</td><td>${r.name}</td><td>${r.opening}</td><td>${r.purchase}</td><td>${r.paid}</td><td>${r.remaining}</td><td>${r.last_paid}</td></tr>`);
+    html += `<tr style="font-weight:bold;"><td colspan="2">ٹوٹل</td><td>{{ supplier_totals.opening_abs|floatformat:2 }} {{ supplier_totals.opening_side }}</td><td>{{ supplier_totals.period_credit|floatformat:2 }}</td><td>{{ supplier_totals.period_debit|floatformat:2 }}</td><td>{{ supplier_totals.balance_abs|floatformat:2 }} {{ supplier_totals.balance_side }}</td><td></td></tr></table>`;
+  }
+
+  html += '</body></html>';
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Party_Balances_{% now "d_m_Y" %}.xls`;
+  a.click();
+}
+</script>
+{% endblock %}

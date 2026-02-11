@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="p-4 md:p-6">
+
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <i data-feather="package" class="w-7 h-7"></i>
+      <span>Stock Status (All Businesses)</span>
+    </h1>
+  </div>
+
+  <div class="mb-3">
+    <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+      <a href="{% url 'stock_status' %}"
+         aria-current="page"
+         data-tint="slate"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-slate-700 text-white border-slate-700 shadow-md">All</a>
+      {% for b in businesses %}
+        <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+        <a href="{% url 'business_stock_status' b.id %}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                  text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+          {{ b.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <form method="get" class="mb-3 flex flex-wrap gap-2 items-end">
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
+      <input name="q" value="{{ query }}" type="search" placeholder="Search business, product, Company…"
+             class="w-64 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
+    </div>
+
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">From date</label>
+      <input type="date" name="date_from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+    </div>
+
+    <div>
+      <label class="block text-xs font-medium text-slate-600 mb-1">To date</label>
+      <input type="date" name="date_to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button class="rounded-lg px-3 py-2 bg-slate-900 text-white hover:bg-slate-800">Filter</button>
+      <a href="{% url 'stock_status' %}" class="rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50">Reset</a>
+      <a href="{% url 'stock_status_excel' %}?q={{ query|urlencode }}&date_from={% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}&date_to={% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+         class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium">
+        <i data-feather="download" class="w-4 h-4"></i>
+        Download Excel
+      </a>
+    </div>
+  </form>
+
+  <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-2 text-left">Business</th>
+          <th class="px-4 py-2 text-left">Product</th>
+          <th class="px-4 py-2 text-left">Company</th>
+          <th class="px-4 py-2 text-left">Base Unit</th>
+          <th class="px-4 py-2 text-right">Stock Qty</th>
+          <th class="px-4 py-2 text-right">Avg purchase rate</th>
+          <th class="px-4 py-2 text-center">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in rows %}
+          <tr class="border-t">
+            <td class="px-4 py-2">{{ p.business.name }}</td>
+            <td class="px-4 py-2 font-medium">{{ p.name }}</td>
+            <td class="px-4 py-2 text-slate-500">{{ p.company_name }}</td>
+            <td class="px-4 py-2">{{ p.uom.symbol|default:p.uom.code }}</td>
+            <td class="px-4 py-2 text-right">
+              <div class="flex flex-col">
+                {# Main Stock Qty (e.g. 50.00 KG) #}
+                <span class="font-bold text-slate-900">{{ p.stock_qty|floatformat:2 }}</span>
+                
+                {# Bulk Stock Qty (e.g. 1 Bag) - Uses the model property #}
+                {% if p.bulk_stock_status %}
+                  <span class="text-[11px] text-emerald-600 font-medium">
+                    {{ p.bulk_stock_status }}
+                  </span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="px-4 py-2 text-right">
+              {% if p.avg_purchase_rate %}
+                {{ p.avg_purchase_rate|floatformat:2 }}
+              {% else %}
+                &mdash;
+              {% endif %}
+            </td>
+            <td class="px-4 py-2 text-center">
+              <a href="{% url 'product_stock_detail' p.id %}"
+                 class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border border-slate-300 hover:bg-slate-100">
+                View
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="px-4 py-6 text-center text-slate-500">No products.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
