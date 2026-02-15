@@ -993,19 +993,44 @@ class LedgerDetailView(View):
             )
 
         # ================= PARTY LEDGER (customer or supplier) =================
-        # Check if supplier ledger access requires password with 5-minute timeout
+        # Check if access requires password (session expires after 5 minutes)
+        import time
         supplier_unlocked = request.session.get("supplier_ledger_unlocked", False)
         supplier_unlocked_at = request.session.get("supplier_ledger_unlocked_at", 0)
-        import time
         SESSION_TIMEOUT_SECONDS = 300  # 5 minutes
         session_expired = (time.time() - supplier_unlocked_at) > SESSION_TIMEOUT_SECONDS
         
+        # Granular: only gate if respective protection is True
+        from barkat.models import UserSettings
+        try:
+            u_settings = UserSettings.objects.get(user=request.user)
+            if kind == "supplier":
+                needs_protection = u_settings.protect_payables
+            elif kind == "customer":
+                needs_protection = u_settings.protect_receivables
+            else:
+                needs_protection = False
+        except UserSettings.DoesNotExist:
+            needs_protection = False
+
         if (
-            kind == "supplier"
+            kind in ("supplier", "customer")
             and user_has_cancellation_password(request)
+            and needs_protection
             and (not supplier_unlocked or session_expired)
         ):
-            return redirect(reverse("ledgers_list") + "?kind=customer")
+            # Show password gate instead of blind redirect
+            return render(
+                request,
+                "barkat/finance/password_gate.html",
+                {
+                    "gate_title": f"{kind.title()} ledger detail",
+                    "gate_message": f"Viewing the {kind} ledger details requires your cancellation password.",
+                    "cancel_url": reverse("ledgers_list") + f"?kind={kind}",
+                    "next_url": request.get_full_path(),
+                    "action": "supplier_ledger",
+                },
+            )
 
         party = get_object_or_404(Party, pk=entity_id)
         is_both = (party.type == Party.BOTH)
@@ -1855,6 +1880,13 @@ class BusinessesView(ListView):
         global_stats = get_business_financials()
         ctx["total_receivables"] = global_stats["total_receivables"]
         ctx["total_payables"] = global_stats["total_payables"]
+        
+        # New Breakdown Category items
+        ctx["customer_receivables"] = global_stats["customer_receivables"]
+        ctx["vendor_receivables"] = global_stats["vendor_receivables"]
+        ctx["customer_payables"] = global_stats["customer_payables"]
+        ctx["vendor_payables"] = global_stats["vendor_payables"]
+
         ctx["cash_in_hand"] = global_stats["cash_in_hand"]
         ctx["total_inventory_valuation"] = global_stats["inventory_value"]
         ctx["global_net_worth"] = global_stats["net_worth"]

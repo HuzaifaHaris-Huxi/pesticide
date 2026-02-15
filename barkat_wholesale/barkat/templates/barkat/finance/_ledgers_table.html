@@ -30,11 +30,14 @@
           <td class="px-3 py-2">{{ forloop.counter }}</td>
 
           <td class="px-3 py-2">
-            {% if kind == 'staff' %}
-              {{ obj.full_name }}
-            {% else %}
-              {{ obj.display_name }}
-            {% endif %}
+            <a href="{% url 'ledger_detail' kind obj.id %}?{% if business %}business={{ business.id }}{% else %}business=all{% endif %}"
+               class="font-medium text-slate-800 hover:text-indigo-600 transition-colors">
+              {% if kind == 'staff' %}
+                {{ obj.full_name }}
+              {% else %}
+                {{ obj.display_name }}
+              {% endif %}
+            </a>
           </td>
 
           <td class="px-3 py-2 text-slate-600">

@@ -26,25 +26,15 @@
       {% for b in businesses %}
         <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
 
-        {% if business and b.id == business.id %}
-          <a
-            href="{% url 'so_add' %}?business={{ b.id }}"
-            data-business-id="{{ b.id }}"
-            data-color="{{ color }}"
-            aria-current="page"
-            class="biz-tab inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
-            {{ b.name }}
-          </a>
-        {% else %}
-          <a
-            href="{% url 'so_add' %}?business={{ b.id }}"
-            data-business-id="{{ b.id }}"
-            data-color="{{ color }}"
-            class="biz-tab inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
-                   text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
-            {{ b.name }}
-          </a>
-        {% endif %}
+        <a
+          href="{% if object %}{% url 'so_edit' object.pk %}{% else %}{% url 'so_add' %}{% endif %}?business={{ b.id }}"
+          data-business-id="{{ b.id }}"
+          data-color="{{ color }}"
+          {% if business and b.id == business.id %}aria-current="page"{% endif %}
+          class="biz-tab inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium
+                 {% if business and b.id == business.id %}bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md{% else %}text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900{% endif %}">
+          {{ b.name }}
+        </a>
       {% endfor %}
     </div>
   </div>
@@ -641,15 +631,25 @@
 
     tabs.forEach((tab) => {
       tab.addEventListener('click', (e) => {
-        // REMOVED e.preventDefault() to allow the browser to follow the link
-        // and trigger a full page reload, ensuring server-side querysets
-        // are correctly synchronized with the selected business.
+        // AJAX Business Change: If in Edit mode or if we want to avoid reload,
+        // we prevent default and just update the hidden field and UI.
         const bizId = tab.dataset.businessId;
         if (!bizId) return;
+
+        // Prevent full page reload
+        e.preventDefault();
 
         if (businessInput) {
           businessInput.value = bizId;
         }
+
+        // Update UI: Mark this tab as active and others as inactive
+        tabs.forEach(t => applyState(t, t === tab));
+
+        // Update "Print & Save" URL if it's visible in JS (it is constructed in btnSilent handler)
+        // We don't need to do anything here, it will be picked up from businessInput.value
+        
+        showToast(`Business switched to ${tab.textContent.trim()}`, 'info');
       });
     });
   })();
@@ -981,7 +981,10 @@
     if (!totalEl) return;
     const n = (parseInt(totalEl.value, 10) || 0) + delta;
     totalEl.value = n < 0 ? 0 : n;
-    const rows = Array.from(body.querySelectorAll('tr.item-row')).filter((r) => r.style.display !== 'none');
+
+    // re-index ALL rows (both visible AND hidden/deleted) to maintain a continuous sequence
+    // This is vital for Django formsets!
+    const rows = Array.from(body.querySelectorAll('tr.item-row'));
     rows.forEach((tr, idx) => {
       tr.querySelectorAll('input, select').forEach((el) => {
         if (!el.name) return;

@@ -180,3 +180,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 NPM_BIN_PATH = "C:/Program Files/nodejs/npm.cmd"
 LOGOUT_REDIRECT_URL = '/login/'
 
+# Session security hardening
+# Ensure sessions expire when the browser is closed
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Expire session after 12 hours of inactivity (43200 seconds)
+SESSION_COOKIE_AGE = 43200
+# Save the session on every request to keep it alive while user is active
+SESSION_SAVE_EVERY_REQUEST = True
+

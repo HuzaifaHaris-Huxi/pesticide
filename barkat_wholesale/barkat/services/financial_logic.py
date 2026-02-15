@@ -94,11 +94,24 @@ def get_business_financials(business_id=None):
     total_receivables = agg['recv'] or Decimal('0.00')
     total_payables = agg['pay'] or Decimal('0.00')
 
+    # Breakdown by kind according to types used in views
+    customer_receivables = all_balances.filter(type__in=[Party.CUSTOMER, Party.BOTH], net_balance__gt=0).aggregate(s=Sum('net_balance'))['s'] or Decimal('0.00')
+    vendor_receivables = all_balances.filter(type=Party.VENDOR, net_balance__gt=0).aggregate(s=Sum('net_balance'))['s'] or Decimal('0.00')
+    
+    customer_payables = all_balances.filter(type=Party.CUSTOMER, net_balance__lt=0).aggregate(s=Sum('net_balance'))['s'] or Decimal('0.00')
+    vendor_payables = all_balances.filter(type__in=[Party.VENDOR, Party.BOTH], net_balance__lt=0).aggregate(s=Sum('net_balance'))['s'] or Decimal('0.00')
+    customer_payables = -customer_payables
+    vendor_payables = -vendor_payables
+
     return {
         'cash_in_hand': cash_in_hand,
         'bank_balance': bank_balance,
         'inventory_value': inventory_value,
         'total_receivables': total_receivables,
         'total_payables': total_payables,
+        'customer_receivables': customer_receivables,
+        'vendor_receivables': vendor_receivables,
+        'customer_payables': customer_payables,
+        'vendor_payables': vendor_payables,
         'net_worth': (cash_in_hand + bank_balance + inventory_value + total_receivables) - total_payables
     }

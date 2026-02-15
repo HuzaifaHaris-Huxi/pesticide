@@ -2359,6 +2359,13 @@ class CashOutForm(forms.Form):
         help_text="Check this to allow payment even if cash in hand is insufficient.",
     )
 
+    is_external = forms.BooleanField(
+        label="Paid from Private/External Cash",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}),
+        help_text="If checked, this payment will not affect business cash-in-hand or reports.",
+    )
+
     ref_no = forms.CharField(
         label="Voucher / Ref No. (optional)",
         required=False,
@@ -2385,6 +2392,7 @@ class CashOutForm(forms.Form):
         party_id = cleaned.get("party_id")
         amount = cleaned.get("amount")
         override = cleaned.get("override_cash_limit")
+        is_external = cleaned.get("is_external")
 
         if not party_id:
             raise ValidationError("Please select a customer or vendor from suggestions.")
@@ -2395,7 +2403,8 @@ class CashOutForm(forms.Form):
             raise ValidationError("Selected party does not exist.")
 
         # Cash in hand validation
-        if amount and not override:
+        # Skip if override OR if it's external cash (not from business)
+        if amount and not override and not is_external:
             business = self._infer_business(None) # Pass None since we'll check it from party/staff
             if business:
                 from .models import BusinessSummary
@@ -2448,6 +2457,7 @@ class CashOutForm(forms.Form):
             description=note,
             reference=ref_no,
             payment_method=Payment.PaymentMethod.CASH, # Cash Out is always CASH source here
+            is_external=self.cleaned_data.get("is_external", False),
             created_by=user,
             updated_by=user,
         )

@@ -31,7 +31,7 @@ from django.db.models import (
     When, OuterRef, Subquery, Prefetch, Window,
     Count
 )
-from django.db.models.functions import TruncDate, Coalesce
+from django.db.models.functions import TruncDate, Coalesce, Greatest
 from django.http import HttpRequest, HttpResponse, JsonResponse, Http404
 from django.middleware.csrf import get_token
 from django.shortcuts import render, get_object_or_404, redirect
@@ -731,16 +731,31 @@ class VendorsListView(LoginRequiredMixin, ListView):
 
     def get(self, request, *args, **kwargs):
         from barkat.utils.auth_helpers import user_has_cancellation_password
+        from barkat.models import UserSettings
+        import time
+
+        supplier_unlocked = request.session.get("supplier_ledger_unlocked", False)
+        supplier_unlocked_at = request.session.get("supplier_ledger_unlocked_at", 0)
+        SESSION_TIMEOUT_SECONDS = 300
+        session_expired = (time.time() - supplier_unlocked_at) > SESSION_TIMEOUT_SECONDS
+
+        try:
+            u_settings = UserSettings.objects.get(user=request.user)
+            needs_protection = u_settings.protect_payables
+        except UserSettings.DoesNotExist:
+            needs_protection = False
+
         if (
             user_has_cancellation_password(request)
-            and not request.session.get("supplier_ledger_unlocked")
+            and needs_protection
+            and (not supplier_unlocked or session_expired)
         ):
             return render(
                 request,
                 "barkat/finance/password_gate.html",
                 {
                     "gate_title": "Vendors / suppliers list",
-                    "gate_message": "Viewing the vendors list requires your cancellation password (User Settings). Enter it to continue, or Cancel to go back to customers.",
+                    "gate_message": "Viewing the vendors list requires your cancellation password (User Settings).",
                     "cancel_url": reverse("customers_list"),
                     "next_url": reverse("vendors_list"),
                     "action": "supplier_ledger",
@@ -780,16 +795,31 @@ class BusinessVendorsView(ListView):
 
     def get(self, request, *args, **kwargs):
         from barkat.utils.auth_helpers import user_has_cancellation_password
+        from barkat.models import UserSettings
+        import time
+
+        supplier_unlocked = request.session.get("supplier_ledger_unlocked", False)
+        supplier_unlocked_at = request.session.get("supplier_ledger_unlocked_at", 0)
+        SESSION_TIMEOUT_SECONDS = 300
+        session_expired = (time.time() - supplier_unlocked_at) > SESSION_TIMEOUT_SECONDS
+
+        try:
+            u_settings = UserSettings.objects.get(user=request.user)
+            needs_protection = u_settings.protect_payables
+        except UserSettings.DoesNotExist:
+            needs_protection = False
+
         if (
             user_has_cancellation_password(request)
-            and not request.session.get("supplier_ledger_unlocked")
+            and needs_protection
+            and (not supplier_unlocked or session_expired)
         ):
             return render(
                 request,
                 "barkat/finance/password_gate.html",
                 {
                     "gate_title": "Vendors / suppliers list",
-                    "gate_message": "Viewing the vendors list requires your cancellation password (User Settings). Enter it to continue, or Cancel to go back to customers.",
+                    "gate_message": "Viewing the vendors list requires your cancellation password (User Settings).",
                     "cancel_url": reverse("customers_list"),
                     "next_url": reverse("business_vendors", args=[kwargs["business_id"]]),
                     "action": "supplier_ledger",
@@ -4509,12 +4539,9 @@ class SalesOrderUpdateView(LoginRequiredMixin, UpdateView):
             # This prevents duplicate payments when editing the order
             for app in so.receipt_applications.all():
                 pay_to_del = app.payment
-                # Delete associated cash flow if exists
-                if hasattr(pay_to_del, 'cashflow') and pay_to_del.cashflow:
-                    pay_to_del.cashflow.delete()
                 # Delete the application
                 app.delete()
-                # Delete the payment
+                # Delete the payment (handles its own cashflow deletion)
                 pay_to_del.delete()
 
             party = so.customer or _get_walkin_party(so.business)
@@ -4573,9 +4600,9 @@ class SalesOrderUpdateView(LoginRequiredMixin, UpdateView):
             # If no payment method selected or amount is 0, clean up any existing payments
             for app in so.receipt_applications.all():
                 pay_to_del = app.payment
-                if hasattr(pay_to_del, 'cashflow') and pay_to_del.cashflow:
-                    pay_to_del.cashflow.delete()
+                # Delete the application
                 app.delete()
+                # Delete the payment (handles its own cashflow deletion)
                 pay_to_del.delete()
 
         messages.success(self.request, f"Sales Order #{so.pk} updated.")
@@ -4649,21 +4676,13 @@ def update_sales_order_status_api(request, pk):
             # Reverse stock - add quantities back
             for item in order.items.all():
                 if item.product and item.quantity:
-                    base_qty = item.quantity * (item.size_per_unit or Decimal("1"))
-                    Product.objects.filter(pk=item.product_id).update(
-                        stock_qty=F('stock_qty') + base_qty
-                    )
+                    Product.objects.filter(id=item.product_id).update(stock_qty=F('stock_qty') + (item.quantity * item.size_per_unit))
             
-            # Delete receipt applications and associated payments
-            receipts = order.receipt_applications.all()
-            for receipt in receipts:
-                payment = receipt.payment
-                # Delete CashFlow if exists
-                if hasattr(payment, 'cashflow') and payment.cashflow:
-                    payment.cashflow.delete()
-                # Delete the payment
-                payment.delete()
-                # Receipt will be deleted via CASCADE
+            # Delete all payments and applications linked to this order
+            for app in order.receipt_applications.all():
+                payment = app.payment
+                app.delete()
+                payment.delete() # handles its own cashflow deletion
         
         # If changing from cancelled to another status, deduct stock again
         elif old_status == SalesOrder.Status.CANCELLED and new_status != SalesOrder.Status.CANCELLED:
@@ -6969,7 +6988,7 @@ def finance_reports(request):
     cogs_total = SalesOrderItem.objects.filter(
         sales_order_id__in=order_ids
     ).aggregate(
-        s=Coalesce(Sum(F("quantity") * F("unit_cost"), output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
+        s=Coalesce(Sum(F("quantity") * Greatest(F("unit_cost"), F("product__purchase_price")), output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
     )["s"] or D0
     
     # Gross Profit = Revenue - COGS
@@ -6994,7 +7013,7 @@ def finance_reports(request):
         .annotate(
             total_qty=Coalesce(Sum("quantity", output_field=DecimalField(max_digits=18, decimal_places=6)), DQ0),
             total_rev=Coalesce(Sum(F("quantity") * F("unit_price"), output_field=DecimalField(max_digits=18, decimal_places=2)), D0),
-            total_cost=Coalesce(Sum(F("quantity") * F("unit_cost"), output_field=DecimalField(max_digits=18, decimal_places=2)), D0),
+            total_cost=Coalesce(Sum(F("quantity") * Greatest(F("unit_cost"), F("product__purchase_price")), output_field=DecimalField(max_digits=18, decimal_places=2)), D0),
         )
     )
     
@@ -7026,7 +7045,7 @@ def finance_reports(request):
     cash_sales_cogs = SalesOrderItem.objects.filter(
         sales_order_id__in=cash_order_ids
     ).aggregate(
-        s=Coalesce(Sum(F("quantity") * F("unit_cost"), output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
+        s=Coalesce(Sum(F("quantity") * Greatest(F("unit_cost"), F("product__purchase_price")), output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
     )["s"] or D0
     
     cash_sale_profit = cash_sales_revenue - cash_sales_cogs

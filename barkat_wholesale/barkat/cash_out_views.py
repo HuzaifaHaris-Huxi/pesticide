@@ -128,6 +128,7 @@ class CashOutUpdateView(LoginRequiredMixin, FormView):
             "amount": p.amount,
             "ref_no": p.reference,
             "note": p.description,
+            "is_external": p.is_external,
             "override_cash_limit": True, # Allow editing without re-checking limits if they just want to fix description/date
         }
 
@@ -140,6 +141,7 @@ class CashOutUpdateView(LoginRequiredMixin, FormView):
             p.date = form.cleaned_data["date"]
             p.reference = form.cleaned_data.get("ref_no") or ""
             p.description = form.cleaned_data.get("note") or ""
+            p.is_external = form.cleaned_data.get("is_external", False)
             p.updated_by = self.request.user
             p.full_clean()
             p.save()

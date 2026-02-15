@@ -302,6 +302,9 @@ class SaveAndPrintOrderView(View):
                             item.size_per_unit = Decimal("1.000000")
                             
                         item.save()
+                
+                # CRITICAL: Handle deletions of existing items
+                formset.save()
 
                 # --- 3. Apply Stock Changes ---
                 for pid, qty_to_change in stock_changes.items():
@@ -341,9 +344,9 @@ class SaveAndPrintOrderView(View):
                     if is_edit:
                         for app in order.receipt_applications.all():
                             pay_to_del = app.payment
-                            if hasattr(pay_to_del, 'cashflow') and pay_to_del.cashflow:
-                                pay_to_del.cashflow.delete()
+                            # Delete the application
                             app.delete()
+                            # Delete the payment (handles its own cashflow deletion)
                             pay_to_del.delete()
 
                     party = order.customer or _get_walkin_party(business)

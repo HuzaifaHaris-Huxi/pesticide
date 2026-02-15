@@ -82,16 +82,30 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-      {{ form.override_cash_limit }}
-      <label for="id_override_cash_limit" class="text-sm font-medium text-amber-800">
-        {{ form.override_cash_limit.label }}
-      </label>
-      {% if form.override_cash_limit.help_text %}
-        <p class="text-[10px] text-amber-600 ml-auto hidden md:block">
-          {{ form.override_cash_limit.help_text }}
-        </p>
-      {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+        {{ form.override_cash_limit }}
+        <label for="id_override_cash_limit" class="text-sm font-medium text-amber-800">
+          {{ form.override_cash_limit.label }}
+        </label>
+        {% if form.override_cash_limit.help_text %}
+          <p class="text-[10px] text-amber-600 ml-auto hidden md:block">
+            {{ form.override_cash_limit.help_text }}
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+        {{ form.is_external }}
+        <label for="id_is_external" class="text-sm font-medium text-indigo-800">
+          {{ form.is_external.label }}
+        </label>
+        {% if form.is_external.help_text %}
+          <p class="text-[10px] text-indigo-600 ml-auto hidden md:block">
+            {{ form.is_external.help_text }}
+          </p>
+        {% endif %}
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

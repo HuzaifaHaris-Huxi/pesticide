@@ -1553,6 +1553,10 @@ class Payment(TimeStampedBy):
     amount         = models.DecimalField(**DECIMAL_12_2, validators=[MinValueValidator(0)])
     description    = models.CharField(max_length=255, blank=True, default="")
     reference      = models.CharField(max_length=100, blank=True, default="")
+    is_external    = models.BooleanField(
+        default=False, 
+        help_text="If True, this payment was made from outside the business cash and won't affect Cash in Hand or reports."
+    )
 
     # low level source for cashbook. cash vs bank ledger
     payment_source = models.CharField(
@@ -1690,6 +1694,10 @@ class Payment(TimeStampedBy):
         # Cheques only impact CashFlow when they are DEPOSITED
         should_mirror = True
         if self.payment_method == self.PaymentMethod.CHEQUE and self.cheque_status != self.ChequeStatus.DEPOSITED:
+            should_mirror = False
+        
+        # External payments (private cash) don't hit business cashbook
+        if getattr(self, "is_external", False):
             should_mirror = False
         
         # If amount is 0, we don't really need a ledger entry (or we can delete old one)

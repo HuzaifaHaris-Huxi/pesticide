@@ -31,14 +31,38 @@
       <div>
         <p class="text-sm text-slate-500 font-medium mb-1">Total Receivables</p>
         {% if user.settings.protect_receivables and user.settings.cancellation_password %}
-          <div class="flex items-center gap-2">
-            <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_receivables|intcomma }}">******</p>
-            <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-blue-600">
-              <i data-feather="eye" class="w-4 h-4"></i>
-            </button>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_receivables|intcomma }}">******</p>
+              <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-blue-600">
+                <i data-feather="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="protected-details hidden text-[11px] text-slate-500 space-y-0.5 ml-1">
+              <div class="flex items-center gap-2">
+                <span>- Customer:</span>
+                <span class="font-bold">Rs. {{ customer_receivables|intcomma }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span>- Vendor:</span>
+                <span class="font-bold">Rs. {{ vendor_receivables|intcomma }}</span>
+              </div>
+            </div>
           </div>
         {% else %}
-          <p class="text-2xl font-bold text-slate-900">Rs. {{ total_receivables|intcomma }}</p>
+          <div class="flex flex-col gap-1">
+            <p class="text-2xl font-bold text-slate-900">Rs. {{ total_receivables|intcomma }}</p>
+            <div class="text-[11px] text-slate-500 space-y-0.5 ml-1">
+              <div class="flex items-center gap-2">
+                <span>- Customer:</span>
+                <span class="font-bold">Rs. {{ customer_receivables|intcomma }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span>- Vendor:</span>
+                <span class="font-bold">Rs. {{ vendor_receivables|intcomma }}</span>
+              </div>
+            </div>
+          </div>
         {% endif %}
       </div>
     </div>
@@ -49,14 +73,38 @@
       <div>
         <p class="text-sm text-slate-500 font-medium mb-1">Total Payables</p>
         {% if user.settings.protect_payables and user.settings.cancellation_password %}
-          <div class="flex items-center gap-2">
-            <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_payables|intcomma }}">******</p>
-            <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-rose-600">
-              <i data-feather="eye" class="w-4 h-4"></i>
-            </button>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_payables|intcomma }}">******</p>
+              <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-rose-600">
+                <i data-feather="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="protected-details hidden text-[11px] text-slate-500 space-y-0.5 ml-1">
+              <div class="flex items-center gap-2">
+                <span>- Customer:</span>
+                <span class="font-bold">Rs. {{ customer_payables|intcomma }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span>- Vendor:</span>
+                <span class="font-bold">Rs. {{ vendor_payables|intcomma }}</span>
+              </div>
+            </div>
           </div>
         {% else %}
-          <p class="text-2xl font-bold text-slate-900">Rs. {{ total_payables|intcomma }}</p>
+          <div class="flex flex-col gap-1">
+            <p class="text-2xl font-bold text-slate-900">Rs. {{ total_payables|intcomma }}</p>
+            <div class="text-[11px] text-slate-500 space-y-0.5 ml-1">
+              <div class="flex items-center gap-2">
+                <span>- Customer:</span>
+                <span class="font-bold">Rs. {{ customer_payables|intcomma }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span>- Vendor:</span>
+                <span class="font-bold">Rs. {{ vendor_payables|intcomma }}</span>
+              </div>
+            </div>
+          </div>
         {% endif %}
       </div>
     </div>
@@ -567,8 +615,9 @@
         // Correct password
         closeSecurityModal();
         if (currentTargetBtn) {
-          const container = currentTargetBtn.parentElement;
-          const valueEl = container.querySelector('.protected-value');
+          const parent = currentTargetBtn.parentElement;
+          const container = parent.parentElement;
+          const valueEl = parent.querySelector('.protected-value');
           if (valueEl && valueEl.dataset.secret) {
             valueEl.textContent = valueEl.dataset.secret;
             // Hide the eye button after revealing
@@ -576,6 +625,12 @@
             // Flash success
             valueEl.classList.add('text-emerald-600');
             setTimeout(() => valueEl.classList.remove('text-emerald-600'), 1000);
+          }
+          // Reveal details if present
+          const detailsEl = container.querySelector('.protected-details');
+          if (detailsEl) {
+            detailsEl.classList.remove('hidden');
+            detailsEl.classList.add('animate-in', 'fade-in', 'slide-in-from-top-1', 'duration-300');
           }
         }
       } else {
