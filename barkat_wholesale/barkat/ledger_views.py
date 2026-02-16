@@ -782,21 +782,8 @@ class LedgersListView(View):
         page_obj = paginator.get_page(request.GET.get("page"))
 
         if kind in ("customer", "supplier"):
-            # Use unified optimized aggregation
-            # qs_annotated = get_party_balances(qs, business_id=business.id if business else None)
-
-            # Map the annotation back to page_obj items
-            # Since page_obj is already sliced, we need to map via ID
-            # Or simpler: get_party_balances returns 'qs'. We can use it to build a dict.
-
-            # But wait, page_obj works on 'qs'. If we modify 'qs' before paginator, it works.
-            # But the code above already created 'paginator' and 'page_obj' effectively "executing" the slice (lazy).
-            # If we iterate page_obj, we can fetch balances for these specific IDs efficiently.
-
             p_ids = [p.id for p in page_obj.object_list]
             if p_ids:
-                # Use live calculation for accuracy in the list (Single Version of Truth)
-                # This bypasses potential stale cached_balance values
                 bals = get_party_balances(
                     Party.objects.filter(id__in=p_ids), 
                     business_id=business.id if business else None
@@ -807,29 +794,20 @@ class LedgersListView(View):
                     balance = bal_map.get(p.id, Decimal("0.00"))
                     p.bal_amount = abs(balance)
                     
-                    # Side Logic: 
-                    # Customers: Net Debit (balance > 0) is Dr.
-                    # Suppliers: Net Credit (balance < 0) is Cr.
                     if balance > 0:
                         p.bal_side = "Dr"
                     elif balance < 0:
                         p.bal_side = "Cr"
                     else:
-                        p.bal_side = "" # Balanced
+                        p.bal_side = "" 
 
         else:
             for s in page_obj.object_list:
-                b = getattr(s, "business", None)
-                if not b:
-                    s.bal_amount = None
-                    s.bal_side = None
-                    continue
-                _rows, totals, _ = build_ledger(
+                from barkat.services.ledger_service import LedgerService
+                _, totals, _ = LedgerService.get_ledger_data(
                     kind="staff",
-                    business_id=b.id,
                     entity_id=s.id,
-                    date_from=None,
-                    date_to=None,
+                    business_id=s.business_id,
                 )
                 s.bal_amount = totals.get("balance_abs")
                 s.bal_side = totals.get("balance_side")
@@ -1034,556 +1012,19 @@ class LedgerDetailView(View):
 
         party = get_object_or_404(Party, pk=entity_id)
         is_both = (party.type == Party.BOTH)
-
         other_kind = None
         if is_both:
             other_kind = "supplier" if kind == "customer" else "customer"
 
-        # ---------- SO bundle ----------
-
-        # ---------- PO bundle ----------
-
-        # ---------- cheque totals for sidebar ----------
-        def _fetch_party_cheques_for_businesses(biz_ids: list[int] | None):
-            qs = (
-                Payment.objects.filter(
-                    party_id=party.id,
-                    payment_method=Payment.PaymentMethod.CHEQUE,
-                )
-                .select_related("business", "bank_account")
-            )
-
-            if biz_ids:
-                qs = qs.filter(business_id__in=biz_ids)
-
-            if date_from:
-                qs = qs.filter(date__gte=date_from)
-            if date_to:
-                qs = qs.filter(date__lte=date_to)
-
-            agg = qs.aggregate(
-                pending_total=Sum(
-                    "amount",
-                    filter=Q(cheque_status=Payment.ChequeStatus.PENDING),
-                ),
-                deposited_total=Sum(
-                    "amount",
-                    filter=Q(cheque_status=Payment.ChequeStatus.DEPOSITED),
-                ),
-            )
-            pending_total = agg["pending_total"] or Decimal("0.00")
-            deposited_total = agg["deposited_total"] or Decimal("0.00")
-            return qs, pending_total, deposited_total
-
-        # ---------- standalone payment rows ----------
-        def _build_payment_rows_for_businesses(biz_ids: list[int] | None):
-            qs = (
-                Payment.objects.select_related("business", "bank_account")
-                .prefetch_related(
-                    "applied_sales_orders",
-                    "applied_sales_orders__sales_order",
-                    "applied_purchase_orders",
-                    "applied_purchase_orders__purchase_order"
-                )
-                .filter(party_id=party.id)
-            )
-
-            # Unified: Exclude payments applied to orders or returns, regardless of ledger kind.
-            # These are already shown via customer_rows/supplier_rows in ledger.py.
-            qs = qs.filter(applied_purchase_orders__isnull=True)
-            if hasattr(Payment, "applied_sales_orders"):
-                qs = qs.filter(applied_sales_orders__isnull=True)
-            elif hasattr(Payment, "sales_orders"):
-                qs = qs.filter(sales_orders__isnull=True)
-                
-            # Exclude refund payments
-            if hasattr(Payment, "applied_sales_returns"):
-                qs = qs.filter(applied_sales_returns__isnull=True)
-            if hasattr(Payment, "applied_purchase_returns"):
-                qs = qs.filter(applied_purchase_returns__isnull=True)
-
-            if biz_ids:
-                qs = qs.filter(business_id__in=biz_ids)
-            else:
-                qs = qs.filter(business__is_deleted=False, business__is_active=True)
-
-            if date_from:
-                qs = qs.filter(date__gte=date_from)
-            if date_to:
-                qs = qs.filter(date__lte=date_to)
-
-            rows = []
-            total_dr = Decimal("0.00")
-            total_cr = Decimal("0.00")
-
-            for p in qs:
-                if (
-                    p.payment_method == Payment.PaymentMethod.CHEQUE
-                    and getattr(p, "cheque_status", None) == Payment.ChequeStatus.PENDING
-                ):
-                    continue
-
-                if _is_return_refund_payment(p):
-                    continue
-
-                amount = _q2_decimal(p.amount) or Decimal("0.00")
-
-                ref = p.reference or f"PAY-{p.pk}"
-                method_label = p.get_payment_method_display()
-                bank_name = ""
-                if p.bank_account_id:
-                    bank_name = f" ({p.bank_account.name})"
-
-                note = p.description or f"{method_label}{bank_name}"
-
-                # Build Allocations
-                allocations = []
-                for app in p.applied_sales_orders.all():
-                    allocations.append({
-                        "target": f"SO #{app.sales_order_id}",
-                        "amount": app.amount
-                    })
-                for app in p.applied_purchase_orders.all():
-                    allocations.append({
-                        "target": f"PO #{app.purchase_order_id}",
-                        "amount": app.amount
-                    })
-
-                dr = None
-                cr = None
-
-                if kind == "customer":
-                    if p.direction == Payment.IN:
-                        cr = amount
-                    else:
-                        dr = amount
-                elif kind == "supplier":
-                    if p.direction == Payment.OUT:
-                        dr = amount
-                    else:
-                        cr = amount
-
-                if dr is None and cr is None:
-                    continue
-
-                rows.append(
-                    {
-                        "date": p.date,
-                        "ref": ref,
-                        "note": note,
-                        "dr": dr,
-                        "cr": cr,
-                        "biz_id": p.business_id,
-                        "biz_name": getattr(p.business, "name", "") if p.business_id else "",
-                        "is_payment_row": True,
-                        "allocations": allocations,
-                        "payment_method": method_label,
-                        "bank_name": bank_name,
-                    }
-                )
-
-                if dr:
-                    total_dr += dr
-                if cr:
-                    total_cr += cr
-
-            return rows, total_dr, total_cr
-
-        # ---------- BankMovement rows for cheque payments ----------
-        def _build_bankmovement_rows_for_businesses(biz_ids: list[int] | None):
-            """
-            Extra rows from BankMovement for this party.
-            Used for supplier cheque payments.
-            
-            FIXED: Now properly includes cheque payments both with and without PO links.
-            """
-            # Unified: Show bank movements for any party type.
-            # if kind != "supplier" and not is_both:
-            #     return [], Decimal("0.00"), Decimal("0.00")
-
-            qs = BankMovement.objects.select_related(
-                "purchase_order",
-                "purchase_order__business",
-                "from_bank",
-                "party",
-            ).filter(
-                movement_type=BankMovement.CHEQUE_PAYMENT,
-                party_id=party.id,
-            )
-
-            if biz_ids:
-                # For cheques linked to PO, filter by PO business
-                # For cheques without PO, include them too
-                q_with_po = Q(purchase_order__business_id__in=biz_ids)
-                q_without_po = Q(purchase_order__isnull=True)
-                qs = qs.filter(q_with_po | q_without_po)
-
-            if date_from:
-                qs = qs.filter(date__gte=date_from)
-            if date_to:
-                qs = qs.filter(date__lte=date_to)
-
-            rows = []
-            total_dr = Decimal("0.00")
-            total_cr = Decimal("0.00")
-
-            for mv in qs:
-                # REMOVED THE SKIP LOGIC - now we include ALL cheque payments
-                
-                amount = _q2_decimal(mv.amount) or Decimal("0.00")
-                if amount <= 0:
-                    continue
-
-                # Build reference
-                ref_parts = []
-                if mv.reference_no:
-                    ref_parts.append(mv.reference_no)
-                else:
-                    ref_parts.append(f"CHQ-{mv.id}")
-                
-                # Add PO reference if linked
-                if mv.purchase_order_id:
-                    ref_parts.append(f"PO#{mv.purchase_order_id}")
-                
-                ref = " | ".join(ref_parts)
-
-                # Build note
-                note_bits = []
-                if mv.from_bank:
-                    note_bits.append(f"Cheque from {mv.from_bank.name}")
-                
-                if mv.purchase_order_id:
-                    po_ref = f"for PO #{mv.purchase_order_id}"
-                    note_bits.append(po_ref)
-                
-                if mv.notes:
-                    note_bits.append(mv.notes)
-                
-                if mv.party:
-                    note_bits.append(f"to {mv.party.display_name}")
-
-                note = " — ".join(note_bits) if note_bits else "Cheque payment"
-
-                # For supplier ledger, cheque payment is always a debit (payment to supplier)
-                dr = amount
-                cr = None
-
-                # Determine business for display
-                biz_id = None
-                biz_name = ""
-                if mv.purchase_order and mv.purchase_order.business:
-                    biz_id = mv.purchase_order.business_id
-                    biz_name = mv.purchase_order.business.name
-
-                rows.append(
-                    {
-                        "date": mv.date,
-                        "ref": ref,
-                        "note": note,
-                        "dr": dr,
-                        "cr": cr,
-                        "biz_id": biz_id,
-                        "biz_name": biz_name,
-                        "is_bankmovement_row": True,
-                        "is_cheque": True,
-                        "movement_id": mv.id,
-                    }
-                )
-
-                total_dr += dr
-
-            return rows, total_dr, total_cr
-
-        # ================= ALL BUSINESSES =================
-        if all_mode:
-            biz_list = list(
-                Business.objects.filter(
-                    is_deleted=False,
-                    is_active=True,
-                ).order_by("name", "id")
-            )
-            biz_ids = [b.id for b in biz_list]
-
-            cheque_qs, pending_total, deposited_total = _fetch_party_cheques_for_businesses(
-                biz_ids
-            )
-
-            all_rows = []
-            total_dr = Decimal("0.00")
-            total_cr = Decimal("0.00")
-
-            open_dr = Decimal("0.00")
-            open_cr = Decimal("0.00")
-
-            if date_from:
-                open_dr, open_cr = _compute_opening_before_date_for_party(
-                    kind=kind,
-                    party_id=party.id,
-                    biz_list=biz_list,
-                    biz_ids=biz_ids,
-                    date_from=date_from,
-                )
-
-            opening_kept = False
-
-            for b in biz_list:
-                rows_b, _totals_b, _ = build_ledger(
-                    kind=kind,
-                    business_id=b.id,
-                    entity_id=entity_id,
-                    date_from=date_from,
-                    date_to=date_to,
-                )
-
-                if not rows_b:
-                    continue
-
-                filtered_b = _filter_cheque_payments_from_rows(
-                    rows_b,
-                    b.id,
-                    entity_id,
-                    kind=kind,
-                    exclude_pending=True,
-                )
-
-                if not filtered_b:
-                    continue
-
-                cleaned_rows, ob_dr, ob_cr = _extract_opening(filtered_b)
-
-                if not date_from and not opening_kept and (ob_dr > 0 or ob_cr > 0):
-                    open_dr += ob_dr
-                    open_cr += ob_cr
-                    opening_kept = True
-
-                stats = _recalculate_totals_excluding_pending(cleaned_rows)
-
-                dict_rows = _rows_to_dicts(
-                    cleaned_rows,
-                    {"biz_id": b.id, "biz_name": b.name},
-                )
-
-
-                all_rows.extend(dict_rows)
-                total_dr += stats.get("total_dr", Decimal("0.00"))
-                total_cr += stats.get("total_cr", Decimal("0.00"))
-
-            payment_rows, pay_dr_total, pay_cr_total = _build_payment_rows_for_businesses(
-                biz_ids
-            )
-            all_rows.extend(payment_rows)
-            total_dr += pay_dr_total
-            total_cr += pay_cr_total
-
-            # FIXED: Now includes all BankMovement cheque payments
-            bm_rows, bm_dr_total, bm_cr_total = _build_bankmovement_rows_for_businesses(
-                biz_ids
-            )
-            all_rows.extend(bm_rows)
-            total_dr += bm_dr_total
-            total_cr += bm_cr_total
-
-            # Fallback for opening balance if not captured in business loop (e.g. party has no default_business)
-            if not date_from and not opening_kept:
-                from barkat.ledger import opening_balance as get_ob
-                ob, side = get_ob(kind, party)
-                if ob > 0:
-                    if side == 'Dr':
-                        open_dr += ob
-                    else:
-                        open_cr += ob
-                    opening_kept = True
-
-            total_dr += open_dr
-            total_cr += open_cr
-
-            if open_dr != open_cr:
-                opening_balance = open_dr - open_cr
-                bf_dr = opening_balance if opening_balance > 0 else None
-                bf_cr = -opening_balance if opening_balance < 0 else None
-                bf_row = {
-                    "date": date_from or None,
-                    "ref": "B/F",
-                    "note": "Balance brought forward",
-                    "dr": bf_dr,
-                    "cr": bf_cr,
-                    "biz_id": None,
-                    "biz_name": "",
-                    "is_opening_row": True,
-                }
-                all_rows.insert(0, bf_row)
-
-            all_rows.sort(
-                key=lambda x: (
-                    (x.get("date") or date.min),
-                    str(x.get("ref") or ""),
-                ),
-            )
-            # Ensure Opening Balance row is at the absolute top if dates are equal
-            all_rows.sort(key=lambda x: 0 if x.get("is_opening_row") else 1)
-            all_rows.sort(key=lambda x: (x.get("date") or date.min))
-
-            _compute_running_balance(all_rows)
-
-            total_dr = _q2_decimal(total_dr) or Decimal("0.00")
-            total_cr = _q2_decimal(total_cr) or Decimal("0.00")
-            balance = total_dr - total_cr
-
-            totals = {
-                "total_dr": total_dr,
-                "total_cr": total_cr,
-                "balance_abs": _q2_decimal(abs(balance)) or Decimal("0.00"),
-                "balance_side": "Dr" if balance >= 0 else "Cr",
-            }
-
-            page_obj = (
-                None
-                if print_mode
-                else Paginator(all_rows, 25).get_page(request.GET.get("page"))
-            )
-
-            return render(
-                request,
-                self.template,
-                _ctx_common(
-                    {
-                        "kind": kind,
-                        "business": None,
-                        "entity": party,
-                        "rows_all": all_rows if print_mode else None,
-                        "page_obj": page_obj,
-                        "totals": totals,
-                        "show_business_switcher": True,
-                        "other_kind": other_kind,
-                        "is_both": is_both,
-                        "cheque_payments": cheque_qs,
-                        "cheque_pending_total": pending_total,
-                        "cheque_deposited_total": deposited_total,
-                    }
-                ),
-            )
-
-        # ================= SINGLE BUSINESS =================
-        business_id = request.GET.get("business")
-        if not business_id or not business_id.isdigit():
-            inferred = getattr(party, "default_business", None)
-            target_biz = inferred or Business.objects.order_by("name", "id").first()
-            if not target_biz:
-                return HttpResponse(
-                    "No Business found. Please create a Business first.",
-                    status=400,
-                )
-            params = {"business": target_biz.id}
-            if date_from:
-                params["date_from"] = _fmt(date_from)
-            if date_to:
-                params["date_to"] = _fmt(date_to)
-            if print_mode:
-                params["print"] = "1"
-            return redirect(f"{request.path}?{urlencode(params)}")
-
-        business = get_object_or_404(Business, pk=int(business_id))
-
-        rows, _totals_base, _entity = build_ledger(
+        # Use LedgerService for all row building and totalling
+        from barkat.services.ledger_service import LedgerService
+        base_rows, totals, _ = LedgerService.get_ledger_data(
             kind=kind,
-            business_id=business.id,
             entity_id=entity_id,
+            business_id=business.id if not all_mode else None,
             date_from=date_from,
             date_to=date_to,
         )
-
-        filtered_rows = _filter_cheque_payments_from_rows(
-            rows,
-            business.id,
-            entity_id,
-            kind=kind,
-            exclude_pending=True,
-        )
-
-        cleaned_rows, _ob_dr, _ob_cr = _extract_opening(filtered_rows)
-
-        range_stats = _recalculate_totals_excluding_pending(cleaned_rows)
-
-        base_rows = _rows_to_dicts(cleaned_rows)
-
-
-
-        payment_rows, pay_dr_total, pay_cr_total = _build_payment_rows_for_businesses(
-            [business.id]
-        )
-        base_rows.extend(payment_rows)
-
-        # FIXED: Now includes all BankMovement cheque payments
-        bm_rows, bm_dr_total, bm_cr_total = _build_bankmovement_rows_for_businesses(
-            [business.id]
-        )
-        base_rows.extend(bm_rows)
-
-        open_dr = Decimal("0.00")
-        open_cr = Decimal("0.00")
-        if date_from:
-            open_dr, open_cr = _compute_opening_before_date_for_party(
-                kind=kind,
-                party_id=party.id,
-                biz_list=[business],
-                biz_ids=[business.id],
-                date_from=date_from,
-            )
-
-        total_dr = (
-            open_dr
-            + range_stats.get("total_dr", Decimal("0.00"))
-            + pay_dr_total
-            + bm_dr_total
-        )
-        total_cr = (
-            open_cr
-            + range_stats.get("total_cr", Decimal("0.00"))
-            + pay_cr_total
-            + bm_cr_total
-        )
-
-        if date_from and open_dr != open_cr:
-            opening_balance = open_dr - open_cr
-            bf_dr = opening_balance if opening_balance > 0 else None
-            bf_cr = -opening_balance if opening_balance < 0 else None
-            bf_row = {
-                "date": date_from,
-                "ref": "B/F",
-                "note": "Balance brought forward",
-                "dr": bf_dr,
-                "cr": bf_cr,
-                "biz_id": business.id,
-                "biz_name": business.name,
-                "is_opening_row": True,
-            }
-            base_rows.insert(0, bf_row)
-
-        # Unified Sorting: Date ASC, Opening row first
-        base_rows.sort(
-            key=lambda x: (
-                (x.get("date") or date.min),
-                0 if x.get("is_opening_row") else 1,
-                str(x.get("ref") or ""),
-            )
-        )
-
-        _compute_running_balance(base_rows)
-        
-        # If the user ever wants DESC UI, we would reverse here. 
-        # But for now we keep it ASC (Traditional) as requested for print.
-        # Since UI is already ASC, we don't need to do anything extra.
-
-        total_dr = _q2_decimal(total_dr) or Decimal("0.00")
-        total_cr = _q2_decimal(total_cr) or Decimal("0.00")
-        balance = total_dr - total_cr
-
-        totals = {
-            "total_dr": total_dr,
-            "total_cr": total_cr,
-            "balance_abs": _q2_decimal(abs(balance)) or Decimal("0.00"),
-            "balance_side": "Dr" if balance >= 0 else "Cr",
-        }
 
         page_obj = (
             None
@@ -1592,7 +1033,7 @@ class LedgerDetailView(View):
         )
 
         cheque_qs, pending_total, deposited_total = _fetch_party_cheques_for_businesses(
-            [business.id]
+            [business.id] if not all_mode else Business.objects.filter(is_deleted=False, is_active=True).values_list("id", flat=True)
         )
 
         return render(
@@ -1601,7 +1042,7 @@ class LedgerDetailView(View):
             _ctx_common(
                 {
                     "kind": kind,
-                    "business": business,
+                    "business": business if not all_mode else None,
                     "entity": party,
                     "rows_all": base_rows if print_mode else None,
                     "page_obj": page_obj,

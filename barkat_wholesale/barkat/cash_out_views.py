@@ -56,7 +56,8 @@ class CashOutListView(LoginRequiredMixin, ListView):
         return Payment.objects.filter(
             direction=Payment.OUT,
             payment_method=Payment.PaymentMethod.CASH,
-            is_deleted=False
+            is_deleted=False,
+            is_external=False
         ).select_related('party', 'business').order_by('-date', '-created_at')
 
 class CashOutCreateView(LoginRequiredMixin, FormView):

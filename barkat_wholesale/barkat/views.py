@@ -88,6 +88,9 @@ from .forms import (
 )
 from .ledger import build_ledger
 from django.core.management import call_command
+from barkat.services.order_service import OrderService
+from barkat.services.report_service import ReportService
+from barkat.utils.view_helpers import _model_has_field, ProductFilterMixin, _selected_business, _q2, _get_walkin_party, TMP_DIR, _product_image_url
 
 # ---------- Dashboard / Businesses ----------
 @method_decorator(login_required, name="dispatch")
@@ -258,10 +261,10 @@ def recalculate_all_totals_view(request):
 
 
 @login_required
+@login_required
 def financial_summary_view(request):
     """
     Financial Period Summary Report - Report Style
-    Matches the lo-fi mockup with series ranges and tabular bank details.
     """
     date_str = request.GET.get('date')
     if date_str:
@@ -272,276 +275,7 @@ def financial_summary_view(request):
     else:
         today = timezone.localdate()
 
-    # --- SECTION 1: Performance Headers (Report Style) ---
-    
-    # Total Sales
-    sales_qs = SalesOrder.objects.filter(
-        business__is_deleted=False,
-        is_deleted=False,
-        created_at__date=today
-    )
-    fulfilled_sales = sales_qs.filter(status=SalesOrder.Status.FULFILLED)
-    total_sales = fulfilled_sales.aggregate(s=Sum('net_total'))['s'] or Decimal('0.00')
-    sales_count = fulfilled_sales.count()
-    
-    # Receipt Series (e.g., "Receipt #2 to #4")
-    sales_ids = fulfilled_sales.values_list('id', flat=True).order_by('id')
-    if sales_ids:
-        sales_series = f"SO #{sales_ids[0]} to #{sales_ids[len(sales_ids)-1]}"
-    else:
-        sales_series = "—"
-    
-    # Total Receipt (sum of all receipts applied to sales)
-    total_receipt = SalesOrderReceipt.objects.filter(
-        sales_order__in=fulfilled_sales,
-        sales_order__created_at__date=today
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Cancelled Sales
-    cancelled_sales = sales_qs.filter(status=SalesOrder.Status.CANCELLED)
-    total_cancelled = cancelled_sales.aggregate(s=Sum('net_total'))['s'] or Decimal('0.00')
-    cancelled_count = cancelled_sales.count()
-    
-    # Total Purchase
-    po_qs = PurchaseOrder.objects.filter(
-        business__is_deleted=False,
-        is_deleted=False,
-        is_active=True,
-        created_at__date=today
-    )
-    total_purchase = po_qs.aggregate(s=Sum('net_total'))['s'] or Decimal('0.00')
-    
-    # Purchase Series (e.g., "PO #1 to #4")
-    po_ids = po_qs.values_list('id', flat=True).order_by('id')
-    if po_ids:
-        po_series = f"PO #{po_ids[0]} to #{po_ids[len(po_ids)-1]}"
-    else:
-        po_series = "—"
-    
-    # Pending POs
-    pending_po_count = po_qs.filter(status='pending').count()
-    
-    # Total Expenses (split into Landed PO vs Operating)
-    expenses_qs = Expense.objects.filter(
-        business__is_deleted=False,
-        is_deleted=False,
-        date=today
-    )
-    
-    # Landed PO: Expenses linked to Purchase Orders
-    landed_po_expense = expenses_qs.filter(purchase_order__isnull=False).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Operating: All other expenses
-    operating_expense = expenses_qs.filter(purchase_order__isnull=True).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    total_expenses = landed_po_expense + operating_expense
-
-    # --- SECTION 2: Amount IN (Formula Bar) ---
-    
-    # Cash Via Sales Deposited (Cash sales)
-    cash_sales = Payment.objects.filter(
-        Q(direction=Payment.IN),
-        Q(payment_method=Payment.PaymentMethod.CASH),
-        Q(applied_sales_orders__isnull=False) | Q(applied_sales_invoices__isnull=False),
-        date=today,
-        is_deleted=False
-    ).distinct().aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Cash Via Receipt (Other cash receipts/collections)
-    cash_receipt = Payment.objects.filter(
-        direction=Payment.IN,
-        payment_method=Payment.PaymentMethod.CASH,
-        applied_sales_orders__isnull=True,
-        applied_sales_invoices__isnull=True,
-        applied_purchase_returns__isnull=True,
-        date=today,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Total Cash In
-    total_cash_in = cash_sales + cash_receipt
-    
-    # Sales Via Bank (Bank sales)
-    bank_sales = Payment.objects.filter(
-        Q(direction=Payment.IN),
-        Q(payment_method__in=[Payment.PaymentMethod.BANK, Payment.PaymentMethod.CARD]),
-        Q(applied_sales_orders__isnull=False) | Q(applied_sales_invoices__isnull=False),
-        date=today,
-        is_deleted=False
-    ).distinct().aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Receipt Via Bank (Other bank receipts)
-    bank_receipt = Payment.objects.filter(
-        direction=Payment.IN,
-        payment_method__in=[Payment.PaymentMethod.BANK, Payment.PaymentMethod.CARD],
-        applied_sales_orders__isnull=True,
-        applied_sales_invoices__isnull=True,
-        applied_purchase_returns__isnull=True,
-        date=today,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Total Bank deposits
-    total_bank_deposits = bank_sales + bank_receipt
-
-    # --- SECTION 3: Amount OUT (Formula Bar) ---
-    
-    # Purchase Order payments
-    po_payments = Payment.objects.filter(
-        direction=Payment.OUT,
-        applied_purchase_orders__isnull=False,
-        date=today,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # General Payments (not tied to PO or SR)
-    general_payments = Payment.objects.filter(
-        direction=Payment.OUT,
-        applied_purchase_orders__isnull=True,
-        applied_sales_returns__isnull=True,
-        date=today,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Sale Return Refunds
-    sr_refunds = Payment.objects.filter(
-        direction=Payment.OUT,
-        applied_sales_returns__isnull=False,
-        date=today,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # Total Cash Out
-    total_cash_out = po_payments + general_payments + sr_refunds + total_expenses
-
-    # --- SECTION 4: Bank Details by Account (Table) ---
-    
-    bank_accounts = BankAccount.objects.filter(is_active=True, is_deleted=False)
-    bank_details = []
-    
-    for acc in bank_accounts:
-        # Bank Sales Amount (sales deposited to this bank)
-        bank_sales_amount = Payment.objects.filter(
-            bank_account=acc,
-            direction=Payment.IN,
-            date=today,
-            is_deleted=False
-        ).filter(
-            Q(applied_sales_orders__isnull=False) | Q(applied_sales_invoices__isnull=False)
-        ).distinct().aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-        
-        # Deposited (Cash) - manual cash deposits to this bank (CashFlow IN not from payments)
-        # This captures direct deposits to bank that aren't from sales/receipts
-        total_bank_in = CashFlow.objects.filter(
-            bank_account=acc,
-            flow_type=CashFlow.IN,
-            date=today,
-            is_deleted=False,
-            linked_payment__isnull=True  # Not from a payment transaction
-        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-        
-        # Manual deposits = Total IN - Bank Sales Amount
-        cash_deposited = max(Decimal('0.00'), total_bank_in - bank_sales_amount)
-        
-        # Cheque Deposited (cleared cheques to this bank)
-        cheque_deposited = Payment.objects.filter(
-            bank_account=acc,
-            payment_method=Payment.PaymentMethod.CHEQUE,
-            cheque_status=Payment.ChequeStatus.DEPOSITED,
-            date=today,
-            is_deleted=False
-        ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-        
-        # Total Deposited
-        total_deposited = bank_sales_amount + cash_deposited + cheque_deposited
-        
-        # Current Balance (from CashFlow)
-        total_flow = CashFlow.objects.filter(
-            bank_account=acc,
-            date__lte=today,
-            is_deleted=False
-        ).aggregate(
-            t=Sum(Case(
-                When(flow_type=CashFlow.IN, then=F('amount')),
-                When(flow_type=CashFlow.OUT, then=-F('amount')),
-                default=Decimal('0.00'),
-                output_field=DecimalField()
-            ))
-        )['t'] or Decimal('0.00')
-        current_balance = acc.opening_balance + total_flow
-        
-        bank_details.append({
-            'account': acc,
-            'bank_sales_amount': bank_sales_amount,
-            'cash_deposited': cash_deposited,
-            'cheque_deposited': cheque_deposited,
-            'total_deposited': total_deposited,
-            'current_balance': current_balance
-        })
-    
-    # Grand Total of All Banks
-    grand_total_banks = sum(b['current_balance'] for b in bank_details)
-    
-    # --- SECTION 5: Amount In Hand Summary ---
-    
-    # Cash in Hand (physical cash not deposited)
-    cash_in_hand = total_cash_in - total_cash_out
-    
-    # Cheque in Hand (pending cheques)
-    cheques_pending = Payment.objects.filter(
-        payment_method=Payment.PaymentMethod.CHEQUE,
-        cheque_status=Payment.ChequeStatus.PENDING,
-        is_deleted=False
-    ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-    
-    # All Bank Balance
-    all_bank_balance = grand_total_banks
-
-    context = {
-        'today': today,
-        
-        # Sales Card
-        'total_sales': total_sales,
-        'sales_count': sales_count,
-        'sales_series': sales_series,
-        'total_receipt': total_receipt,
-        'total_cancelled': total_cancelled,
-        'cancelled_count': cancelled_count,
-        
-        # Purchase Card
-        'total_purchase': total_purchase,
-        'po_series': po_series,
-        'pending_po_count': pending_po_count,
-        
-        # Expense Card
-        'landed_po_expense': landed_po_expense,
-        'operating_expense': operating_expense,
-        'total_expenses': total_expenses,
-        
-        # Amount IN
-        'cash_sales': cash_sales,
-        'cash_receipt': cash_receipt,
-        'total_cash_in': total_cash_in,
-        'bank_sales': bank_sales,
-        'bank_receipt': bank_receipt,
-        'total_bank_deposits': total_bank_deposits,
-        
-        # Amount OUT
-        'po_payments': po_payments,
-        'general_payments': general_payments,
-        'sr_refunds': sr_refunds,
-        'total_cash_out': total_cash_out,
-        
-        # Bank Details
-        'bank_details': bank_details,
-        'grand_total_banks': grand_total_banks,
-        
-        # Amount In Hand
-        'cash_in_hand': cash_in_hand,
-        'cheques_pending': cheques_pending,
-        'all_bank_balance': all_bank_balance,
-    }
-    
+    context = ReportService.get_financial_summary(today)
     return render(request, "barkat/finance/financial_summary.html", context)
 
 # ---------- LIST ----------
@@ -940,70 +674,6 @@ def party_delete(request, pk):
     return redirect(next_url or "customers_list")
 
 # ---------- Catalog ----------
-class ProductFilterMixin:
-    """Consolidate product filtering and valuation logic."""
-    def get_product_queryset(self, request, base_qs=None):
-        if base_qs is None:
-            base_qs = Product.objects.filter(is_deleted=False)
-            
-        qs = base_qs.select_related("business", "category", "uom", "bulk_uom").annotate(
-            total_stock_value=ExpressionWrapper(
-                Coalesce(F("purchase_price"), V(0)) * Coalesce(F("stock_qty"), V(0)),
-                output_field=DecimalField(max_digits=18, decimal_places=2)
-            )
-        ).order_by("-id")
-
-        q = request.GET.get("q")
-        biz_id = request.GET.get("business")
-        
-        if q:
-            qs = qs.filter(
-                Q(name__icontains=q) |
-                Q(sku__icontains=q) |
-                Q(barcode__icontains=q) |
-                Q(category__name__icontains=q) |
-                Q(business__name__icontains=q) |
-                Q(company_name__icontains=q)
-            )
-        
-        # Only apply global business filter if biz_id is present and we're not already filtered
-        if biz_id and not hasattr(self, 'business'):
-            qs = qs.filter(business_id=biz_id)
-            
-        # Price filter
-        price_op = request.GET.get("price_op")
-        price_val = request.GET.get("price_val")
-        if price_op and price_val:
-            try:
-                price_decimal = Decimal(price_val)
-                if price_op == "gte":
-                    qs = qs.filter(sale_price__gte=price_decimal)
-                elif price_op == "lte":
-                    qs = qs.filter(sale_price__lte=price_decimal)
-                elif price_op == "eq":
-                    qs = qs.filter(sale_price=price_decimal)
-            except (ValueError, InvalidOperation):
-                pass
-        
-        # Stock filter
-        stock_op = request.GET.get("stock_op")
-        stock_val = request.GET.get("stock_val")
-        if stock_op and stock_val:
-            try:
-                stock_decimal = Decimal(stock_val)
-                if stock_op == "gte":
-                    qs = qs.filter(stock_qty__gte=stock_decimal)
-                elif stock_op == "lte":
-                    qs = qs.filter(stock_qty__lte=stock_decimal)
-                elif stock_op == "eq":
-                    qs = qs.filter(stock_qty=stock_decimal)
-            except (ValueError, InvalidOperation):
-                pass
-        
-        return qs
-
-    def get_grand_total_stock_value(self, qs):
-        return qs.aggregate(total=Sum("total_stock_value"))["total"] or Decimal("0.00")
 
 # All categories
 class ProductCategoriesListView(LoginRequiredMixin, ListView):
@@ -2505,202 +2175,24 @@ class PurchaseOrderCreateView(LoginRequiredMixin, CreateView):
     @transaction.atomic
     def form_valid(self, form):
         ctx = self.get_context_data(form=form)
-        formset = ctx["formset"]
-        expense_formset = ctx["expense_formset"]
+        formset, expense_formset = ctx["formset"], ctx["expense_formset"]
 
         if not formset.is_valid() or not expense_formset.is_valid():
             return self.form_invalid(form)
 
-        po: PurchaseOrder = form.save(commit=False)
-        biz = self._get_selected_business(self.request, form=form)
-        if biz:
-            po.business = biz
-
-        po_date = form.cleaned_data.get("po_date")
-        if po_date:
-            po_datetime = timezone.make_aware(
-                datetime.combine(po_date, datetime.min.time())
+        try:
+            self.object = OrderService.process_purchase_order_form(
+                user=self.request.user,
+                form=form,
+                formset=formset,
+                expense_formset=expense_formset,
+                is_update=False
             )
-            po.created_at = po_datetime
-
-        po.created_by = self.request.user
-        po.updated_by = self.request.user
-        po.save()
-
-
-        # Save formset items with proper uom/size handling and sale price conversion
-        for item_form in formset:
-            if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
-                item = item_form.save(commit=False)
-                item.purchase_order = po
-                
-                # ✅ NEW: Only set defaults if TRULY missing (shouldn't happen with proper form)
-                if item.uom_id is None:
-                    # This should not happen if form is working correctly
-                    item.uom = item.product.uom
-                    item.size_per_unit = Decimal("1.000000")
-                    print(f"⚠️ WARNING: UOM was not set for item {item.product.name}, defaulting to lowest unit")
-                
-                # Handle sale price conversion: if sale_price is provided and unit is bulk, convert to lower unit
-                sale_price = item_form.cleaned_data.get('sale_price')
-                if sale_price is not None and sale_price > 0:
-                    # Check if the selected UOM is the bulk unit
-                    if (item.product.bulk_uom_id and 
-                        item.uom_id == item.product.bulk_uom_id and 
-                        item.size_per_unit and 
-                        item.size_per_unit > Decimal("1")):
-                        # Sale price is in bulk unit - convert to lower unit
-                        # Example: 5000 (bag) / 50 (kg per bag) = 100 (per kg)
-                        lower_unit_sale_price = sale_price / item.size_per_unit
-                        # Update product's sale_price with the converted lower unit price
-                        Product.objects.filter(pk=item.product_id).update(
-                            sale_price=lower_unit_sale_price
-                        )
-                    else:
-                        # Sale price is already in lower unit - save directly
-                        Product.objects.filter(pk=item.product_id).update(
-                            sale_price=sale_price
-                        )
-                    
-                item.save()
-
-        # Save expenses
-        expenses = expense_formset.save(commit=False)
-        for expense in expenses:
-            expense.purchase_order = po
-            if biz:
-                expense.business = biz
-            expense.created_by = self.request.user
-            expense.updated_by = self.request.user
-            expense.save()
-
-            # --- INSTANT PAYMENT LOGIC ---
-            if expense.is_paid and not expense.payment:
-                pay_method = expense.payment_source  # 'cash' or 'bank'
-                pay_source = Payment.CASH if pay_method == "cash" else Payment.BANK
-                
-                payment_kwargs = {
-                    "business": biz,
-                    "date": po_date or timezone.localdate(),
-                    "party": po.supplier,
-                    "amount": expense.amount,
-                    "description": f"Instant payment for PO #{po.id} expense: {expense.get_category_display()}",
-                    "reference": f"PO-{po.id}-EXP",
-                    "payment_source": pay_source,
-                    "payment_method": "bank" if pay_method == "bank" else "cash",
-                    "direction": Payment.OUT,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-                if pay_method == "bank":
-                    payment_kwargs["bank_account"] = expense.bank_account
-                
-                pay = Payment.objects.create(**payment_kwargs)
-
-                
-                # Link payment to expense and save again (to trigger model logic that skips CashFlow)
-                expense.payment = pay
-                expense.save(update_fields=["payment", "updated_at", "updated_by"])
-                
-                # ALSO Link payment to PO so it shows up in "Paid So Far"
-                po.apply_payment(pay, expense.amount)
-            
-        # Handle deleted expenses
-        for deleted_expense in expense_formset.deleted_objects:
-            # If deleted expense had a linked payment, maybe delete the payment too?
-            # For now, let's keep it simple.
-            deleted_expense.delete()
-
-        # Recompute and Distribute
-        if hasattr(po, "distribute_expenses"):
-            po.distribute_expenses()
-            
-        if hasattr(po, "recompute_totals"):
-            po.recompute_totals()
-            po.save(
-                update_fields=[
-                    "total_cost",
-                    "net_total",
-                    "updated_at",
-                    "updated_by",
-                ]
-            )
-
-        # Stock update logic (only when status == "received")
-        status = (po.status or "").lower()
-        if status == "received":
-            item_qs = po.items.all()
-            # (filtered logic remains same...)
-            item_qs = item_qs.filter(product__isnull=False, quantity__gt=0)
-            
-            for item in item_qs:
-                actual_qty = (item.quantity or Decimal("0")) * (item.size_per_unit or Decimal("1"))
-                if actual_qty > 0:
-                    Product.objects.filter(pk=item.product_id).update(
-                        stock_qty=F("stock_qty") + actual_qty
-                    )
-                    # Update purchase price using LANDING COST
-                    price_to_store = item.landing_unit_price or item.unit_price
-                    if price_to_store is not None:
-                        Product.objects.filter(pk=item.product_id).update(
-                            purchase_price=price_to_store
-                        )
-
-        # Payment logic
-        method = form.cleaned_data.get("payment_method") or "none"
-        bank = form.cleaned_data.get("bank_account")
-        paid = (form.cleaned_data.get("paid_amount") or Decimal("0.00")).quantize(
-            Decimal("0.01")
-        )
-
-        if paid > 0:
-            pay_source = None
-            if method == "cash":
-                pay_source = Payment.CASH
-            elif method in ("bank", "cheque"):
-                pay_source = Payment.BANK
-
-            if pay_source:
-                # NEW: Use po_date for payment date as well
-                payment_date = po_date or timezone.localdate()
-                
-                payment_kwargs = {
-                    "business": po.business,
-                    "date": payment_date,  # Use PO date
-                    "party": po.supplier,
-                    "amount": paid,
-                    "description": f"Payment for PO #{po.id}",
-                    "reference": f"PO-{po.id}",
-                    "payment_source": pay_source,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-
-                if _model_has_field(Payment, "direction"):
-                    payment_kwargs["direction"] = Payment.OUT
-
-                if _model_has_field(Payment, "payment_method"):
-                    payment_kwargs["payment_method"] = method
-
-                if (
-                    method in ("bank", "cheque")
-                    and _model_has_field(Payment, "bank_account")
-                    and bank
-                ):
-                    payment_kwargs["bank_account"] = bank
-
-                payment = Payment.objects.create(**payment_kwargs)
-
-
-                po.apply_payment(payment, paid)
-                messages.success(
-                    self.request,
-                    f"Recorded payment ₨ {paid} for PO #{po.id}.",
-                )
-
-        messages.success(self.request, f"Purchase Order #{po.id} created.")
-        self.object = po
-        return super().form_valid(form)
+            messages.success(self.request, f"Purchase Order #{self.object.id} created.")
+            return redirect(self.get_success_url())
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
 
     def get_success_url(self):
         return reverse("po_list")
@@ -2825,247 +2317,24 @@ class PurchaseOrderUpdateView(LoginRequiredMixin, UpdateView):
     @transaction.atomic
     def form_valid(self, form):
         ctx = self.get_context_data(form=form)
-        formset = ctx["formset"]
-        expense_formset = ctx["expense_formset"]
-        
+        formset, expense_formset = ctx["formset"], ctx["expense_formset"]
+
         if not formset.is_valid() or not expense_formset.is_valid():
             return self.form_invalid(form)
 
-        # Snapshot old PO and items
-        po_db: PurchaseOrder = (
-            PurchaseOrder.objects.select_for_update()
-            .prefetch_related("items")
-            .get(pk=self.object.pk)
-        )
-        old_status = (po_db.status or "").lower()
-
-        po: PurchaseOrder = form.save(commit=False)
-        po.updated_by = self.request.user
-        po.save()
-
-        # OLD: Track old quantities in BASE UNIT (considering size_per_unit)
-        old_qty_by_product = defaultdict(Decimal)
-        for it in po_db.items.all():
-            if not it.product_id:
-                continue
-            q = it.quantity or Decimal("0")
-            size = it.size_per_unit or Decimal("1")
-            if q <= 0:
-                continue
-            # Convert to base unit
-            base_qty = q * size
-            old_qty_by_product[it.product_id] += base_qty
-
-        # Save new PO
-        po: PurchaseOrder = form.save(commit=False)
-        po.updated_by = self.request.user
-        po.save()
-
-        # Save items with proper uom/size handling and sale price conversion
-        formset.instance = po
-        instances = formset.save(commit=False)
-        deleted = list(formset.deleted_objects)
-
-        for idx, inst in enumerate(instances):
-            inst.purchase_order = po
-            
-            # ✅ NEW: Only set defaults if TRULY missing (shouldn't happen with proper form)
-            if inst.uom_id is None:
-                # This should not happen if form is working correctly
-                inst.uom = inst.product.uom
-                inst.size_per_unit = Decimal("1.000000")
-                print(f"⚠️ WARNING: UOM was not set for item {inst.product.name}, defaulting to lowest unit")
-            
-            # Handle sale price conversion: get sale_price from instance (set by formset.save(commit=False))
-            sale_price = getattr(inst, 'sale_price', None)
-            
-            if sale_price is not None and sale_price > 0:
-                # Check if the selected UOM is the bulk unit
-                if (inst.product.bulk_uom_id and 
-                    inst.uom_id == inst.product.bulk_uom_id and 
-                    inst.size_per_unit and 
-                    inst.size_per_unit > Decimal("1")):
-                    # Sale price is in bulk unit - convert to lower unit
-                    # Example: 5000 (bag) / 50 (kg per bag) = 100 (per kg)
-                    lower_unit_sale_price = sale_price / inst.size_per_unit
-                    # Update product's sale_price with the converted lower unit price
-                    Product.objects.filter(pk=inst.product_id).update(
-                        sale_price=lower_unit_sale_price
-                    )
-                else:
-                    # Sale price is already in lower unit - save directly
-                    Product.objects.filter(pk=inst.product_id).update(
-                        sale_price=sale_price
-                    )
-                
-            inst.save()
-
-        for inst in deleted:
-            inst.delete()
-
-        formset.save_m2m()
-
-        # New status and NEW items map (in BASE UNIT)
-        new_status = (po.status or "").lower()
-
-        new_qty_by_product = defaultdict(Decimal)
-        for it in po.items.select_related("product").all():
-            if not it.product_id:
-                continue
-            q = it.quantity or Decimal("0")
-            size = it.size_per_unit or Decimal("1")
-            if q <= 0:
-                continue
-            # Convert to base unit
-            base_qty = q * size
-            new_qty_by_product[it.product_id] += base_qty
-
-        # Compute deltas - only status "received" contributes to stock
-        all_product_ids = set(old_qty_by_product.keys()) | set(new_qty_by_product.keys())
-
-        for pid in all_product_ids:
-            old_q = old_qty_by_product.get(pid, Decimal("0"))
-            new_q = new_qty_by_product.get(pid, Decimal("0"))
-
-            # Old effect: stock added previously (if status was received)
-            old_effect = old_q if old_status == "received" else Decimal("0")
-            # New effect: stock to add now (if status is received)
-            new_effect = new_q if new_status == "received" else Decimal("0")
-
-            # Delta: difference between new and old effect
-            delta = new_effect - old_effect
-            
-            if delta:
-                Product.objects.filter(pk=pid).update(
-                    stock_qty=F("stock_qty") + delta
-                )
-
-        # Save expenses
-        expenses = expense_formset.save(commit=False)
-        for expense in expenses:
-            expense.purchase_order = po
-            expense.business = po.business
-            expense.created_by = self.request.user
-            expense.updated_by = self.request.user
-            expense.save()
-
-            # --- INSTANT PAYMENT LOGIC ---
-            if expense.is_paid and not expense.payment:
-                pay_method = expense.payment_source  # 'cash' or 'bank'
-                pay_source = Payment.CASH if pay_method == "cash" else Payment.BANK
-                
-                payment_kwargs = {
-                    "business": po.business,
-                    "date": po.created_at.date() if po.created_at else timezone.localdate(),
-                    "party": po.supplier,
-                    "amount": expense.amount,
-                    "description": f"Instant payment for PO #{po.id} expense: {expense.get_category_display()}",
-                    "reference": f"PO-{po.id}-EXP",
-                    "payment_source": pay_source,
-                    "payment_method": "bank" if pay_method == "bank" else "cash",
-                    "direction": Payment.OUT,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-                if pay_method == "bank":
-                    payment_kwargs["bank_account"] = expense.bank_account
-                
-                pay = Payment.objects.create(**payment_kwargs)
-
-                
-                # Link payment to expense and save again (to trigger model logic that skips CashFlow)
-                expense.payment = pay
-                expense.save(update_fields=["payment", "updated_at", "updated_by"])
-
-                # ALSO Link payment to PO so it shows up in "Paid So Far"
-                po.apply_payment(pay, expense.amount)
-            
-        for deleted_expense in expense_formset.deleted_objects:
-            deleted_expense.delete()
-
-        # Recompute and Distribute
-        if hasattr(po, "distribute_expenses"):
-            po.distribute_expenses()
-            
-        if hasattr(po, "recompute_totals"):
-            po.recompute_totals()
-            po.save(update_fields=["total_cost", "net_total", "updated_at", "updated_by"])
-
-        # Update last purchase price using LANDING COST
-        for pid in new_qty_by_product.keys():
-            last_item = (
-                po.items.filter(product_id=pid)
-                .exclude(unit_price__isnull=True)
-                .order_by("id")
-                .last()
+        try:
+            self.object = OrderService.process_purchase_order_form(
+                user=self.request.user,
+                form=form,
+                formset=formset,
+                expense_formset=expense_formset,
+                is_update=True
             )
-            if last_item:
-                price_to_store = last_item.landing_unit_price or last_item.unit_price
-                if price_to_store is not None:
-                    Product.objects.filter(pk=pid).update(
-                        purchase_price=price_to_store
-                    )
-
-        # Recompute totals
-        if hasattr(po, "recompute_totals"):
-            po.recompute_totals()
-            po.save(update_fields=["total_cost", "net_total", "updated_at", "updated_by"])
-
-        # Optional payment - clamped to remaining
-        remaining = po.balance_due.quantize(Decimal("0.01"))
-        method = form.cleaned_data.get("payment_method") or "none"
-        bank = form.cleaned_data.get("bank_account")
-        paid = (form.cleaned_data.get("paid_amount") or Decimal("0.00")).quantize(
-            Decimal("0.01")
-        )
-        if paid > remaining:
-            paid = remaining
-
-        if paid > 0:
-            pay_source = None
-            if method == "cash":
-                pay_source = Payment.CASH
-            elif method in ("bank", "cheque"):
-                pay_source = Payment.BANK
-
-            if pay_source:
-                payment_kwargs = {
-                    "business": po.business,
-                    "date": timezone.localdate(),
-                    "party": po.supplier,
-                    "amount": paid,
-                    "description": f"Payment for PO #{po.id}",
-                    "reference": f"PO-{po.id}",
-                    "payment_source": pay_source,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-
-                if _model_has_field(Payment, "direction"):
-                    payment_kwargs["direction"] = Payment.OUT
-
-                if _model_has_field(Payment, "payment_method"):
-                    payment_kwargs["payment_method"] = method
-
-                if (
-                    method in ("bank", "cheque")
-                    and _model_has_field(Payment, "bank_account")
-                    and bank
-                ):
-                    payment_kwargs["bank_account"] = bank
-
-                payment = Payment.objects.create(**payment_kwargs)
-
-
-                po.apply_payment(payment, paid)
-                messages.success(
-                    self.request,
-                    f"Recorded payment ₨ {paid} for PO #{po.id}.",
-                )
-
-        messages.success(self.request, f"Purchase Order #{po.id} updated.")
-        self.object = po
-        return super().form_valid(form)
+            messages.success(self.request, f"Purchase Order #{self.object.id} updated.")
+            return redirect(self.get_success_url())
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
 
     def get_success_url(self):
         return reverse("po_list")
@@ -3525,7 +2794,9 @@ class ExpensesListView(LoginRequiredMixin, ListView):
     login_url = "login"
 
     def get_queryset(self):
-        queryset = Expense.objects.select_related("business", "party", "staff", "bank_account").order_by("-date", "-id")
+        queryset = Expense.objects.select_related("business", "party", "staff", "bank_account").exclude(
+            payment__is_external=True
+        ).order_by("-date", "-id")
         
         # 1. Filter by Category
         category = self.request.GET.get("category")
@@ -3587,6 +2858,8 @@ class BusinessExpensesListView(LoginRequiredMixin, ListView):
         # Start with business filter
         queryset = Expense.objects.filter(business=self.business).select_related(
             "business", "party", "staff", "bank_account"
+        ).exclude(
+            payment__is_external=True
         ).order_by("-date", "-id")
         
         # Reuse the same filtering logic as above
@@ -3870,19 +3143,6 @@ class _SOBaseMixin(LoginRequiredMixin):
 
 # ---------- Helpers ----------
 
-def _model_has_field(model, field_name: str) -> bool:
-    try:
-        model._meta.get_field(field_name)
-        return True
-    except Exception:
-        return False
-
-def _selected_business(request: HttpRequest):
-    """Pick business by ?business=ID or default to the first one."""
-    bid = request.GET.get("business")
-    if bid and str(bid).isdigit():
-        return get_object_or_404(Business, pk=int(bid))
-    return Business.objects.order_by("name", "id").first()
 
 def ensure_party_for_receipt(business, customer, customer_name, customer_phone):
     """
@@ -3913,29 +3173,6 @@ def ensure_party_for_receipt(business, customer, customer_name, customer_phone):
 # ------------------------------------------------------
 
 
-def _product_image_url(p):
-    """
-    Return a safe image URL for a Product.
-    Priority: Product.primary_image().image -> p.image (if direct field exists) -> placeholder.
-    """
-    try:
-        # Prefer related ProductImage marked as primary
-        if hasattr(p, "primary_image"):
-            pim = p.primary_image()
-            if pim and getattr(pim, "image", None):
-                url = getattr(pim.image, "url", "")
-                if url:
-                    return url
-        # Fallback if product has a direct `image` field (some deployments do)
-        direct = getattr(p, "image", None)
-        if direct:
-            url = getattr(direct, "url", "")
-            if url:
-                return url
-    except Exception:
-        pass
-    # Final fallback: static placeholder
-    return static("img/product-placeholder.png")
 
 # ------------------------------------------------------
 # CREATE
@@ -3945,62 +3182,6 @@ def _product_image_url(p):
 # make sure this helper exists in the same file or is imported correctly
 # from .utils import _product_image_url
 
-def _get_walkin_party(business):
-    """
-    Try to find EXISTING 'Walk-in-Customer' Party.
-    If business is given, prefer default_business = business.
-    Otherwise return any Walk-in party.
-    NEVER creates a new one - it must already exist.
-    """
-    qs = Party.objects.filter(
-        is_active=True,
-        is_deleted=False,
-        display_name__iexact="Walk-in-Customer",
-    )
-
-    biz_id = None
-    if business is not None:
-        try:
-            biz_id = getattr(business, "id", None) or getattr(business, "pk", None)
-        except Exception:
-            biz_id = None
-        if biz_id is None and str(business).isdigit():
-            biz_id = int(business)
-
-    if biz_id:
-        # First try to find one with matching default_business
-        p = qs.filter(default_business_id=biz_id).first()
-        if p:
-            return p
-
-    # Return any Walk-in-Customer (case insensitive)
-    return qs.first()
-
-
-def _q2(v) -> Decimal:
-    try:
-        return Decimal(str(v or "0")).quantize(Decimal("0.01"))
-    except Exception:
-        return Decimal("0.00")
-
-
-def _model_has_field(model, field_name: str) -> bool:
-    """Return True if `model` has a real DB field named `field_name`."""
-    return any(
-        getattr(f, "name", None) == field_name
-        and getattr(f, "concrete", False)
-        and not getattr(f, "many_to_many", False)
-        and not getattr(f, "auto_created", False)
-        for f in model._meta.get_fields()
-    )
-
-
-def _product_image_url(product):
-    """Helper to get product image URL"""
-    img = product.primary_image()
-    if img and img.image:
-        return img.image.url
-    return ""
 
 # barkat/views.py (Sales Order section)
 
@@ -4124,214 +3305,18 @@ class SalesOrderCreateView(LoginRequiredMixin, CreateView):
         if not formset.is_valid():
             return self.form_invalid(form)
 
-        # Validate at least one product
-        valid_items_count = 0
-        for f in formset.forms:
-            cd = getattr(f, "cleaned_data", None)
-            if not cd or cd.get("DELETE"):
-                continue
-            prod = cd.get("product")
-            qty = cd.get("quantity") or Decimal("0")
-            if prod and qty > 0:
-                valid_items_count += 1
-
-        if valid_items_count == 0:
-            form.add_error(None, "Sales Order must have at least one product item.")
-            return self.form_invalid(form)
-
-        # Stock check (convert to base unit)
-        requested = {}
-        row_map = {}
-        for f in formset.forms:
-            cd = getattr(f, "cleaned_data", None)
-            if not cd or cd.get("DELETE"):
-                continue
-            prod = cd.get("product")
-            qty = cd.get("quantity") or Decimal("0")
-            size = cd.get("size_per_unit") or Decimal("1")
-            
-            if not prod or qty <= 0:
-                continue
-                
-            # Convert to base unit for stock check
-            base_qty = qty * size
-            requested[prod.id] = requested.get(prod.id, Decimal("0")) + base_qty
-            row_map.setdefault(prod.id, []).append(f)
-
-        if requested:
-            prods = (
-                Product.objects
-                .select_for_update()
-                .filter(id__in=requested.keys(), is_deleted=False)
+        try:
+            self.object = OrderService.process_sales_order_form(
+                user=self.request.user,
+                form=form,
+                formset=formset,
+                is_update=False
             )
-            stock_map = {p.id: (p.stock_qty or Decimal("0")) for p in prods}
-
-            any_error = False
-            for pid, need in requested.items():
-                have = stock_map.get(pid, Decimal("0"))
-                if need > have:
-                    any_error = True
-                    for f in row_map.get(pid, []):
-                        prod_name = f.cleaned_data.get("product").name if f.cleaned_data.get("product") else "Product"
-                        f.add_error("quantity", f"{prod_name}: Only {have} in stock. You requested {need}.")
-            if any_error:
-                form.add_error(None, "Insufficient stock for one or more items.")
-                return self.form_invalid(form)
-
-        # Save order
-        self.object = form.save(commit=False)
-
-        # Set created_at from order_date
-        # The form sends naive datetime in Pakistan time, we need to make it timezone-aware
-        order_date = form.cleaned_data.get("order_date")
-        if order_date:
-            if isinstance(order_date, datetime):
-                # If it's already timezone-aware, use it as-is
-                if timezone.is_aware(order_date):
-                    self.object.created_at = order_date
-                else:
-                    # It's naive datetime in Pakistan time, make it aware
-                    # timezone.make_aware() will treat it as being in TIME_ZONE (Asia/Karachi)
-                    self.object.created_at = timezone.make_aware(order_date)
-            elif isinstance(order_date, date):
-                # If it's just a date, convert to datetime at start of day
-                order_datetime = datetime.combine(order_date, datetime.min.time())
-                self.object.created_at = timezone.make_aware(order_datetime)
-            else:
-                # Fallback: use current time
-                self.object.created_at = timezone.now()
-        else:
-            # No order_date provided, use current time
-            self.object.created_at = timezone.now()
-
-        customer = form.cleaned_data.get("customer")
-        cname = (form.cleaned_data.get("customer_name") or "").strip()
-        business = form.cleaned_data.get("business")
-
-        # Walk-in customer logic
-        if not customer and not cname:
-            walkin = _get_walkin_party(business)
-            if walkin:
-                self.object.customer = walkin
-                self.object.customer_name = walkin.display_name
-                self.object.customer_phone = walkin.phone or ""
-                self.object.customer_address = walkin.address or ""
-            else:
-                self.object.customer = None
-                self.object.customer_name = "Walk-in Customer"
-                self.object.customer_phone = ""
-                self.object.customer_address = ""
-        else:
-            self.object.customer = customer
-            if cname:
-                self.object.customer_name = cname
-
-        self.object.created_by = self.request.user
-        self.object.updated_by = self.request.user
-        self.object.save()
-
-        # Save items with UOM support
-        for item_form in formset:
-            if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
-                item = item_form.save(commit=False)
-                item.sales_order = self.object
-                
-                # Ensure uom and size_per_unit are set
-                if not item.uom_id:
-                    item.uom = item.product.uom
-                if not item.size_per_unit:
-                    item.size_per_unit = Decimal("1.000000")
-                    
-                item.save()
-
-        self.object.recompute_totals()
-        
-        # Set status to OPEN initially (will be updated to FULFILLED after payment if fully paid)
-        self.object.status = SalesOrder.Status.OPEN
-        
-        self.object.updated_by = self.request.user
-        self.object.save()
-
-        # Stock out (using base units)
-        if requested:
-            prods = Product.objects.select_for_update().filter(id__in=requested.keys())
-            for p in prods:
-                need = requested.get(p.id, Decimal("0"))
-                if need > 0:
-                    p.stock_qty = (p.stock_qty or Decimal("0")) - need
-                    try:
-                        p.updated_by = self.request.user
-                        p.save(update_fields=["stock_qty", "updated_by", "updated_at"])
-                    except Exception:
-                        p.save(update_fields=["stock_qty"])
-
-        # Receipt on create
-        method = form.cleaned_data.get("receipt_method")
-        amount = form.cleaned_data.get("received_amount")
-        bank = form.cleaned_data.get("bank_account")
-
-        # Extract date from order_date for payment (handle both date and datetime)
-        if order_date:
-            if isinstance(order_date, datetime):
-                pay_date = timezone.localdate(order_date) if timezone.is_aware(order_date) else order_date.date()
-            elif isinstance(order_date, date):
-                pay_date = order_date
-            else:
-                pay_date = timezone.localdate()
-        else:
-            pay_date = timezone.localdate()
-
-        if method in ("cash", "bank", "card") and amount and amount > 0:
-            order = self.object
-            party = order.customer or _get_walkin_party(order.business)
-
-            if party:
-                # Card and Bank both go to bank ledger
-                payment_source_value = "bank" if method in ("bank", "card") else "cash"
-
-                payment_kwargs = {
-                    "business": order.business,
-                    "party": party,
-                    "date": pay_date,
-                    "amount": amount,
-                    "payment_source": payment_source_value,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-
-                if _model_has_field(Payment, "direction"):
-                    payment_kwargs["direction"] = Payment.IN
-
-                if _model_has_field(Payment, "payment_method"):
-                    payment_kwargs["payment_method"] = method
-
-                # Bank and Card both require bank_account
-                if method in ("bank", "card") and _model_has_field(Payment, "bank_account") and bank:
-                    payment_kwargs["bank_account"] = bank
-
-                pay = Payment.objects.create(**payment_kwargs)
-
-                available = _q2(getattr(order, "balance_due", 0))
-                applied_amount = _q2(amount)
-                
-                if available <= 0:
-                    applied_amount = Decimal("0.00")
-                elif applied_amount > available:
-                    applied_amount = available
-
-                if applied_amount > 0:
-                    try:
-                        order.apply_receipt(pay, applied_amount)
-                        order.recompute_totals()
-                        # Auto-update status to fulfilled if fully paid
-                        if order.paid_total >= order.net_total and order.net_total > Decimal("0.00"):
-                            order.status = SalesOrder.Status.FULFILLED
-                        order.updated_by = self.request.user
-                        order.save()
-                    except ValidationError as ve:
-                        messages.error(self.request, str(ve))
-
-                # CashFlow is now automatically handled by Payment.save()
+            messages.success(self.request, f"Sales Order #{self.object.pk} created.")
+            return redirect(self.get_success_url())
+        except ValidationError as ve:
+            form.add_error(None, str(ve))
+            return self.form_invalid(form)
 
 
         messages.success(self.request, f"Sales Order #{self.object.pk} created.")
@@ -4437,173 +3422,21 @@ class SalesOrderUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         ctx = self.get_context_data()
         formset = ctx["formset"]
-        
         if not formset.is_valid():
             return self.form_invalid(form)
 
-        so = self.object
-        
-        # Stock reversal with UOM support
-        db_items = {
-            it.id: (it.product_id, it.quantity, it.size_per_unit or Decimal("1")) 
-            for it in so.items.all()
-        }
-        stock_changes = {}
-
-        for f in formset.forms:
-            if not f.cleaned_data: 
-                continue
-            
-            instance_id = f.instance.id
-            new_product = f.cleaned_data.get('product')
-            new_qty = f.cleaned_data.get('quantity') or Decimal('0')
-            new_size = f.cleaned_data.get('size_per_unit') or Decimal('1')
-            is_deleted = f.cleaned_data.get('DELETE')
-
-            if instance_id in db_items:
-                old_pid, old_qty, old_size = db_items[instance_id]
-                old_base = old_qty * old_size
-                new_base = new_qty * new_size
-                
-                if is_deleted:
-                    stock_changes[old_pid] = stock_changes.get(old_pid, Decimal('0')) + old_base
-                elif new_product and new_product.id != old_pid:
-                    stock_changes[old_pid] = stock_changes.get(old_pid, Decimal('0')) + old_base
-                    stock_changes[new_product.id] = stock_changes.get(new_product.id, Decimal('0')) - new_base
-                else:
-                    diff = old_base - new_base
-                    stock_changes[old_pid] = stock_changes.get(old_pid, Decimal('0')) + diff
-            else:
-                if not is_deleted and new_product:
-                    new_base = new_qty * new_size
-                    stock_changes[new_product.id] = stock_changes.get(new_product.id, Decimal('0')) - new_base
-
-        # Apply stock changes
-        for pid, qty_to_change in stock_changes.items():
-            if qty_to_change != 0:
-                Product.objects.filter(id=pid).update(stock_qty=F('stock_qty') + qty_to_change)
-
-        # Save order (created_at remains unchanged - it's immutable after creation)
-        so = form.save(commit=False)
-        so.updated_by = self.request.user
-        so.save()
-
-        # Save items with UOM
-        for item_form in formset:
-            if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
-                item = item_form.save(commit=False)
-                if not item.uom_id:
-                    item.uom = item.product.uom
-                if not item.size_per_unit:
-                    item.size_per_unit = Decimal("1.000000")
-                item.save()
-
-        formset.save()
-        
-        # Recompute totals FIRST before handling payments
-        so.recompute_totals()
-        so.save()
-        
-        # Auto-update status based on payment status (before processing new payment)
-        if so.paid_total >= so.net_total and so.net_total > Decimal("0.00"):
-            so.status = SalesOrder.Status.FULFILLED
-        else:
-            # If not fully paid, ensure status is OPEN (unless already cancelled)
-            if so.status != SalesOrder.Status.CANCELLED:
-                so.status = SalesOrder.Status.OPEN
-        so.save(update_fields=['status'])
-        
-        # Handle payment similar to CreateView
-        method = form.cleaned_data.get("receipt_method") or "none"
-        amount = form.cleaned_data.get("received_amount") or Decimal("0.00")
-        bank = form.cleaned_data.get("bank_account")
-        order_date = form.cleaned_data.get("order_date")
-        
-        # Extract date from order_date for payment (handle both date and datetime)
-        if order_date:
-            if isinstance(order_date, datetime):
-                pay_date = timezone.localdate(order_date) if timezone.is_aware(order_date) else order_date.date()
-            elif isinstance(order_date, date):
-                pay_date = order_date
-            else:
-                pay_date = timezone.localdate()
-        else:
-            # Fallback: use order's created_at date if available, otherwise today
-            if so.created_at:
-                pay_date = timezone.localdate(so.created_at) if timezone.is_aware(so.created_at) else so.created_at.date()
-            else:
-                pay_date = timezone.localdate()
-
-        if method in ("cash", "bank", "card") and amount and amount > 0:
-            # Clean up old payment applications if updating
-            # This prevents duplicate payments when editing the order
-            for app in so.receipt_applications.all():
-                pay_to_del = app.payment
-                # Delete the application
-                app.delete()
-                # Delete the payment (handles its own cashflow deletion)
-                pay_to_del.delete()
-
-            party = so.customer or _get_walkin_party(so.business)
-
-            if party:
-                # Card and Bank both go to bank ledger
-                payment_source_value = "bank" if method in ("bank", "card") else "cash"
-
-                payment_kwargs = {
-                    "business": so.business,
-                    "party": party,
-                    "date": pay_date,
-                    "amount": amount,
-                    "payment_source": payment_source_value,
-                    "created_by": self.request.user,
-                    "updated_by": self.request.user,
-                }
-
-                if _model_has_field(Payment, "direction"):
-                    payment_kwargs["direction"] = Payment.IN
-
-                if _model_has_field(Payment, "payment_method"):
-                    payment_kwargs["payment_method"] = method
-
-                # Bank and Card both require bank_account
-                if method in ("bank", "card") and _model_has_field(Payment, "bank_account") and bank:
-                    payment_kwargs["bank_account"] = bank
-
-                pay = Payment.objects.create(**payment_kwargs)
-
-                # Use the UPDATED balance_due after recompute_totals
-                available = _q2(so.balance_due)
-                applied_amount = _q2(amount)
-                
-                if available <= 0:
-                    applied_amount = Decimal("0.00")
-                elif applied_amount > available:
-                    applied_amount = available
-
-                if applied_amount > 0:
-                    try:
-                        so.apply_receipt(pay, applied_amount)
-                        # Recompute totals again after applying receipt
-                        so.recompute_totals()
-                        # Auto-update status to fulfilled if fully paid after payment
-                        if so.paid_total >= so.net_total and so.net_total > Decimal("0.00"):
-                            so.status = SalesOrder.Status.FULFILLED
-                        so.updated_by = self.request.user
-                        so.save()
-                    except ValidationError as ve:
-                        messages.error(self.request, str(ve))
-
-                # CashFlow is now automatically handled by Payment.save()
-
-        else:
-            # If no payment method selected or amount is 0, clean up any existing payments
-            for app in so.receipt_applications.all():
-                pay_to_del = app.payment
-                # Delete the application
-                app.delete()
-                # Delete the payment (handles its own cashflow deletion)
-                pay_to_del.delete()
+        try:
+            self.object = OrderService.process_sales_order_form(
+                user=self.request.user,
+                form=form,
+                formset=formset,
+                is_update=True
+            )
+            messages.success(self.request, f"Sales Order #{self.object.pk} updated.")
+            return redirect(self.get_success_url())
+        except ValidationError as ve:
+            form.add_error(None, str(ve))
+            return self.form_invalid(form)
 
         messages.success(self.request, f"Sales Order #{so.pk} updated.")
         return redirect(self.get_success_url())
@@ -5199,15 +4032,6 @@ class SalesReturnBusinessListView(_ReturnBaseList):
         ctx["business"] = biz
         ctx["businesses"] = Business.objects.order_by("name", "id")
         return ctx
-
-def _product_image_url(p):
-    try:
-        img = p.images.first()
-        if img and getattr(img, "image", None):
-            return img.image.url
-    except Exception:
-        pass
-    return "/static/img/placeholder.png"
 
 def _build_products_cards(qs):
     """
@@ -6155,11 +4979,21 @@ def finance_reports(request):
     )["s"]
 
     # --- NEW: Landed PO Expenses vs Operating Expenses ---
-    landed_po_expenses_total = Expense.objects.filter(exp_filter, purchase_order__isnull=False).aggregate(
+    landed_po_expenses_total = Expense.objects.filter(
+        exp_filter, 
+        purchase_order__isnull=False
+    ).exclude(
+        payment__is_external=True
+    ).aggregate(
         s=Coalesce(Sum("amount", output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
     )["s"] or D0
 
-    operating_expenses_total = Expense.objects.filter(exp_filter, purchase_order__isnull=True).aggregate(
+    operating_expenses_total = Expense.objects.filter(
+        exp_filter, 
+        purchase_order__isnull=True
+    ).exclude(
+        payment__is_external=True
+    ).aggregate(
         s=Coalesce(Sum("amount", output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
     )["s"] or D0
 
@@ -6182,7 +5016,8 @@ def finance_reports(request):
     all_cash_in_qs = Payment.objects.filter(
         direction=Payment.IN, 
         payment_source=Payment.CASH,
-        date__range=(d_from, d_to)
+        date__range=(d_from, d_to),
+        is_external=False
     )
     if business:
         all_cash_in_qs = all_cash_in_qs.filter(business=business)
@@ -6212,7 +5047,8 @@ def finance_reports(request):
     cash_out_qs = Payment.objects.filter(
         direction=Payment.OUT, 
         payment_source=Payment.CASH,
-        date__range=(d_from, d_to)
+        date__range=(d_from, d_to),
+        is_external=False
     )
     if business:
         cash_out_qs = cash_out_qs.filter(business=business)
@@ -6222,7 +5058,7 @@ def finance_reports(request):
     )["s"] or D0
     
     # Bank transactions
-    pay_qs = Payment.objects.filter(date__range=(d_from, d_to))
+    pay_qs = Payment.objects.filter(date__range=(d_from, d_to), is_external=False)
     if business:
         pay_qs = pay_qs.filter(business=business)
 
@@ -6256,6 +5092,7 @@ def finance_reports(request):
         payment_method=Payment.PaymentMethod.CHEQUE,
         cheque_status=Payment.ChequeStatus.DEPOSITED,
         updated_at__date__range=(d_from, d_to),
+        is_external=False
     )
     if business:
         cheque_deposited_qs = cheque_deposited_qs.filter(business=business)
@@ -6531,7 +5368,8 @@ def finance_reports(request):
         direction=Payment.OUT,
         payment_source=Payment.CASH,
         payment_method=Payment.PaymentMethod.CASH,
-        date__range=(d_from, d_to)
+        date__range=(d_from, d_to),
+        is_external=False
     )
     if business:
         po_cash_payments_qs = po_cash_payments_qs.filter(business=business)
@@ -6552,7 +5390,8 @@ def finance_reports(request):
         direction=Payment.OUT,
         payment_source=Payment.CASH,
         payment_method=Payment.PaymentMethod.CASH,
-        date__range=(d_from, d_to)
+        date__range=(d_from, d_to),
+        is_external=False
     )
     if business:
         sr_cash_refunds_qs = sr_cash_refunds_qs.filter(business=business)
@@ -6580,7 +5419,8 @@ def finance_reports(request):
     bank_sales_qs = Payment.objects.filter(
         direction=Payment.IN,
         payment_source=Payment.BANK,
-        date__range=(d_from, d_to)
+        date__range=(d_from, d_to),
+        is_external=False
     ).filter(
         Q(applied_sales_orders__isnull=False) |
         Q(applied_sales_invoices__isnull=False)
@@ -6998,6 +5838,8 @@ def finance_reports(request):
     # (PO-linked expenses are already in COGS via landed cost)
     operating_expenses_total = Expense.objects.filter(
         exp_filter & Q(purchase_order__isnull=True)
+    ).exclude(
+        payment__is_external=True
     ).aggregate(
         s=Coalesce(Sum("amount", output_field=DecimalField(max_digits=18, decimal_places=2)), D0)
     )["s"] or D0
@@ -8567,10 +7409,6 @@ class UserSettingsUpdateView(LoginRequiredMixin, UpdateView):
 # --------------------------------
 # Use same tmp folder pattern as POS receipts
 from pathlib import Path
-TMP_DIR: Path = Path(
-    getattr(settings, "RECEIPT_TMP_DIR", Path(settings.BASE_DIR) / "tmp_receipts")
-).resolve()
-TMP_DIR.mkdir(parents=True, exist_ok=True)
 
 @method_decorator(csrf_exempt, name="dispatch")
 class PrintBarcodeLabelsView(LoginRequiredMixin, View):

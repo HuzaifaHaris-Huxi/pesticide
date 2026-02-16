@@ -20,44 +20,8 @@ from .forms import SalesOrderForm, SalesOrderItemFormSet
 from .models import Business, SalesOrder, SalesOrderItem, Product, Payment, Party
 from .utils.receipt_render import render_receipt_bitmap
 from .utils.pos_print import raw_print_bitmap, PosPrintError
+from .utils.view_helpers import _model_has_field, _q2, _get_walkin_party, TMP_DIR
 from .ledger_views import _compute_party_balance
-
-# -------- Settings / paths ----------------------------------------------------
-
-
-TMP_DIR: Path = Path(
-    getattr(settings, "RECEIPT_TMP_DIR", Path(settings.BASE_DIR) / "tmp_receipts")
-).resolve()
-TMP_DIR.mkdir(parents=True, exist_ok=True)
-
-def _q2(v) -> Decimal:
-    """Quantize to 2 decimal places to match UpdateView logic."""
-    try:
-        return Decimal(str(v or "0")).quantize(Decimal("0.01"))
-    except Exception:
-        return Decimal("0.00")
-
-def _get_walkin_party(business):
-    """Reuse existing Walk-in-Customer logic."""
-    qs = Party.objects.filter(
-        is_active=True,
-        is_deleted=False,
-        display_name__iexact="Walk-in-Customer",
-    )
-    biz_id = getattr(business, "id", None) or getattr(business, "pk", None)
-    if biz_id is None and str(business).isdigit():
-        biz_id = int(business)
-    if biz_id:
-        p = qs.filter(default_business_id=biz_id).first()
-        if p: return p
-    return qs.first()
-
-def _model_has_field(model, field_name: str) -> bool:
-    return any(
-        getattr(f, "name", None) == field_name
-        and getattr(f, "concrete", False)
-        for f in model._meta.get_fields()
-    )
 
 def ensure_party_for_receipt(*, business, customer=None, customer_name="", customer_phone=""):
     if customer: return customer

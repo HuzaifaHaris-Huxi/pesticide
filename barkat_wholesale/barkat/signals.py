@@ -46,6 +46,32 @@ def ensure_singleton(sender, instance, **kwargs):
 def so_pre_save(sender, instance, **kwargs):
     capture_orig(instance, ['net_total', 'status', 'business_id'])
 
+# 1.1 SalesInvoice Signals (Receivables) - Added to fix missing SummaryStats impact
+@receiver(pre_save, sender=SalesInvoice)
+def inv_pre_save(sender, instance, **kwargs):
+    capture_orig(instance, ['net_total', 'status', 'business_id'])
+
+@receiver(post_save, sender=SalesInvoice)
+def inv_post_save(sender, instance, created, **kwargs):
+    old_total = getattr(instance, '_orig_net_total', Decimal("0.00")) or Decimal("0.00")
+    old_status = getattr(instance, '_orig_status', None)
+    
+    new_total = instance.net_total or Decimal("0.00")
+    new_status = instance.status
+
+    # Only count if not void/draft (Posted is active)
+    val_old = old_total if old_status == 'posted' else Decimal("0.00")
+    val_new = new_total if new_status == 'posted' else Decimal("0.00")
+    
+    diff = val_new - val_old
+    if diff != 0:
+        SummaryStats.objects.filter(pk=1).update(total_receivables=F('total_receivables') + diff)
+
+@receiver(post_delete, sender=SalesInvoice)
+def inv_post_delete(sender, instance, **kwargs):
+    if instance.status == 'posted':
+        SummaryStats.objects.filter(pk=1).update(total_receivables=F('total_receivables') - (instance.net_total or 0))
+
 @receiver(post_save, sender=SalesOrder)
 def so_post_save(sender, instance, created, **kwargs):
     old_total = getattr(instance, '_orig_net_total', Decimal("0.00")) or Decimal("0.00")
@@ -111,12 +137,13 @@ def po_post_delete(sender, instance, **kwargs):
 # 3. Payment Signals (Receivables/Payables reduction + Cash In Hand)
 @receiver(pre_save, sender=Payment)
 def pay_pre_save(sender, instance, **kwargs):
-    capture_orig(instance, ['amount', 'direction', 'payment_method', 'bank_account', 'is_deleted', 'business_id'])
+    capture_orig(instance, ['amount', 'direction', 'payment_method', 'bank_account', 'is_deleted', 'business_id', 'cheque_status'])
 
 @receiver(post_save, sender=Payment)
 def pay_post_save(sender, instance, created, **kwargs):
     def get_impact(obj):
         if not obj or getattr(obj, 'is_deleted', False): return (0, 0, 0)
+        if getattr(obj, 'cheque_status', '') == 'pending': return (0, 0, 0)
         
         amt = obj.amount or Decimal("0.00")
         dr = obj.direction # 'in' or 'out'
@@ -153,6 +180,7 @@ def pay_post_save(sender, instance, created, **kwargs):
     old_obj.payment_method = getattr(instance, '_orig_payment_method', None)
     old_obj.bank_account = getattr(instance, '_orig_bank_account', None)
     old_obj.is_deleted = getattr(instance, '_orig_is_deleted', False)
+    old_obj.cheque_status = getattr(instance, '_orig_cheque_status', '')
     
     old_rec, old_pay, old_cash = get_impact(old_obj)
     new_rec, new_pay, new_cash = get_impact(instance)
@@ -185,6 +213,8 @@ def pay_post_delete(sender, instance, **kwargs):
         dr = obj.direction
         rec = -amt if dr == 'in' else 0
         pay = -amt if dr == 'out' else 0
+        if getattr(obj, 'cheque_status', '') == 'pending': return (0, 0, 0)
+        
         is_cash = (obj.payment_method == 'cash' or 
                   (obj.payment_method == 'bank' and obj.bank_account and obj.bank_account.account_type == 'CASH'))
         cash = (amt if dr == 'in' else -amt) if is_cash else 0
