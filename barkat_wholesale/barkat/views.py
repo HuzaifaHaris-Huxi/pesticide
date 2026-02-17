@@ -1581,7 +1581,8 @@ class BankMovementCreateView(LoginRequiredMixin, CreateView):
         cash_in_qs = Payment.objects.filter(
             direction=Payment.IN, 
             payment_source=Payment.CASH,
-            date__lte=today
+            date__lte=today,
+            is_external=False
         )
         if business:
             cash_in_qs = cash_in_qs.filter(business=business)
@@ -1594,7 +1595,8 @@ class BankMovementCreateView(LoginRequiredMixin, CreateView):
         cash_out_qs = Payment.objects.filter(
             direction=Payment.OUT, 
             payment_source=Payment.CASH,
-            date__lte=today
+            date__lte=today,
+            is_external=False
         )
         if business:
             cash_out_qs = cash_out_qs.filter(business=business)
@@ -1604,8 +1606,8 @@ class BankMovementCreateView(LoginRequiredMixin, CreateView):
         )["s"]
 
         # 3. EXTRA CASH EXPENSES
-        # Note: Removed the exclude(expense_id) line to fix the FieldError
-        exp_cash_qs = Expense.objects.filter(date__lte=today)
+        # Note: Exclude expenses that already have a linked Payment object to avoid double counting
+        exp_cash_qs = Expense.objects.filter(date__lte=today, payment__isnull=True)
         if business:
             exp_cash_qs = exp_cash_qs.filter(business=business)
 

@@ -898,12 +898,11 @@
         </div>
       </div>
 
-      <!-- Net Profit Card -->
+      <!-- Gross Profit Card -->
       <div class="relative rounded-xl border border-indigo-200 bg-indigo-50/80 p-4" style="flex: 1 !important; min-width: 0 !important;">
-        <p class="text-[11px] font-semibold tracking-wide text-indigo-700 uppercase">Net Profit</p>
-        <p class="mt-2 text-xl font-bold {% if kpi_net_profit < 0 %}text-rose-600{% else %}text-indigo-700{% endif %}">₨ {{ kpi_net_profit|default:0|floatformat:2 }}</p>
+        <p class="text-[11px] font-semibold tracking-wide text-indigo-700 uppercase">Gross Profit</p>
+        <p class="mt-2 text-xl font-bold text-indigo-700">₨ {{ kpi_gross_profit|default:0|floatformat:2 }}</p>
         <div class="mt-2 pt-2 border-t border-indigo-200/50">
-          <p class="text-[10px] text-indigo-700/90"><strong>Gross Profit:</strong> ₨ {{ kpi_gross_profit|default:0|floatformat:2 }}</p>
           <p class="text-[10px] text-indigo-700/90"><strong>Cash Sale Profit:</strong> ₨ {{ kpi_cash_sale_profit|default:0|floatformat:2 }}</p>
         </div>
       </div>

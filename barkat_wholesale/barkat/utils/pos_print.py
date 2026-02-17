@@ -41,7 +41,9 @@ def raw_print_bitmap(printer_name: str, bmp_path: str, width_px: int = 576):
         try:
             scale = expected_width / max(actual_width, 1)
             new_height = int(img.height * scale)
-            img = img.resize((int(expected_width), new_height), Image.Resampling.LANCZOS)
+            # CRITICAL: Use NEAREST for barcodes and thermal printing to avoid blurry edges
+            # LANCZOS anti-aliasing confuses scanners and thermal printers
+            img = img.resize((int(expected_width), new_height), Image.Resampling.NEAREST)
         except Exception as e:
             raise PosPrintError(f"Failed to scale image: {e}")
 

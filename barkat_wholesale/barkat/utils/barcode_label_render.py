@@ -56,20 +56,19 @@ SIDE_MARGIN_MM = 1.0  # Most 80mm rolls have ~1mm liner on each far edge
 # Internal label padding
 LABEL_PADDING_MM = 1.5  # Internal padding within label
 
-# Quiet zone for barcode scanning (CRITICAL: minimum 2mm on each side)
-# Per user requirements: "Leave about 2mm of white space on the left and right of the barcode"
-QUIET_ZONE_MM = 2.0  # Exactly 2mm quiet zone for barcode scanning
+# Quiet zone for barcode scanning (CRITICAL: minimum 3.5mm-4mm on each side)
+# Per user requirements: "Leave about 4mm of white space on the left and right of the barcode"
+QUIET_ZONE_MM = 4.0  # Increased to 4mm for much better scan reliability
 
 # Barcode sizing controls (tune for scan reliability)
 # For 203 DPI thermal printers:
 # - X-Dimension (narrowest bar) should be at least 10 mils (0.254mm) = ~2 pixels at 203 DPI
-# - Recommended: 15 mils (0.381mm) = 3 pixels at 203 DPI for better scanning
-# - Module width must align with printer pixels (integer multiples)
-# - Minimum quiet zone: 10x X-dimension (typically 2.5-3mm minimum)
-BARCODE_MODULE_WIDTH_MM = 0.38  # 15 mils = 3 pixels at 203 DPI (optimal for scanning)
+# - 15 mils (3 pixels) is great but often too wide for 38mm labels with alphanumeric data.
+# - We'll use 2 pixels (approx 10-12 mils) as the target for better fit.
+BARCODE_MODULE_WIDTH_MM = 0.26  # ~2.08 pixels at 203 DPI -> rounds to 2 pixels
 # Height should be sufficient for scanner to read (minimum 6mm, recommended 8-10mm)
-BARCODE_MODULE_HEIGHT_MM = 8.0  # bar height in mm (good balance of size and scannability)
-MIN_BARCODE_MODULE_WIDTH_MM = 0.30  # Minimum 12 mils (0.30mm = ~2.4 pixels) - do not go below
+BARCODE_MODULE_HEIGHT_MM = 10.0  # Slightly taller bars help scanning
+MIN_BARCODE_MODULE_WIDTH_MM = 0.13  # Allow 1 pixel (5 mils) as absolute last resort for long codes
 
 
 def _render_code128_fitted(
@@ -156,7 +155,7 @@ def _render_code128_fitted(
                 best_barcode = barcode_img
 
             # Too wide/tall: reduce module width by one pixel
-            if module_w_pixels > 2:
+            if module_w_pixels > 1:
                 module_w_pixels -= 1
                 module_w = module_w_pixels / pixels_per_mm
             else:
