@@ -1032,8 +1032,49 @@ class LedgerDetailView(View):
             else Paginator(base_rows, 25).get_page(request.GET.get("page"))
         )
 
+        def _fetch_party_cheques_for_businesses(biz_ids, party_id, kind):
+            from barkat.models import Payment
+            from django.db.models import Sum
+            
+            # Base query finding cheque payments for this party
+            qs = Payment.objects.filter(
+                payment_method=Payment.PaymentMethod.CHEQUE,
+                party_id=party_id
+            )
+            
+            # Filter by business
+            if biz_ids:
+                qs = qs.filter(business_id__in=biz_ids)
+                
+            # Exclude refunds and properly handle direction depending on kind
+            from barkat.ledger_views import _is_return_refund_payment
+            qs = [p for p in qs if not _is_return_refund_payment(p)]
+            
+            # Additional DB filtering is tricky due to list comprehension, let's keep it simple
+            # and just filter the Django queryset directly if possible, but _is_return_refund_payment needs instances
+            
+            # Let's rebuild qs as a proper list of interesting cheques
+            valid_cheques = []
+            pending_tot = Decimal("0.0")
+            deposited_tot = Decimal("0.0")
+            
+            for p in qs:
+                if kind == 'supplier' and p.direction != Payment.OUT: continue
+                if kind == 'customer' and p.direction != Payment.IN: continue
+                
+                valid_cheques.append(p)
+                if p.cheque_status == Payment.ChequeStatus.PENDING:
+                    pending_tot += p.amount
+                elif p.cheque_status == Payment.ChequeStatus.DEPOSITED:
+                    deposited_tot += p.amount
+            
+            # Return list, pending total, deposited total
+            return valid_cheques, pending_tot, deposited_tot
+
         cheque_qs, pending_total, deposited_total = _fetch_party_cheques_for_businesses(
-            [business.id] if not all_mode else Business.objects.filter(is_deleted=False, is_active=True).values_list("id", flat=True)
+            [business.id] if not all_mode else Business.objects.filter(is_deleted=False, is_active=True).values_list("id", flat=True),
+            entity_id,
+            kind
         )
 
         return render(
@@ -1341,6 +1382,12 @@ class BusinessesView(ListView):
         today = timezone.now().date()
         ctx["today_date"] = today
         
+        import time
+        dashboard_revealed_at = request.session.get("dashboard_revealed_at", 0)
+        # Session expires after 2 minutes (120 seconds)
+        session_expired = (time.time() - dashboard_revealed_at) > 120
+        ctx["dashboard_unlocked"] = not session_expired
+
         ctx["csrf_token"] = get_token(self.request)
         ctx["party_kind"] = party_kind
         ctx["party_rows"] = party_rows

@@ -2715,8 +2715,6 @@ class PurchaseReturnUpdateView(LoginRequiredMixin, UpdateView):
         for inst in deleted:
             inst.delete()
 
-        formset.save_m2m()
-
         # Totals
         if hasattr(pr, "recompute_totals"):
             pr.recompute_totals()

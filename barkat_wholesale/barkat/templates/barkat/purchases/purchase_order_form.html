@@ -568,7 +568,6 @@
 
   const body = document.getElementById("itemBody");
   const addBtn = document.getElementById("addRow");
-  const totalEl = document.querySelector('[name$="TOTAL_FORMS"]');
 
   const taxEl = document.getElementById("id_tax_percent");
   const discEl = document.getElementById("id_discount_percent");
@@ -810,11 +809,7 @@
 
       if (!idInput || !idInput.value) {
         tr.remove();
-        if (totalEl) {
-          const current = parseInt(totalEl.value, 10) || 0;
-          totalEl.value = Math.max(0, current - 1);
-          reindexRows();
-        }
+        reindexRows();
       } else {
         if (delInput) delInput.checked = true;
         tr.style.display = "none";
@@ -998,13 +993,8 @@
     row.querySelector(".unit-toggle").dataset.currentUnit = "lowest";
     const salePriceHint = row.querySelector(".sale-price-unit-hint");
     if (salePriceHint) salePriceHint.textContent = "";
-
     body.appendChild(row);
-    if (totalEl) {
-      const current = parseInt(totalEl.value, 10) || 0;
-      totalEl.value = current + 1;
-      reindexRows();
-    }
+    reindexRows();
     wireRow(row);
     computeTotals();
   });
@@ -1327,11 +1317,7 @@
           targetRow.querySelector('.unit-label').textContent = '--';
           targetRow.querySelector('.unit-toggle').dataset.currentUnit = 'lowest';
           body.appendChild(targetRow);
-          if (totalEl) {
-            const current = parseInt(totalEl.value, 10) || 0;
-            totalEl.value = current + 1;
-            reindexRows();
-          }
+          reindexRows();
           wireRow(targetRow);
         }
       }

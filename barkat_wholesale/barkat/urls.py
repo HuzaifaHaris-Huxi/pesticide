@@ -151,6 +151,7 @@ urlpatterns = [
     path("finance/cash-out/<int:pk>/delete/", 
          from_cash_out.CashOutDeleteView.as_view(), 
          name="cash_out_delete"),
+    path("finance/business-cash-in-hand-api/", from_cash_out.CashInHandAPI.as_view(), name="cash_in_hand_api"),
 
     #Sales
      # lists

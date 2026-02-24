@@ -8,9 +8,9 @@ def get_business_financials(business_id=None):
     Unified calculation for core financial metrics.
     If business_id is None, calculates global totals across all active businesses.
     """
-    # 1. Cash In Hand (Physical Cash + CASH-type BankAccounts)
+    # 1. Cash In Hand (Physical Cash ONLY)
     cash_in_hand_qs = CashFlow.objects.filter(
-        Q(bank_account__isnull=True) | Q(bank_account__account_type=BankAccount.CASH)
+        bank_account__isnull=True
     ).filter(is_deleted=False)
     
     if business_id:
@@ -25,22 +25,9 @@ def get_business_financials(business_id=None):
         ))
     )['t'] or Decimal('0.00')
 
-    # Add opening balances for CASH accounts
-    cash_acc_opening_qs = BankAccount.objects.filter(
-        account_type=BankAccount.CASH,
-        is_active=True,
-        is_deleted=False
-    )
-    if business_id:
-        cash_acc_opening_qs = cash_acc_opening_qs.filter(business_id=business_id)
-    
-    cash_acc_opening = cash_acc_opening_qs.aggregate(s=Sum('opening_balance'))['s'] or Decimal('0.00')
-    cash_in_hand += cash_acc_opening
-
-    # 2. Bank Balance (Only BANK-type BankAccounts)
+    # 2. Bank Balance (All BankAccounts regardless of type)
     bank_balance_qs = CashFlow.objects.filter(
-        bank_account__isnull=False,
-        bank_account__account_type=BankAccount.BANK
+        bank_account__isnull=False
     ).filter(is_deleted=False)
     
     if business_id:
@@ -55,9 +42,8 @@ def get_business_financials(business_id=None):
         ))
     )['t'] or Decimal('0.00')
 
-    # Add opening balances for BANK accounts
+    # Add opening balances for ALL bank accounts
     bank_acc_opening_qs = BankAccount.objects.filter(
-        account_type=BankAccount.BANK,
         is_active=True,
         is_deleted=False
     )

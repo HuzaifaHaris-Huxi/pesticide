@@ -10,7 +10,7 @@ from barkat.models import (
     PurchaseOrder, PurchaseOrderItem, PurchaseOrderPayment, PurchaseReturn, PurchaseReturnRefund,
     Expense, ExpenseCategory
 )
-from barkat.ledger import LedgerRow, builds_ledger_base # We might need to split ledger.py later
+from barkat.ledger import LedgerRow # We might need to split ledger.py later
 
 class LedgerService:
     @staticmethod

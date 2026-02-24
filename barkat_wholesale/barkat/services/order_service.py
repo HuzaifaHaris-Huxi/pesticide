@@ -337,7 +337,6 @@ class OrderService:
         if is_update:
             for deleted_item in formset.deleted_objects:
                 deleted_item.delete()
-        formset.save_m2m()
 
         # 2. Stock Update Logic (Delta based)
         new_status = (po.status or "").lower()

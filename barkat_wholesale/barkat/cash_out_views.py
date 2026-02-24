@@ -76,9 +76,22 @@ class CashOutCreateView(LoginRequiredMixin, FormView):
         bid = self.request.GET.get("business")
         if bid and bid.isdigit():
             biz = businesses.filter(id=int(bid)).first()
+        
+        # NEW: Auto-select from UserSettings if no business in GET
+        if not biz and self.request.user.is_authenticated:
+            from .models import UserSettings
+            user_settings = UserSettings.objects.filter(user=self.request.user).first()
+            if user_settings and user_settings.default_sale_business:
+                biz = user_settings.default_sale_business
 
         ctx["businesses"] = businesses
         ctx["business"] = biz
+        
+        if biz:
+            from .services.financial_logic import get_business_financials
+            financials = get_business_financials(business_id=biz.id)
+            ctx["available_cash"] = financials['cash_in_hand']
+            
         return ctx
 
     def form_valid(self, form):
@@ -118,6 +131,12 @@ class CashOutUpdateView(LoginRequiredMixin, FormView):
         ctx["businesses"] = businesses
         ctx["business"] = self.payment.business
         ctx["payment"] = self.payment
+
+        if self.payment.business:
+            from .services.financial_logic import get_business_financials
+            financials = get_business_financials(business_id=self.payment.business.id)
+            ctx["available_cash"] = financials['cash_in_hand']
+
         return ctx
 
     def get_initial(self):
@@ -244,3 +263,23 @@ class CashOutDeleteView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
+
+class CashInHandAPI(LoginRequiredMixin, View):
+    """
+    Returns available cash for a business via AJAX.
+    Used for business tabs in Cash Out form.
+    """
+    def get(self, request, *args, **kwargs):
+        from .services.financial_logic import get_business_financials
+        bid = request.GET.get("business_id")
+        if not bid:
+            return JsonResponse({"ok": False, "error": "No business ID"}, status=400)
+        
+        financials = get_business_financials(business_id=bid)
+        available = financials['cash_in_hand']
+        
+        return JsonResponse({
+            "ok": True,
+            "business_id": bid,
+            "cash_in_hand": str(available)
+        })
