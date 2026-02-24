@@ -136,7 +136,7 @@ class OrderService:
     def _get_walkin_party(business):
         from barkat.models import Party
         return Party.objects.filter(
-            business=business, 
+            default_business=business, 
             display_name__icontains="Walk-in", 
             is_deleted=False
         ).first()
@@ -228,6 +228,7 @@ class OrderService:
 
         order.save()
 
+        formset.instance = order
         # Save items
         for item_form in formset:
             if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE'):
