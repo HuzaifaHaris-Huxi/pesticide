@@ -65,6 +65,7 @@
     </div>
   </div>
 
+  {% if has_read_permission %}
   {# ---- Controls: live search + per-page (client-side) ---- #}
   <div
     class="mb-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between"
@@ -183,6 +184,13 @@
       </button>
     </div>
   </div>
+  {% else %}
+  <div class="rounded-xl border border-blue-200 bg-blue-50 p-6 text-center mt-4">
+    <i data-feather="info" class="w-8 h-8 text-blue-500 mx-auto mb-2"></i>
+    <h3 class="text-lg font-medium text-blue-900 mb-1">Create Access Only</h3>
+    <p class="text-blue-700">You do not have permission to view Category data, but you can create new categories using the button above.</p>
+  </div>
+  {% endif %}
 </div>
 {% endblock %} {% block all_scripts %}
 <script>

@@ -93,24 +93,119 @@
         {{ form.password2 }} {{ form.password2.errors }}
       </div>
 
-      <div class="flex items-center gap-2">
-        {{ form.access_sales }}
-        <label class="text-sm" for="id_access_sales">Access Sales</label>
-      </div>
-      <div class="flex items-center gap-2">
-        {{ form.access_inventory }}
-        <label class="text-sm" for="id_access_inventory"
-          >Access Inventory</label
-        >
-      </div>
-      <div class="flex items-center gap-2">
-        {{ form.access_accounts }}
-        <label class="text-sm" for="id_access_accounts">Access Accounts</label>
+      <div class="md:col-span-2 mt-4 pt-4 border-t border-slate-200" id="permissions-section" style="display: none;">
+        <h3 class="text-sm font-semibold text-slate-800 mb-3">Granular Access Rights</h3>
+        <p class="text-xs text-slate-500 mb-4">Set fine-grained permissions for this staff member. If they are a Super Admin, they will automatically have full access.</p>
+        
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-600">
+              <tr>
+                <th class="px-4 py-2 font-semibold">Module</th>
+                <th class="px-4 py-2 text-center font-semibold border-l border-slate-200">Create</th>
+                <th class="px-4 py-2 text-center font-semibold border-l border-slate-200">Read</th>
+                <th class="px-4 py-2 text-center font-semibold border-l border-slate-200">Update</th>
+                <th class="px-4 py-2 text-center font-semibold border-l border-slate-200">Delete</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <!-- Products -->
+              <tr class="hover:bg-slate-50/50">
+                <td class="px-4 py-3 font-medium text-slate-700">Products (Catalog)</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_product_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_product_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_product_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_product_d }}</td>
+              </tr>
+              <!-- Purchases -->
+              <tr class="hover:bg-slate-50/50 bg-slate-50/20">
+                <td class="px-4 py-3 font-medium text-slate-700">Purchases</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_purchase_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_purchase_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_purchase_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_purchase_d }}</td>
+              </tr>
+              <!-- Sales -->
+              <tr class="hover:bg-slate-50/50">
+                <td class="px-4 py-3 font-medium text-slate-700">Sales</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_sale_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_sale_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_sale_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_sale_d }}</td>
+              </tr>
+              <!-- Cash In -->
+              <tr class="hover:bg-slate-50/50 bg-slate-50/20">
+                <td class="px-4 py-3 font-medium text-slate-700">Cash In (Receipts)</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashin_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashin_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashin_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashin_d }}</td>
+              </tr>
+              <!-- Cash Out -->
+              <tr class="hover:bg-slate-50/50">
+                <td class="px-4 py-3 font-medium text-slate-700">Cash Out (Payments)</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashout_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashout_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashout_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_cashout_d }}</td>
+              </tr>
+              <!-- Ledgers -->
+              <tr class="hover:bg-slate-50/50 bg-slate-50/20">
+                <td class="px-4 py-3 font-medium text-slate-700">Ledgers & Reports</td>
+                <!-- No create for ledgers -->
+                <td class="px-4 py-3 text-center border-l border-slate-100"><span class="text-slate-300 text-xs">-</span></td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_ledger_r }}</td>
+                <!-- No update for ledgers -->
+                <td class="px-4 py-3 text-center border-l border-slate-100"><span class="text-slate-300 text-xs">-</span></td>
+                <!-- No delete for ledgers -->
+                <td class="px-4 py-3 text-center border-l border-slate-100"><span class="text-slate-300 text-xs">-</span></td>
+              </tr>
+              <!-- Staff Management -->
+              <tr class="hover:bg-slate-50/50">
+                <td class="px-4 py-3 font-medium text-slate-700">Staff Management</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_staff_c }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_staff_r }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_staff_u }}</td>
+                <td class="px-4 py-3 text-center border-l border-slate-100">{{ form.perm_staff_d }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="text-sm font-semibold text-slate-800 mt-6 mb-3">Security & Privacy Settings</h3>
+        <p class="text-xs text-slate-500 mb-4">Protect sensitive dashboard metrics from being viewed without a password.</p>
+        
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-lg border border-slate-200">
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_receivables }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_receivables.id_for_label }}">Protect Receivables</label>
+          </div>
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_payables }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_payables.id_for_label }}">Protect Payables</label>
+          </div>
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_cash_in_hand }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_cash_in_hand.id_for_label }}">Protect Cash in Hand</label>
+          </div>
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_bank_balance }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_bank_balance.id_for_label }}">Protect Bank Balance</label>
+          </div>
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_inventory }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_inventory.id_for_label }}">Protect Inventory Validation</label>
+          </div>
+          <div class="flex items-center gap-2">
+            {{ form.setting_protect_product_valuation }}
+            <label class="text-sm font-medium text-slate-700" for="{{ form.setting_protect_product_valuation.id_for_label }}">Protect Product Valuation</label>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- HR -->
-    <div class="grid md:grid-cols-3 gap-4">
+    <div class="grid md:grid-cols-3 gap-4 border-t border-slate-200 pt-6">
       <div>
         <label class="block text-sm mb-1">Joined on</label>
         {{ form.joined_on }} {{ form.joined_on.errors }}
@@ -142,6 +237,7 @@
     }
     const hasAccess = document.getElementById("id_has_software_access");
     const userSel = document.getElementById("id_user");
+    const permSection = byId("permissions-section");
 
     const rows = [
       byId("cred-username"),
@@ -162,6 +258,9 @@
 
       const showCreds = accessOn && !hasExisting;
       rows.forEach((el) => show(el, showCreds));
+      
+      // Show permissions matrix if software access is granted
+      show(permSection, accessOn);
     }
 
     if (hasAccess) hasAccess.addEventListener("change", refresh);

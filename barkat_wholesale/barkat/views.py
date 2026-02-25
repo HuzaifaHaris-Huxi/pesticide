@@ -90,6 +90,7 @@ from .ledger import build_ledger
 from django.core.management import call_command
 from barkat.services.order_service import OrderService
 from barkat.services.report_service import ReportService
+from barkat.utils.auth_helpers import GranularPermissionRequiredMixin
 from barkat.utils.view_helpers import _model_has_field, ProductFilterMixin, _selected_business, _q2, _get_walkin_party, TMP_DIR, _product_image_url
 
 # ---------- Dashboard / Businesses ----------
@@ -676,7 +677,8 @@ def party_delete(request, pk):
 # ---------- Catalog ----------
 
 # All categories
-class ProductCategoriesListView(LoginRequiredMixin, ListView):
+class ProductCategoriesListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_product_r"
     template_name = "barkat/catalog/categories_list.html"
     context_object_name = "categories"
     login_url = "login"
@@ -704,7 +706,8 @@ class ProductCategoriesListView(LoginRequiredMixin, ListView):
         ctx["businesses"] = Business.objects.filter(is_deleted=False, is_active=True).order_by("name")
         return ctx
 
-class ProductCategoryCreateView(LoginRequiredMixin, CreateView):
+class ProductCategoryCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_product_c"
     model = ProductCategory
     form_class = ProductCategoryForm
     template_name = "barkat/catalog/category_form.html"
@@ -758,7 +761,8 @@ class ProductCategoryCreateView(LoginRequiredMixin, CreateView):
         # 3) fallback
         return super().get_success_url()
 
-class ProductCategoryUpdateView(LoginRequiredMixin, UpdateView):
+class ProductCategoryUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_product_u"
     model = ProductCategory
     form_class = ProductCategoryForm
     template_name = "barkat/catalog/category_form.html"
@@ -777,7 +781,8 @@ class ProductCategoryUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 # ---------- DELETE (SOFT) ----------
-class ProductCategoryDeleteView(LoginRequiredMixin, View):
+class ProductCategoryDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, View):
+    required_permission = "perm_product_d"
     login_url = "login"
 
     def get(self, request, pk):
@@ -797,7 +802,8 @@ class ProductCategoryDeleteView(LoginRequiredMixin, View):
         return redirect("product_categories")
 
 # Categories limited to one business
-class BusinessCategoriesListView(LoginRequiredMixin, ListView):
+class BusinessCategoriesListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_product_r"
     template_name = "barkat/catalog/business_categories_list.html"
     context_object_name = "categories"
     login_url = "login"
@@ -827,7 +833,8 @@ class BusinessCategoriesListView(LoginRequiredMixin, ListView):
         return ctx
 
 # PRODUCT Create/Update (as you had)
-class ProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView):
+class ProductsListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ProductFilterMixin, ListView):
+    required_permission = "perm_product_r"
     template_name = "barkat/catalog/products_list.html"
     context_object_name = "products"
     login_url = "login"
@@ -838,6 +845,7 @@ class ProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView):
         return self.get_product_queryset(self.request, base_qs)
 
     def get_context_data(self, **kwargs):
+        import time
         ctx = super().get_context_data(**kwargs)
         ctx["businesses"] = Business.objects.filter(is_deleted=False, is_active=True).order_by("name")
         ctx["q"] = self.request.GET.get("q", "")
@@ -845,6 +853,19 @@ class ProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView):
         
         # Calculate grand total for the filtered queryset
         ctx["grand_total_stock_value"] = self.get_grand_total_stock_value(self.object_list)
+        
+        # Security session logic
+        revealed_at = self.request.session.get("dashboard_revealed_at", 0)
+        SESSION_TIMEOUT_SECONDS = 120
+        elapsed = time.time() - revealed_at
+        unlocked = elapsed < SESSION_TIMEOUT_SECONDS
+        ctx["dashboard_unlocked"] = unlocked
+
+        if unlocked:
+            ctx["dashboard_lock_remaining_ms"] = int((SESSION_TIMEOUT_SECONDS - elapsed) * 1000)
+        else:
+            ctx["dashboard_lock_remaining_ms"] = 0
+            
         return ctx
 
 
@@ -947,7 +968,8 @@ def export_business_products_csv(request, business_id):
     
     return response
 
-class BusinessProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView):
+class BusinessProductsListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ProductFilterMixin, ListView):
+    required_permission = "perm_product_r"
     template_name = "barkat/catalog/business_products.html"
     context_object_name = "products"
     login_url = "login"
@@ -962,6 +984,7 @@ class BusinessProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView)
         return self.get_product_queryset(self.request, base_qs)
 
     def get_context_data(self, **kwargs):
+        import time
         ctx = super().get_context_data(**kwargs)
         ctx["business"] = self.business
         ctx["businesses"] = Business.objects.filter(is_deleted=False, is_active=True).order_by("name")
@@ -969,9 +992,23 @@ class BusinessProductsListView(LoginRequiredMixin, ProductFilterMixin, ListView)
         
         # Calculate grand total for the filtered queryset
         ctx["grand_total_stock_value"] = self.get_grand_total_stock_value(self.object_list)
+        
+        # Security session logic
+        revealed_at = self.request.session.get("dashboard_revealed_at", 0)
+        SESSION_TIMEOUT_SECONDS = 120
+        elapsed = time.time() - revealed_at
+        unlocked = elapsed < SESSION_TIMEOUT_SECONDS
+        ctx["dashboard_unlocked"] = unlocked
+
+        if unlocked:
+            ctx["dashboard_lock_remaining_ms"] = int((SESSION_TIMEOUT_SECONDS - elapsed) * 1000)
+        else:
+            ctx["dashboard_lock_remaining_ms"] = 0
+            
         return ctx
 
-class ProductCreateView(LoginRequiredMixin, CreateView):
+class ProductCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_product_c"
     model = Product
     form_class = ProductForm
     template_name = "barkat/catalog/product_form.html"
@@ -1053,7 +1090,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         if biz_id: return reverse("business_products", args=[biz_id])
         return super().get_success_url()
 
-class ProductUpdateView(LoginRequiredMixin, UpdateView):
+class ProductUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_product_u"
     model = Product
     form_class = ProductForm
     template_name = "barkat/catalog/product_form.html"
@@ -1079,7 +1117,8 @@ class ProductUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, "Product updated successfully.")
         return redirect(self.get_success_url())
 
-class ProductDeleteView(LoginRequiredMixin, View):
+class ProductDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, View):
+    required_permission = "perm_product_d"
     login_url = "login"
 
     def get(self, request, pk):
@@ -1100,7 +1139,8 @@ class ProductDeleteView(LoginRequiredMixin, View):
 
 
 # STAFF
-class StaffListView(LoginRequiredMixin, ListView):
+class StaffListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_staff_r"
     model = Staff
     template_name = "barkat/staff/staff_list.html"
     context_object_name = "staff_list"
@@ -1127,7 +1167,8 @@ class StaffListView(LoginRequiredMixin, ListView):
         ctx["roles"] = Staff.Roles.choices
         return ctx
 
-class BusinessStaffListView(LoginRequiredMixin, ListView):
+class BusinessStaffListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_staff_r"
     model = Staff
     template_name = "barkat/staff/business_staff.html"
     context_object_name = "staff_list"
@@ -1167,7 +1208,8 @@ class BusinessStaffListView(LoginRequiredMixin, ListView):
         ctx["roles"] = Staff.Roles.choices
         return ctx
 
-class StaffCreateView(LoginRequiredMixin, CreateView):
+class StaffCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_staff_c"
     model = Staff
     form_class = StaffForm
     template_name = "barkat/staff/staff_form.html"
@@ -1179,12 +1221,34 @@ class StaffCreateView(LoginRequiredMixin, CreateView):
             initial["business"] = self.request.GET["business"]
         return initial
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
+        from barkat.models import UserSettings
         obj = form.save(commit=False)
         obj.created_by = self.request.user
         obj.updated_by = self.request.user
+        
+        # Save the Staff instance and M2M fields
         obj.save()
+        form.save_m2m()
+        
         self.object = obj  # important for get_success_url
+        
+        # Update UserSettings from form proxy fields
+        if obj.user:
+            settings, created = UserSettings.objects.get_or_create(user=obj.user)
+            settings.protect_receivables = form.cleaned_data.get('setting_protect_receivables', False)
+            settings.protect_payables = form.cleaned_data.get('setting_protect_payables', False)
+            settings.protect_cash_in_hand = form.cleaned_data.get('setting_protect_cash_in_hand', False)
+            settings.protect_bank_balance = form.cleaned_data.get('setting_protect_bank_balance', False)
+            settings.protect_inventory = form.cleaned_data.get('setting_protect_inventory', False)
+            settings.protect_product_valuation = form.cleaned_data.get('setting_protect_product_valuation', False)
+            settings.save()
+                
         messages.success(self.request, "Staff member created successfully.")
         return redirect(self.get_success_url())
 
@@ -1192,16 +1256,35 @@ class StaffCreateView(LoginRequiredMixin, CreateView):
         messages.error(self.request, "Please fix the errors below.")
         return super().form_invalid(form)
 
-class StaffUpdateView(LoginRequiredMixin, UpdateView):
+class StaffUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_staff_u"
     model = Staff
     form_class = StaffForm
     template_name = "barkat/staff/staff_form.html"
     success_url = reverse_lazy("staff_list")
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
+        from barkat.models import UserSettings
         obj = form.save(commit=False)
         obj.updated_by = self.request.user
         obj.save()
+        form.save_m2m()
+        
+        if obj.user:
+            settings, created = UserSettings.objects.get_or_create(user=obj.user)
+            settings.protect_receivables = form.cleaned_data.get('setting_protect_receivables', False)
+            settings.protect_payables = form.cleaned_data.get('setting_protect_payables', False)
+            settings.protect_cash_in_hand = form.cleaned_data.get('setting_protect_cash_in_hand', False)
+            settings.protect_bank_balance = form.cleaned_data.get('setting_protect_bank_balance', False)
+            settings.protect_inventory = form.cleaned_data.get('setting_protect_inventory', False)
+            settings.protect_product_valuation = form.cleaned_data.get('setting_protect_product_valuation', False)
+            settings.save()
+            
         self.object = obj
         messages.success(self.request, "Staff member updated successfully.")
         return redirect(self.get_success_url())
@@ -1210,7 +1293,8 @@ class StaffUpdateView(LoginRequiredMixin, UpdateView):
         messages.error(self.request, "Please fix the errors below.")
         return super().form_invalid(form)
 
-class StaffDeleteView(LoginRequiredMixin, DeleteView):
+class StaffDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_staff_d"
     model = Staff
     template_name = "barkat/staff/staff_confirm_delete.html"
     success_url = reverse_lazy("staff_list")
@@ -1511,7 +1595,8 @@ def compute_cash_in_hand_for_range(date_from, date_to, business=None) -> Decimal
     return agg["net"] or Decimal("0.00")
 
 
-class BankMovementListView(LoginRequiredMixin, ListView):
+class BankMovementListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_cashin_r" # Or cash out... maybe just require auth? Let's check ledger_r later.
     model = BankMovement
     template_name = "barkat/finance/movement_list.html"
     context_object_name = "movements"
@@ -1550,7 +1635,8 @@ class BankMovementListView(LoginRequiredMixin, ListView):
         return qs
 
 
-class BankMovementCreateView(LoginRequiredMixin, CreateView):
+class BankMovementCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_cashin_c" # Assuming create cash in/out implies general movement creation. This is a tricky UI overlap.
     model = BankMovement
     form_class = BankMovementForm
     template_name = "barkat/finance/movement_form.html"
@@ -1560,18 +1646,31 @@ class BankMovementCreateView(LoginRequiredMixin, CreateView):
         business_id = (self.request.GET.get("business") or "").strip()
         if business_id.isdigit():
             return Business.objects.filter(pk=int(business_id)).first()
+            
+        # Fallback to user's default business if any
+        user_settings = getattr(self.request.user, "settings", None)
+        if user_settings and user_settings.default_sale_business_id:
+            return user_settings.default_sale_business
+        
         return None
 
     def get_initial(self):
         initial = super().get_initial()
         if not initial.get("date"):
             initial["date"] = timezone.localdate()
+            
+        business = self.get_business_for_request()
+        if business:
+            initial["business"] = business.id
+            
         return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         form = ctx.get("form")
         business = self.get_business_for_request()
+        ctx["businesses"] = Business.objects.filter(is_active=True, is_deleted=False).order_by("name")
+        ctx["current_business"] = business
         
         # Calculate CUMULATIVE balance until TODAY
         today = timezone.localdate()
@@ -1716,7 +1815,8 @@ class BankMovementCreateView(LoginRequiredMixin, CreateView):
         return redirect(self.success_url)
 
 
-class BankMovementUpdateView(LoginRequiredMixin, UpdateView):
+class BankMovementUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_cashin_u"
     model = BankMovement
     form_class = BankMovementForm
     template_name = "barkat/finance/movement_form.html"
@@ -1725,6 +1825,11 @@ class BankMovementUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         form = ctx.get("form")
+        
+        # Determine business context
+        business = self.object.business
+        ctx["current_business"] = business
+        ctx["businesses"] = Business.objects.filter(is_active=True, is_deleted=False).order_by("name")
 
         # all purchase orders for dropdown
         po_qs = PurchaseOrder.objects.select_related("supplier").order_by("-created_at", "-id")
@@ -1747,7 +1852,8 @@ class BankMovementUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, "Movement updated and ledger synced.")
         return redirect(self.success_url)
 
-class BankMovementDeleteView(LoginRequiredMixin, DeleteView):
+class BankMovementDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_cashin_d"
     model = BankMovement
     template_name = "barkat/finance/movement_confirm_delete.html"
     success_url = reverse_lazy("movement_list")
@@ -1763,7 +1869,8 @@ class BankMovementDeleteView(LoginRequiredMixin, DeleteView):
 # Purchase Orders (LISTS)
 # -------------------------
 
-class PurchaseOrderListView(LoginRequiredMixin, ListView):
+class PurchaseOrderListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_purchase_r"
     model = PurchaseOrder
     template_name = "barkat/purchases/purchase_order_list.html"
     context_object_name = "orders"
@@ -1850,7 +1957,8 @@ class PurchaseOrderListView(LoginRequiredMixin, ListView):
         })
         return ctx
 
-class BusinessPurchaseOrderListView(LoginRequiredMixin, ListView):
+class BusinessPurchaseOrderListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_purchase_r"
     model = PurchaseOrder
     template_name = "barkat/purchases/business_purchase_order.html"
     context_object_name = "orders"
@@ -2067,7 +2175,8 @@ def generate_barcode_api(request):
     })
 
 
-class PurchaseOrderCreateView(LoginRequiredMixin, CreateView):
+class PurchaseOrderCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_purchase_c"
     model = PurchaseOrder
     form_class = PurchaseOrderForm
     template_name = "barkat/purchases/purchase_order_form.html"
@@ -2200,7 +2309,8 @@ class PurchaseOrderCreateView(LoginRequiredMixin, CreateView):
         return reverse("po_list")
 
 
-class PurchaseOrderUpdateView(LoginRequiredMixin, UpdateView):
+class PurchaseOrderUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_purchase_u"
     model = PurchaseOrder
     form_class = PurchaseOrderForm
     template_name = "barkat/purchases/purchase_order_form.html"
@@ -2343,7 +2453,8 @@ class PurchaseOrderUpdateView(LoginRequiredMixin, UpdateView):
 
 
 
-class PurchaseOrderDeleteView(LoginRequiredMixin, DeleteView):
+class PurchaseOrderDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_purchase_d"
     model = PurchaseOrder
     template_name = "barkat/purchases/purchase_order_confirm_delete.html"
     success_url = reverse_lazy("po_list")
@@ -2352,7 +2463,8 @@ class PurchaseOrderDeleteView(LoginRequiredMixin, DeleteView):
         messages.success(request, "Purchase Order deleted.")
         return super().delete(request, *args, **kwargs)
 
-class PurchaseReturnListView(LoginRequiredMixin, ListView):
+class PurchaseReturnListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_purchase_r"
     model = PurchaseReturn
     template_name = "barkat/purchases/purchase_return_list.html"
     context_object_name = "returns"
@@ -2383,7 +2495,8 @@ class PurchaseReturnListView(LoginRequiredMixin, ListView):
         ctx["business"] = None  # "All" tab
         return ctx
 
-class BusinessPurchaseReturnListView(LoginRequiredMixin, ListView):
+class BusinessPurchaseReturnListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_purchase_r"
     model = PurchaseReturn
     template_name = "barkat/purchases/business_purchase_return.html"
     context_object_name = "returns"
@@ -2420,7 +2533,8 @@ class BusinessPurchaseReturnListView(LoginRequiredMixin, ListView):
 # ----------------------------------------
 
 
-class PurchaseReturnCreateView(LoginRequiredMixin, CreateView):
+class PurchaseReturnCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_purchase_c"
     model = PurchaseReturn
     form_class = PurchaseReturnForm
     template_name = "barkat/purchases/purchase_return_form.html"
@@ -2578,7 +2692,8 @@ class PurchaseReturnCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse("pr_list")
 
-class PurchaseReturnUpdateView(LoginRequiredMixin, UpdateView):
+class PurchaseReturnUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_purchase_u"
     model = PurchaseReturn
     form_class = PurchaseReturnForm
     template_name = "barkat/purchases/purchase_return_form.html"
@@ -2761,7 +2876,8 @@ class PurchaseReturnUpdateView(LoginRequiredMixin, UpdateView):
     def get_success_url(self):
         return reverse("pr_list")
 
-class PurchaseReturnDeleteView(LoginRequiredMixin, DeleteView):
+class PurchaseReturnDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_purchase_d"
     model = PurchaseReturn
     template_name = "barkat/purchases/purchase_return_confirm_delete.html"
     success_url = reverse_lazy("pr_list")
@@ -2788,7 +2904,8 @@ class ExpenseBusinessMixin:
 
 
 
-class ExpensesListView(LoginRequiredMixin, ListView):
+class ExpensesListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_cashout_r"
     template_name = "barkat/finance/expense_list.html"
     context_object_name = "expenses"
     login_url = "login"
@@ -2845,7 +2962,8 @@ class ExpensesListView(LoginRequiredMixin, ListView):
         
         return ctx
     
-class BusinessExpensesListView(LoginRequiredMixin, ListView):
+class BusinessExpensesListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_cashout_r"
     template_name = "barkat/finance/business_expense.html"
     context_object_name = "expenses"
     login_url = "login"
@@ -2985,7 +3103,8 @@ def upsert_payment_for_expense(expense: Expense) -> Payment | None:
 
 # -----------------------
 # Expense create and edit
-class ExpenseCreateView(LoginRequiredMixin, ExpenseBusinessMixin, CreateView):
+class ExpenseCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, ExpenseBusinessMixin, CreateView):
+    required_permission = "perm_cashout_c"
     model = Expense
     form_class = ExpenseForm
     template_name = "barkat/finance/expense_form.html"
@@ -3035,7 +3154,8 @@ class ExpenseCreateView(LoginRequiredMixin, ExpenseBusinessMixin, CreateView):
         nxt = self.request.GET.get("next") or self.request.POST.get("next")
         return nxt or reverse("finance_expense_list")
 
-class ExpenseUpdateView(LoginRequiredMixin, ExpenseBusinessMixin, UpdateView):
+class ExpenseUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, ExpenseBusinessMixin, UpdateView):
+    required_permission = "perm_cashout_u"
     model = Expense
     form_class = ExpenseForm
     template_name = "barkat/finance/expense_form.html"
@@ -3085,7 +3205,8 @@ class ExpenseUpdateView(LoginRequiredMixin, ExpenseBusinessMixin, UpdateView):
         nxt = self.request.GET.get("next") or self.request.POST.get("next")
         return nxt or reverse("finance_expense_list")
 
-class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
+class ExpenseDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_cashout_d"
     model = Expense
     template_name = "barkat/finance/expense_confirm_delete.html"
     success_url = reverse_lazy("finance_expense_list")
@@ -3094,7 +3215,8 @@ class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
         messages.success(self.request, "Expense deleted.")
         return super().delete(request, *args, **kwargs)
 
-class ExpenseDetailView(LoginRequiredMixin, DetailView):
+class ExpenseDetailView(GranularPermissionRequiredMixin, LoginRequiredMixin, DetailView):
+    required_permission = "perm_cashout_r"
     model = Expense
     template_name = "barkat/finance/expense_detail.html"
     context_object_name = "expense"
@@ -3185,7 +3307,8 @@ def ensure_party_for_receipt(business, customer, customer_name, customer_phone):
 
 # barkat/views.py (Sales Order section)
 
-class SalesOrderCreateView(LoginRequiredMixin, CreateView):
+class SalesOrderCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_sale_c"
     model = SalesOrder
     form_class = SalesOrderForm
     template_name = "barkat/sales/order_form.html"
@@ -3327,7 +3450,8 @@ class SalesOrderCreateView(LoginRequiredMixin, CreateView):
         biz_id = self.object.business_id if self.object else None
         return f"{url}?business={biz_id}" if biz_id else url
 
-class SalesOrderUpdateView(LoginRequiredMixin, UpdateView):
+class SalesOrderUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_sale_u"
     model = SalesOrder
     form_class = SalesOrderForm
     template_name = "barkat/sales/order_form.html"
@@ -3568,6 +3692,14 @@ def verify_cancellation_password_api(request):
     
     # Fallback to request.POST (context: Legacy FormData)
     action = (data.get("action") or request.POST.get("action") or "").strip()
+    
+    # Fast path for hiding (does not require password)
+    if action == "dashboard_hide":
+        if "dashboard_revealed_at" in request.session:
+            del request.session["dashboard_revealed_at"]
+            request.session.modified = True
+        return JsonResponse({"ok": True})
+
     plain = (
         data.get("password") or 
         request.POST.get("password") or 
@@ -3613,7 +3745,8 @@ def verify_cancellation_password_api(request):
     return JsonResponse({"ok": True})
 
 
-class SalesOrderDeleteView(LoginRequiredMixin, DeleteView):
+class SalesOrderDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_sale_d"
     model = SalesOrder
     template_name = "barkat/sales/order_delete.html"
 
@@ -3677,7 +3810,8 @@ PAYMENT_AMOUNT_PATH = "payments__amount"
 
 # barkat/sales/views.py
 
-class SalesOrderListView(LoginRequiredMixin, ListView):
+class SalesOrderListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_sale_r"
     model = SalesOrder
     template_name = "barkat/sales/order_list.html"
     context_object_name = "orders"
@@ -3817,7 +3951,8 @@ class SalesOrderListView(LoginRequiredMixin, ListView):
         })
         return ctx
 
-class BusinessSalesOrderListView(LoginRequiredMixin, ListView):
+class BusinessSalesOrderListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = "perm_sale_r"
     model = SalesOrder
     template_name = "barkat/sales/business_order.html"
     context_object_name = "orders"
@@ -4007,7 +4142,8 @@ class _ReturnBaseList(ListView):
             | Q(id__icontains=q)
         )
 
-class SalesReturnListView(_ReturnBaseList):
+class SalesReturnListView(GranularPermissionRequiredMixin, _ReturnBaseList):
+    required_permission = "perm_sale_r"
     template_name = "barkat/sales/return_order_list.html"
 
     def get_queryset(self):
@@ -4019,7 +4155,8 @@ class SalesReturnListView(_ReturnBaseList):
         ctx["businesses"] = Business.objects.order_by("name", "id")
         return ctx
 
-class SalesReturnBusinessListView(_ReturnBaseList):
+class SalesReturnBusinessListView(GranularPermissionRequiredMixin, _ReturnBaseList):
+    required_permission = "perm_sale_r"
     template_name = "barkat/sales/business_return_order.html"
 
     def get_queryset(self):
@@ -4171,7 +4308,8 @@ def sales_order_items_api(request):
         "items": items,
     })
 
-class SalesReturnCreateView(LoginRequiredMixin, CreateView):
+class SalesReturnCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, CreateView):
+    required_permission = "perm_sale_c"
     model = SalesReturn
     form_class = SalesReturnForm
     template_name = "barkat/sales/sales_order_return.html"
@@ -4447,7 +4585,8 @@ class SalesReturnCreateView(LoginRequiredMixin, CreateView):
         biz_id = self.object.business_id if self.object else None
         return f"{url}?business={biz_id}" if biz_id else url
 
-class SalesReturnUpdateView(LoginRequiredMixin, UpdateView):
+class SalesReturnUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, UpdateView):
+    required_permission = "perm_sale_u"
     model = SalesReturn
     form_class = SalesReturnForm
     template_name = "barkat/sales/sales_order_return.html"
@@ -4665,7 +4804,8 @@ class SalesReturnUpdateView(LoginRequiredMixin, UpdateView):
         url = reverse("sr_add")
         return f"{url}?business={self.object.business_id}" if self.object.business_id else url
 
-class SalesReturnDeleteView(DeleteView):
+class SalesReturnDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = "perm_sale_d"
     model = SalesReturn
     template_name = "barkat/sales/sales_return_delete.html"
 
@@ -7074,7 +7214,8 @@ def stock_move_b2w(request):
 
 
 
-class QuickReceiptListView(LoginRequiredMixin, ListView):
+class QuickReceiptListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = 'perm_cashin_r'
     model = Payment
     template_name = "barkat/finance/quick_receipt_list.html"
     context_object_name = "receipts"
@@ -7316,7 +7457,8 @@ class QuickReceiptUpdateView(LoginRequiredMixin, FormView):
 from django.views.generic import DeleteView
 from django.db import transaction
 
-class QuickReceiptDeleteView(LoginRequiredMixin, DeleteView):
+class QuickReceiptDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, DeleteView):
+    required_permission = 'perm_cashin_d'
     model = Payment
     success_url = reverse_lazy("quick_receipt_list")
 

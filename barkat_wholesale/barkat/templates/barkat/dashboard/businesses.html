@@ -24,123 +24,151 @@
 
   <!-- Real-time Stats Section -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
-      <div class="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-        <i data-feather="user-check" class="w-8 h-8"></i>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+      <div class="w-12 h-12 bg-blue-50 rounded-xl flex shrink-0 items-center justify-center text-blue-600">
+        <i data-feather="user-check" class="w-6 h-6"></i>
       </div>
       <div>
-        <p class="text-sm text-slate-500 font-medium mb-1">Total Receivables</p>
+        <p class="text-[13px] text-slate-500 font-medium mb-1">Total Receivables</p>
         {% if user.settings.protect_receivables and user.settings.cancellation_password and not dashboard_unlocked %}
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_receivables|intcomma }}">******</p>
+              <p class="text-xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_receivables|intcomma }}">******</p>
               <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-blue-600">
                 <i data-feather="eye" class="w-4 h-4"></i>
               </button>
             </div>
-            <div class="protected-details hidden text-[11px] text-slate-500 space-y-0.5 ml-1">
+            <div class="protected-details hidden text-[10px] text-slate-500 space-y-0.5 ml-1">
               <div class="flex items-center gap-2">
                 <span>- Customer:</span>
-                <span class="font-bold">Rs. {{ customer_receivables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ customer_receivables|intcomma }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <span>- Vendor:</span>
-                <span class="font-bold">Rs. {{ vendor_receivables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ vendor_receivables|intcomma }}</span>
               </div>
             </div>
           </div>
         {% else %}
           <div class="flex flex-col gap-1">
-            <p class="text-2xl font-bold text-slate-900">Rs. {{ total_receivables|intcomma }}</p>
-            <div class="text-[11px] text-slate-500 space-y-0.5 ml-1">
+            <div class="flex items-center gap-2">
+              <p class="text-xl font-bold text-slate-900">Rs. {{ total_receivables|intcomma }}</p>
+              {% if dashboard_unlocked and user.settings.protect_receivables %}
+              <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+                <i data-feather="x" class="w-3.5 h-3.5"></i>
+              </button>
+              {% endif %}
+            </div>
+            <div class="text-[10px] text-slate-500 space-y-0.5 ml-1">
               <div class="flex items-center gap-2">
                 <span>- Customer:</span>
-                <span class="font-bold">Rs. {{ customer_receivables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ customer_receivables|intcomma }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <span>- Vendor:</span>
-                <span class="font-bold">Rs. {{ vendor_receivables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ vendor_receivables|intcomma }}</span>
               </div>
             </div>
           </div>
         {% endif %}
       </div>
     </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
-      <div class="w-14 h-14 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
-        <i data-feather="truck" class="w-8 h-8"></i>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+      <div class="w-12 h-12 bg-rose-50 rounded-xl flex shrink-0 items-center justify-center text-rose-600">
+        <i data-feather="truck" class="w-6 h-6"></i>
       </div>
       <div>
-        <p class="text-sm text-slate-500 font-medium mb-1">Total Payables</p>
+        <p class="text-[13px] text-slate-500 font-medium mb-1">Total Payables</p>
         {% if user.settings.protect_payables and user.settings.cancellation_password and not dashboard_unlocked %}
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
-              <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_payables|intcomma }}">******</p>
+              <p class="text-xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ total_payables|intcomma }}">******</p>
               <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-rose-600">
                 <i data-feather="eye" class="w-4 h-4"></i>
               </button>
             </div>
-            <div class="protected-details hidden text-[11px] text-slate-500 space-y-0.5 ml-1">
+            <div class="protected-details hidden text-[10px] text-slate-500 space-y-0.5 ml-1">
               <div class="flex items-center gap-2">
                 <span>- Customer:</span>
-                <span class="font-bold">Rs. {{ customer_payables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ customer_payables|intcomma }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <span>- Vendor:</span>
-                <span class="font-bold">Rs. {{ vendor_payables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ vendor_payables|intcomma }}</span>
               </div>
             </div>
           </div>
         {% else %}
           <div class="flex flex-col gap-1">
-            <p class="text-2xl font-bold text-slate-900">Rs. {{ total_payables|intcomma }}</p>
-            <div class="text-[11px] text-slate-500 space-y-0.5 ml-1">
+            <div class="flex items-center gap-2">
+              <p class="text-xl font-bold text-slate-900">Rs. {{ total_payables|intcomma }}</p>
+              {% if dashboard_unlocked and user.settings.protect_payables %}
+              <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+                <i data-feather="x" class="w-3.5 h-3.5"></i>
+              </button>
+              {% endif %}
+            </div>
+            <div class="text-[10px] text-slate-500 space-y-0.5 ml-1">
               <div class="flex items-center gap-2">
                 <span>- Customer:</span>
-                <span class="font-bold">Rs. {{ customer_payables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ customer_payables|intcomma }}</span>
               </div>
               <div class="flex items-center gap-2">
                 <span>- Vendor:</span>
-                <span class="font-bold">Rs. {{ vendor_payables|intcomma }}</span>
+                <span class="font-bold text-slate-600">Rs. {{ vendor_payables|intcomma }}</span>
               </div>
             </div>
           </div>
         {% endif %}
       </div>
     </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
-      <div class="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
-        <i data-feather="dollar-sign" class="w-8 h-8"></i>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+      <div class="w-12 h-12 bg-emerald-50 rounded-xl flex shrink-0 items-center justify-center text-emerald-600">
+        <i data-feather="dollar-sign" class="w-6 h-6"></i>
       </div>
       <div>
-        <p class="text-sm text-slate-500 font-medium mb-1">Cash in Hand</p>
+        <p class="text-[13px] text-slate-500 font-medium mb-1">Cash in Hand</p>
         {% if user.settings.protect_cash_in_hand and user.settings.cancellation_password and not dashboard_unlocked %}
           <div class="flex items-center gap-2">
-            <p class="text-2xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ cash_in_hand|intcomma }}">******</p>
+            <p class="text-xl font-bold text-slate-900 protected-value" data-secret="Rs. {{ cash_in_hand|intcomma }}">******</p>
             <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-emerald-600">
               <i data-feather="eye" class="w-4 h-4"></i>
             </button>
           </div>
         {% else %}
-          <p class="text-2xl font-bold text-slate-900">Rs. {{ cash_in_hand|intcomma }}</p>
+          <div class="flex items-center gap-2">
+            <p class="text-xl font-bold text-slate-900">Rs. {{ cash_in_hand|intcomma }}</p>
+            {% if dashboard_unlocked and user.settings.protect_cash_in_hand %}
+            <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+              <i data-feather="x" class="w-3.5 h-3.5"></i>
+            </button>
+            {% endif %}
+          </div>
         {% endif %}
       </div>
     </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-indigo-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow ring-2 ring-indigo-50">
-      <div class="w-14 h-14 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-        <i data-feather="package" class="w-8 h-8"></i>
+    <div class="bg-white rounded-2xl shadow-sm border border-indigo-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow ring-1 ring-indigo-50">
+      <div class="w-12 h-12 bg-indigo-50 rounded-xl flex shrink-0 items-center justify-center text-indigo-600">
+        <i data-feather="package" class="w-6 h-6"></i>
       </div>
       <div>
-        <p class="text-sm text-indigo-500 font-bold uppercase tracking-wider mb-1">Total Inventory</p>
+        <p class="text-[11px] text-indigo-500 font-bold uppercase tracking-wider mb-1">Total Inventory</p>
         {% if user.settings.protect_inventory and user.settings.cancellation_password and not dashboard_unlocked %}
           <div class="flex items-center gap-2">
-            <p class="text-2xl font-black text-slate-900 protected-value" data-secret="Rs. {{ total_inventory_valuation|intcomma }}">******</p>
+            <p class="text-xl font-black text-slate-900 protected-value" data-secret="Rs. {{ total_inventory_valuation|intcomma }}">******</p>
             <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-indigo-600">
               <i data-feather="eye" class="w-4 h-4"></i>
             </button>
           </div>
         {% else %}
-          <p class="text-2xl font-black text-slate-900">Rs. {{ total_inventory_valuation|intcomma }}</p>
+          <div class="flex items-center gap-2">
+            <p class="text-xl font-black text-slate-900">Rs. {{ total_inventory_valuation|intcomma }}</p>
+            {% if dashboard_unlocked and user.settings.protect_inventory %}
+            <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+              <i data-feather="x" class="w-3.5 h-3.5"></i>
+            </button>
+            {% endif %}
+          </div>
         {% endif %}
       </div>
     </div>
@@ -463,7 +491,16 @@
             {% endif %}
           </td>
           <td class="px-4 py-2 text-right font-mono text-indigo-700 font-bold">
-            Rs. {{ b.live_summary.bank_balance|intcomma|default:"0.00" }}
+            {% if user.settings.protect_bank_balance and user.settings.cancellation_password and not dashboard_unlocked %}
+              <div class="flex items-center justify-end gap-2">
+                <span class="protected-value" data-secret="Rs. {{ b.live_summary.bank_balance|intcomma|default:'0.00' }}">******</span>
+                <button onclick="requestReveal(this)" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-indigo-600">
+                  <i data-feather="eye" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            {% else %}
+              Rs. {{ b.live_summary.bank_balance|intcomma|default:"0.00" }}
+            {% endif %}
           </td>
           <td class="px-4 py-2 text-right font-mono text-amber-700 font-bold">
             {% if user.settings.protect_inventory and user.settings.cancellation_password and not dashboard_unlocked %}
@@ -612,27 +649,8 @@
       const data = await response.json();
       
       if (data.ok) {
-        // Correct password
-        closeSecurityModal();
-        if (currentTargetBtn) {
-          const parent = currentTargetBtn.parentElement;
-          const container = parent.parentElement;
-          const valueEl = parent.querySelector('.protected-value');
-          if (valueEl && valueEl.dataset.secret) {
-            valueEl.textContent = valueEl.dataset.secret;
-            // Hide the eye button after revealing
-            currentTargetBtn.classList.add('hidden');
-            // Flash success
-            valueEl.classList.add('text-emerald-600');
-            setTimeout(() => valueEl.classList.remove('text-emerald-600'), 1000);
-          }
-          // Reveal details if present
-          const detailsEl = container.querySelector('.protected-details');
-          if (detailsEl) {
-            detailsEl.classList.remove('hidden');
-            detailsEl.classList.add('animate-in', 'fade-in', 'slide-in-from-top-1', 'duration-300');
-          }
-        }
+        // Correct password - Reload the page to reveal all values
+        window.location.reload();
       } else {
         // Error
         securityError.textContent = data.error || "Incorrect password";
@@ -645,6 +663,34 @@
       securityError.classList.remove('hidden');
     }
   }
+
+  async function hideDashboardData() {
+    try {
+      const response = await fetch("{% url 'check_security_password' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ 
+          action: 'dashboard_hide' 
+        })
+      });
+      const data = await response.json();
+      if (data.ok) {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error("Error hiding data", e);
+    }
+  }
+
+  // Auto-hide logical session if dashboard is unlocked
+  {% if dashboard_unlocked and dashboard_lock_remaining_ms > 0 %}
+  setTimeout(() => {
+    window.location.reload();
+  }, {{ dashboard_lock_remaining_ms }});
+  {% endif %}
 
 </script>
 
@@ -677,7 +723,7 @@
 
 <!-- Security Password Modal -->
 <div id="security-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 transform transition-all scale-100">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full mx-4 transform transition-all scale-100" style="max-width: 400px; width: 100%;">
     <div class="text-center mb-6">
       <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
         <i data-feather="lock" class="w-6 h-6 text-slate-600"></i>

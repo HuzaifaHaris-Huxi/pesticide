@@ -16,6 +16,7 @@
     </a>
   </div>
 
+  {% if has_read_permission %}
   <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
@@ -114,6 +115,13 @@
       </div>
     {% endif %}
   </div>
+  {% else %}
+  <div class="rounded-xl border border-blue-200 bg-blue-50 p-6 text-center mt-4">
+    <i data-feather="info" class="w-8 h-8 text-blue-500 mx-auto mb-2"></i>
+    <h3 class="text-lg font-medium text-blue-900 mb-1">Create Access Only</h3>
+    <p class="text-blue-700">You do not have permission to view Cash Out history, but you can record new payments using the button above.</p>
+  </div>
+  {% endif %}
 </div>
 
 {# Delete Modal Logic can be added here or shared #}

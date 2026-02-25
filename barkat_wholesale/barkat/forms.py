@@ -506,6 +506,14 @@ class StaffForm(forms.ModelForm):
     password1 = forms.CharField(required=False, widget=forms.PasswordInput, strip=False)
     password2 = forms.CharField(required=False, widget=forms.PasswordInput, strip=False)
 
+    # UserSettings (Privacy/Security) proxy fields
+    setting_protect_receivables = forms.BooleanField(required=False, label="Protect Receivables")
+    setting_protect_payables = forms.BooleanField(required=False, label="Protect Payables")
+    setting_protect_cash_in_hand = forms.BooleanField(required=False, label="Protect Cash in Hand")
+    setting_protect_bank_balance = forms.BooleanField(required=False, label="Protect Bank Balance")
+    setting_protect_inventory = forms.BooleanField(required=False, label="Protect Inventory")
+    setting_protect_product_valuation = forms.BooleanField(required=False, label="Protect Product Valuation")
+
     class Meta:
         model = Staff
         fields = [
@@ -517,9 +525,13 @@ class StaffForm(forms.ModelForm):
             "address",
             "has_software_access",
             "user",  # existing user, optional
-            "access_sales",
-            "access_inventory",
-            "access_accounts",
+            "perm_product_c", "perm_product_r", "perm_product_u", "perm_product_d",
+            "perm_purchase_c", "perm_purchase_r", "perm_purchase_u", "perm_purchase_d",
+            "perm_sale_c", "perm_sale_r", "perm_sale_u", "perm_sale_d",
+            "perm_cashin_c", "perm_cashin_r", "perm_cashin_u", "perm_cashin_d",
+            "perm_cashout_c", "perm_cashout_r", "perm_cashout_u", "perm_cashout_d",
+            "perm_ledger_r",
+            "perm_staff_c", "perm_staff_r", "perm_staff_u", "perm_staff_d",
             "joined_on",
             "salary_start",
             "monthly_salary",
@@ -532,7 +544,35 @@ class StaffForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
+
+        # Pre-populate settings proxy fields if editing a user
+        if self.instance and self.instance.user_id:
+            try:
+                from barkat.models import UserSettings
+                settings = UserSettings.objects.get(user=self.instance.user)
+                self.fields['setting_protect_receivables'].initial = settings.protect_receivables
+                self.fields['setting_protect_payables'].initial = settings.protect_payables
+                self.fields['setting_protect_cash_in_hand'].initial = settings.protect_cash_in_hand
+                self.fields['setting_protect_bank_balance'].initial = settings.protect_bank_balance
+                self.fields['setting_protect_inventory'].initial = getattr(settings, 'protect_inventory', False)
+                self.fields['setting_protect_product_valuation'].initial = getattr(settings, 'protect_product_valuation', False)
+            except UserSettings.DoesNotExist:
+                pass
+
+
+        # Filter role choices based on the creator's role
+        if self.request and hasattr(self.request.user, "staff_profile"):
+            creator_role = self.request.user.staff_profile.role
+            role_field = self.fields.get("role")
+            if role_field and creator_role == Staff.Roles.MANAGER:
+                # Managers cannot create Super Admins or other Managers
+                allowed_roles = [
+                    (k, v) for k, v in Staff.Roles.choices 
+                    if k not in (Staff.Roles.SUPER_ADMIN, Staff.Roles.MANAGER)
+                ]
+                role_field.choices = allowed_roles
 
         text_like = (forms.TextInput, forms.NumberInput, forms.EmailInput, forms.DateInput, forms.URLInput)
         for name, field in self.fields.items():
@@ -646,13 +686,16 @@ class UserSettingsForm(forms.ModelForm):
     protect_receivables = forms.BooleanField(required=False, label="Protect Receivables", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
     protect_payables = forms.BooleanField(required=False, label="Protect Payables", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
     protect_cash_in_hand = forms.BooleanField(required=False, label="Protect Cash in Hand", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
-    protect_inventory = forms.BooleanField(required=False, label="Protect Inventory", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
+    protect_bank_balance = forms.BooleanField(required=False, label="Protect Bank Balance", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
+    protect_inventory = forms.BooleanField(required=False, label="Protect Inventory Value", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
+    protect_product_valuation = forms.BooleanField(required=False, label="Protect Product Valuations", widget=forms.CheckboxInput(attrs={"class": "h-4 w-4 rounded border-slate-300"}))
 
     class Meta:
         model = UserSettings
         fields = [
-            "business_name", "barcode_printer_name", "default_sale_payment_method", "default_sale_business",
-            "protect_receivables", "protect_payables", "protect_cash_in_hand", "protect_inventory",
+            "business_name", "barcode_printer_name",
+            "default_sale_payment_method", "default_sale_business",
+            "protect_receivables", "protect_payables", "protect_cash_in_hand", "protect_bank_balance", "protect_inventory", "protect_product_valuation",
         ]
         widgets = {
             "business_name": forms.TextInput(attrs={
@@ -776,6 +819,7 @@ class BankMovementForm(forms.ModelForm):
         model = BankMovement
         fields = [
             "date",
+            "business",
             "movement_type",
             "amount",
             "from_bank",
@@ -791,6 +835,9 @@ class BankMovementForm(forms.ModelForm):
         widgets = {
             "date": forms.DateInput(
                 attrs={"type": "date", "class": BASE_INPUT}
+            ),
+            "business": forms.Select(
+                attrs={"class": BASE_INPUT, "id": "id_business"}
             ),
             "movement_type": forms.Select(
                 attrs={"class": BASE_INPUT, "id": "id_movement_type"}
@@ -840,6 +887,11 @@ class BankMovementForm(forms.ModelForm):
         self.fields["use_cash_in_hand"].label = (
             "Use closing cash in hand for this Cash → Bank deposit"
         )
+        
+        # Populate business queryset
+        business_field = self.fields.get("business")
+        if business_field:
+            business_field.queryset = Business.objects.filter(is_active=True, is_deleted=False).order_by("name")
 
         # ---------- Party queryset (vendors or both) ----------
         party_field = self.fields.get("party")

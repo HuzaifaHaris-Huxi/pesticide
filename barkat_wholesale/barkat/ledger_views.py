@@ -27,7 +27,7 @@ from django.views.decorators.http import require_GET
 
 # Local folder/Relative imports
 from .ledger import build_ledger
-from .utils.auth_helpers import user_has_cancellation_password
+from .utils.auth_helpers import user_has_cancellation_password, GranularPermissionRequiredMixin
 from .models import (
     Business, Party, Staff, Payment, Product,
     SalesOrder, SalesOrderItem, 
@@ -683,7 +683,8 @@ from barkat.services.balance_service import get_party_balances
 # =========================
 
 @method_decorator(login_required, name="dispatch")
-class LedgersListView(View):
+class LedgersListView(GranularPermissionRequiredMixin, View):
+    required_permission = "perm_ledger_r"
     template = "barkat/finance/ledgers_list.html"
     partial_template = "barkat/finance/_ledgers_table.html"
 
@@ -1385,8 +1386,16 @@ class BusinessesView(ListView):
         import time
         dashboard_revealed_at = request.session.get("dashboard_revealed_at", 0)
         # Session expires after 2 minutes (120 seconds)
-        session_expired = (time.time() - dashboard_revealed_at) > 120
+        time_elapsed = time.time() - dashboard_revealed_at
+        session_expired = time_elapsed > 120
         ctx["dashboard_unlocked"] = not session_expired
+        
+        # Add remaining time in milliseconds for the javascript timer
+        if not session_expired:
+            remaining_seconds = 120 - time_elapsed
+            ctx["dashboard_lock_remaining_ms"] = int(remaining_seconds * 1000)
+        else:
+            ctx["dashboard_lock_remaining_ms"] = 0
 
         ctx["csrf_token"] = get_token(self.request)
         ctx["party_kind"] = party_kind
@@ -1439,7 +1448,8 @@ def _get_last_payment_for_party(
     return qs[0]
 
 @method_decorator(login_required, name="dispatch")
-class PartyBalancesView(View):
+class PartyBalancesView(GranularPermissionRequiredMixin, View):
+    required_permission = "perm_ledger_r"
     template = "barkat/finance/party_balances.html"
 
     def _compute_totals_upto(self, *, kind: str, party_id: int, biz_list, biz_ids, date_to) -> tuple[Decimal, Decimal]:

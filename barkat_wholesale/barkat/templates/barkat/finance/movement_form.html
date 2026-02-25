@@ -24,11 +24,37 @@
     {% csrf_token %}
 
     <div class="grid md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm mb-1">Date</label>
-        {{ form.date }}
-        {{ form.date.errors }}
+      <div class="md:col-span-2 grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm mb-2">Business</label>
+          <div class="flex gap-2 overflow-x-auto pb-1 border-b border-slate-300">
+            {% for b in businesses %}
+              <span class="hidden">{% cycle 'indigo' 'emerald' 'rose' 'amber' as color %}</span>
+              {% if current_business and current_business.id == b.id %}
+                <button type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300 bg-{{ color }}-700 text-white border-{{ color }}-700 shadow-md">
+                  {{ b.name }}
+                </button>
+              {% else %}
+                <a href="?business={{ b.id }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-t-lg border text-sm font-medium transition-all duration-300 text-{{ color }}-700 border-{{ color }}-300 hover:bg-{{ color }}-100 hover:border-{{ color }}-600 hover:text-{{ color }}-900">
+                  {{ b.name }}
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+          
+          {# Hidden input to bind to the Django form #}
+          <input type="hidden" name="business" id="id_business" value="{{ current_business.id|default:'' }}">
+          {{ form.business.errors }}
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1">Date</label>
+          {{ form.date }}
+          {{ form.date.errors }}
+        </div>
       </div>
+
+      <div class="md:col-span-2 my-2 border-t border-slate-200"></div>
 
       <div>
         <label class="block text-sm mb-1">Type</label>
@@ -248,7 +274,23 @@
     }
 
     function isChequePaymentType(val) {
-      return val === "cheque_payment"; // your new code
+      return val === "cheque_payment";
+    }
+
+    function isWithdrawType(val) {
+      return val === "withdraw" || val === "cash_withdrawal";
+    }
+
+    function isFeeType(val) {
+      return val === "fee";
+    }
+
+    function isInterestType(val) {
+      return val === "interest";
+    }
+
+    function isTransferType(val) {
+       return val === "transfer";
     }
 
     // Filter purchase orders by selected party in the front end
@@ -291,8 +333,24 @@
       const chequeMode        = isChequeDepositType(val);
       const cashDepositMode   = isCashDepositType(val);
       const chequePaymentMode = isChequePaymentType(val);
+      const withdrawMode      = isWithdrawType(val);
+      const feeMode           = isFeeType(val);
+      const interestMode      = isInterestType(val);
+      const transferMode      = isTransferType(val);
 
-      // Cheque deposit mode
+      // Default State (hide specific blocks, show To/From banks)
+      if (chequeBlock) chequeBlock.classList.add("hidden");
+      if (chequePaymentBlock) chequePaymentBlock.classList.add("hidden");
+      if (cashWrapper) cashWrapper.classList.add("hidden");
+      if (closingCashInfo) closingCashInfo.classList.add("hidden");
+      if (useCashCheckbox) useCashCheckbox.checked = false;
+      if (amountHelp) amountHelp.classList.add("hidden");
+      if (amountInput) {
+        amountInput.readOnly = false;
+        amountInput.placeholder = "";
+      }
+
+      // 1. Cheque Deposit (Requires To Bank)
       if (chequeMode) {
         if (chequeBlock) chequeBlock.classList.remove("hidden");
         if (fromWrapper) fromWrapper.classList.add("hidden");
@@ -306,87 +364,76 @@
           amountHelp.textContent = "For cheque deposit. amount is auto calculated from selected cheques.";
           amountHelp.classList.remove("hidden");
         }
-
-        if (cashWrapper) cashWrapper.classList.add("hidden");
-        if (closingCashInfo) closingCashInfo.classList.add("hidden");
-        if (useCashCheckbox) {
-          useCashCheckbox.checked = false;
-        }
-
-        if (chequePaymentBlock) chequePaymentBlock.classList.add("hidden");
-
         recalcAmountFromCheques();
         return;
       }
 
-      // Cheque payment mode. Bank to Cheque to Purchase order
+      // 2. Cheque Payment (Requires From Bank, shows PO block)
       if (chequePaymentMode) {
-        if (chequeBlock) chequeBlock.classList.add("hidden");
-
         if (fromWrapper) fromWrapper.classList.remove("hidden");
         if (toWrapper) toWrapper.classList.add("hidden");
-
         if (chequePaymentBlock) chequePaymentBlock.classList.remove("hidden");
-
-        if (cashWrapper) cashWrapper.classList.add("hidden");
-        if (closingCashInfo) closingCashInfo.classList.add("hidden");
-        if (useCashCheckbox) {
-          useCashCheckbox.checked = false;
-        }
-
-        if (amountHelp) amountHelp.classList.add("hidden");
-        if (amountInput) {
-          amountInput.readOnly = false;
-          amountInput.placeholder = "";
-        }
-
-        // Filter POs now. based on selected party
+        
         filterPurchaseOrdersByParty();
         return;
       }
 
-      // Non cheque modes
-      if (chequeBlock) chequeBlock.classList.add("hidden");
-      if (chequePaymentBlock) chequePaymentBlock.classList.add("hidden");
-      if (fromWrapper) fromWrapper.classList.remove("hidden");
-      if (toWrapper) toWrapper.classList.remove("hidden");
-
+      // 3. Deposit (Cash -> Bank) (Requires To Bank)
       if (cashDepositMode) {
+        if (fromWrapper) fromWrapper.classList.add("hidden");
+        if (toWrapper) toWrapper.classList.remove("hidden");
         if (cashWrapper) cashWrapper.classList.remove("hidden");
-        if (amountInput && useCashCheckbox && useCashCheckbox.checked) {
-          amountInput.readOnly = true;
-        } else if (amountInput) {
-          amountInput.readOnly = false;
-        }
 
-        if (closingCashInfo && useCashCheckbox && useCashCheckbox.checked) {
-          closingCashInfo.classList.remove("hidden");
-        } else if (closingCashInfo) {
-          closingCashInfo.classList.add("hidden");
-        }
-
-        if (amountHelp) {
-          if (useCashCheckbox && useCashCheckbox.checked) {
+        if (useCashCheckbox && useCashCheckbox.checked) {
+          if (amountInput) amountInput.readOnly = true;
+          if (closingCashInfo) closingCashInfo.classList.remove("hidden");
+          if (amountHelp) {
             amountHelp.textContent = "Using closing cash in hand for this Cash to Bank deposit.";
             amountHelp.classList.remove("hidden");
-          } else {
-            amountHelp.classList.add("hidden");
           }
         }
-      } else {
-        if (cashWrapper) cashWrapper.classList.add("hidden");
-        if (closingCashInfo) closingCashInfo.classList.add("hidden");
-        if (useCashCheckbox) {
-          useCashCheckbox.checked = false;
-        }
-        if (amountInput) {
-          amountInput.readOnly = false;
-          amountInput.placeholder = "";
-        }
-        if (amountHelp) {
-          amountHelp.classList.add("hidden");
-        }
+        return;
       }
+
+      // 4. Withdraw (Bank -> Cash) (Requires From Bank)
+      if (withdrawMode) {
+        if (fromWrapper) fromWrapper.classList.remove("hidden");
+        if (toWrapper) toWrapper.classList.add("hidden");
+        return;
+      }
+
+      // 5. Bank Fee (Out) (Requires From Bank)
+      if (feeMode) {
+        if (fromWrapper) fromWrapper.classList.remove("hidden");
+        if (toWrapper) toWrapper.classList.add("hidden");
+        if (amountHelp) {
+           amountHelp.textContent = "Bank fee amount to be deducted.";
+           amountHelp.classList.remove("hidden");
+        }
+        return;
+      }
+
+      // 6. Bank Interest (In) (Requires To Bank)
+      if (interestMode) {
+        if (fromWrapper) fromWrapper.classList.add("hidden");
+        if (toWrapper) toWrapper.classList.remove("hidden");
+        if (amountHelp) {
+           amountHelp.textContent = "Interest amount to be added to the bank.";
+           amountHelp.classList.remove("hidden");
+        }
+        return;
+      }
+
+      // 7. Transfer (Requires From Bank and To Bank)
+      if (transferMode) {
+        if (fromWrapper) fromWrapper.classList.remove("hidden");
+        if (toWrapper) toWrapper.classList.remove("hidden");
+        return;
+      }
+
+      // Fallback (show both if unknown)
+      if (fromWrapper) fromWrapper.classList.remove("hidden");
+      if (toWrapper) toWrapper.classList.remove("hidden");
     }
 
     // listen to change on movement type

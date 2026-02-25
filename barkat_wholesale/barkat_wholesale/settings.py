@@ -176,9 +176,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 NPM_BIN_PATH = "C:/Program Files/nodejs/npm.cmd"
 LOGOUT_REDIRECT_URL = '/login/'
+
 
 # Session security hardening
 # Ensure sessions expire when the browser is closed

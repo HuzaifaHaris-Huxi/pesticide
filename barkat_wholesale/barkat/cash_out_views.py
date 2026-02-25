@@ -26,6 +26,7 @@ from .ledger_views import (
     _compute_party_balance,
     _compute_opening_before_date_for_party,
 )
+from .utils.auth_helpers import GranularPermissionRequiredMixin
 
 # use same tmp folder pattern as POS receipts
 TMP_DIR: Path = Path(
@@ -46,7 +47,8 @@ def _resolve_printer_name(business: Business) -> str:
         )
     return name
 
-class CashOutListView(LoginRequiredMixin, ListView):
+class CashOutListView(GranularPermissionRequiredMixin, LoginRequiredMixin, ListView):
+    required_permission = 'perm_cashout_r'
     model = Payment
     template_name = "barkat/finance/cash_out_list.html"
     context_object_name = "payments"
@@ -60,7 +62,8 @@ class CashOutListView(LoginRequiredMixin, ListView):
             is_external=False
         ).select_related('party', 'business').order_by('-date', '-created_at')
 
-class CashOutCreateView(LoginRequiredMixin, FormView):
+class CashOutCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, FormView):
+    required_permission = 'perm_cashout_c'
     template_name = "barkat/finance/cash_out.html"
     form_class = CashOutForm
     success_url = reverse_lazy("cash_out_list")
@@ -107,7 +110,8 @@ class CashOutCreateView(LoginRequiredMixin, FormView):
         )
         return super().form_valid(form)
 
-class CashOutUpdateView(LoginRequiredMixin, FormView):
+class CashOutUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, FormView):
+    required_permission = 'perm_cashout_u'
     template_name = "barkat/finance/cash_out.html"
     form_class = CashOutForm
     success_url = reverse_lazy("cash_out_list")
@@ -247,7 +251,8 @@ class CashOutPrintView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({"ok": False, "error": f"Unexpected error: {e}"}, status=500)
 
-class CashOutDeleteView(LoginRequiredMixin, View):
+class CashOutDeleteView(GranularPermissionRequiredMixin, LoginRequiredMixin, View):
+    required_permission = 'perm_cashout_d'
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         payment = get_object_or_404(

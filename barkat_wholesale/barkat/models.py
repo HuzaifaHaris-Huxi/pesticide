@@ -480,9 +480,49 @@ class Staff(TimeStampedBy):
         related_name="staff_profile",
     )
 
+    # Legacy basic permissions (can be left or removed; keeping for safety temporarily)
     access_sales     = models.BooleanField(default=False)
     access_inventory = models.BooleanField(default=False)
     access_accounts  = models.BooleanField(default=False)
+
+    # Granular Permissions: Product
+    perm_product_c = models.BooleanField(default=False, verbose_name="Create Product/Category")
+    perm_product_r = models.BooleanField(default=False, verbose_name="Read Products")
+    perm_product_u = models.BooleanField(default=False, verbose_name="Edit Products")
+    perm_product_d = models.BooleanField(default=False, verbose_name="Delete Products")
+
+    # Granular Permissions: Purchase
+    perm_purchase_c = models.BooleanField(default=False, verbose_name="Create Purchase Order")
+    perm_purchase_r = models.BooleanField(default=False, verbose_name="Read Purchase Orders")
+    perm_purchase_u = models.BooleanField(default=False, verbose_name="Edit Purchase Order")
+    perm_purchase_d = models.BooleanField(default=False, verbose_name="Delete Purchase Order")
+
+    # Granular Permissions: Sale
+    perm_sale_c = models.BooleanField(default=False, verbose_name="Create Sales Invoice")
+    perm_sale_r = models.BooleanField(default=False, verbose_name="Read Sales invoices")
+    perm_sale_u = models.BooleanField(default=False, verbose_name="Edit Sales Invoice")
+    perm_sale_d = models.BooleanField(default=False, verbose_name="Delete Sales Invoice")
+
+    # Granular Permissions: Cash In (Receipts)
+    perm_cashin_c = models.BooleanField(default=False, verbose_name="Create Cash In")
+    perm_cashin_r = models.BooleanField(default=False, verbose_name="Read Cash In")
+    perm_cashin_u = models.BooleanField(default=False, verbose_name="Edit Cash In")
+    perm_cashin_d = models.BooleanField(default=False, verbose_name="Delete Cash In")
+
+    # Granular Permissions: Cash Out (Payments)
+    perm_cashout_c = models.BooleanField(default=False, verbose_name="Create Cash Out")
+    perm_cashout_r = models.BooleanField(default=False, verbose_name="Read Cash Out")
+    perm_cashout_u = models.BooleanField(default=False, verbose_name="Edit Cash Out")
+    perm_cashout_d = models.BooleanField(default=False, verbose_name="Delete Cash Out")
+
+    # Granular Permissions: Ledger (Read Only requested)
+    perm_ledger_r = models.BooleanField(default=False, verbose_name="Read Ledgers")
+
+    # Granular Permissions: Staff Management
+    perm_staff_c = models.BooleanField(default=False, verbose_name="Create Staff")
+    perm_staff_r = models.BooleanField(default=False, verbose_name="Read Staff")
+    perm_staff_u = models.BooleanField(default=False, verbose_name="Edit Staff")
+    perm_staff_d = models.BooleanField(default=False, verbose_name="Delete Staff")
 
     joined_on      = models.DateField(null=True, blank=True)
     salary_start   = models.DateField(null=True, blank=True)
@@ -498,8 +538,8 @@ class Staff(TimeStampedBy):
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "phone"],
-                name="uniq_staff_business_phone_when_set",
-                condition=~Q(phone=""),
+                name="unique_phone_per_business",
+                condition=~models.Q(phone="")
             ),
             models.UniqueConstraint(
                 fields=["business", "cnic"],
@@ -510,6 +550,15 @@ class Staff(TimeStampedBy):
 
     def __str__(self):
         return f"{self.business.code} / {self.full_name}"
+
+    def has_perm(self, perm_name: str) -> bool:
+        """
+        Check if this staff member has a specific permission.
+        Super Admins always have all permissions.
+        """
+        if self.role == self.Roles.SUPER_ADMIN:
+            return True
+        return getattr(self, perm_name, False)
 
     def clean(self):
         if not self.business_id:
@@ -2834,7 +2883,9 @@ class UserSettings(models.Model):
     protect_receivables = models.BooleanField(default=False, help_text="Require password to view Total Receivables")
     protect_payables = models.BooleanField(default=False, help_text="Require password to view Total Payables")
     protect_cash_in_hand = models.BooleanField(default=False, help_text="Require password to view Cash in Hand")
+    protect_bank_balance = models.BooleanField(default=False, help_text="Require password to view Bank Balance")
     protect_inventory = models.BooleanField(default=False, help_text="Require password to view Total Inventory Value")
+    protect_product_valuation = models.BooleanField(default=False, help_text="Require password to view Product Valuations in Product List")
 
     cancellation_password = models.CharField(
         max_length=128,

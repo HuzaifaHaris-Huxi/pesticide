@@ -850,11 +850,15 @@
                   <div class="text-sm font-semibold text-slate-100 truncate">
                     {{ request.user.get_full_name|default:request.user.username }}
                   </div>
-                  {% with desig=request.user.groups.all.0.name %}
-                    <div class="text-xs text-slate-400 truncate">
-                      {{ desig|default:"Staff" }}
-                    </div>
-                  {% endwith %}
+                  <div class="text-xs text-slate-400 truncate">
+                    {% if request.user.staff_profile %}
+                      {{ request.user.staff_profile.get_role_display }}
+                    {% elif request.user.is_superuser %}
+                      Super Admin
+                    {% else %}
+                      {{ request.user.groups.all.0.name|default:"Staff" }}
+                    {% endif %}
+                  </div>
                 </div>
 
                 <!-- Settings and Logout buttons (hidden when collapsed) -->

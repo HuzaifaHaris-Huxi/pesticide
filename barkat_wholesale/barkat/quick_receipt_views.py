@@ -27,6 +27,8 @@ from .ledger_views import (
 from datetime import datetime, date, date as _date, timedelta
 
 
+from .utils.auth_helpers import GranularPermissionRequiredMixin
+
 # use same tmp folder pattern as POS receipts
 TMP_DIR: Path = Path(
     getattr(settings, "RECEIPT_TMP_DIR", Path(settings.BASE_DIR) / "tmp_receipts")
@@ -49,7 +51,8 @@ def _resolve_printer_name(business: Business) -> str:
     return name
 
 
-class QuickReceiptCreateView(LoginRequiredMixin, FormView):
+class QuickReceiptCreateView(GranularPermissionRequiredMixin, LoginRequiredMixin, FormView):
+    required_permission = 'perm_cashin_c'
     template_name = "barkat/finance/quick_receipt.html"
     form_class = QuickReceiptForm
     success_url = reverse_lazy("quick_receipt_list")
@@ -94,7 +97,8 @@ class QuickReceiptCreateView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
 
 
-class QuickReceiptUpdateView(LoginRequiredMixin, FormView):
+class QuickReceiptUpdateView(GranularPermissionRequiredMixin, LoginRequiredMixin, FormView):
+    required_permission = 'perm_cashin_u'
     template_name = "barkat/finance/quick_receipt.html"
     form_class = QuickReceiptForm
 

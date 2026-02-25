@@ -10,6 +10,7 @@
     </a>
   </div>
 
+  {% if has_read_permission %}
   {# main filter form #}
   <form method="get" class="mb-2 bg-white border border-slate-200 rounded-xl p-3 grid grid-cols-1 md:grid-cols-4 gap-3">
     <div>
@@ -215,6 +216,13 @@
       </div>
     {% endif %}
   </div>
+  {% else %}
+  <div class="rounded-xl border border-blue-200 bg-blue-50 p-6 text-center mt-4">
+    <i data-feather="info" class="w-8 h-8 text-blue-500 mx-auto mb-2"></i>
+    <h3 class="text-lg font-medium text-blue-900 mb-1">Create Access Only</h3>
+    <p class="text-blue-700">You do not have permission to view Quick Receipt history, but you can record new receipts using the button above.</p>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Password Modal for Delete Confirmation -->

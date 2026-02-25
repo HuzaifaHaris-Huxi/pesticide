@@ -73,6 +73,7 @@
     </div>
   </div>
 
+  {% if has_read_permission %}
   {# Filters and Search #}
   <div class="mb-3 space-y-3">
     <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -150,7 +151,26 @@
     <div class="flex justify-end">
       <div class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2 flex items-center gap-3">
         <span class="text-indigo-700 text-sm font-medium uppercase tracking-wider">Filtered Valuation:</span>
-        <span class="text-indigo-900 text-lg font-bold">Rs. <span id="dynamicGrandTotal">{{ grand_total_stock_value|floatformat:2 }}</span></span>
+        <span class="text-indigo-900 text-lg font-bold">
+          Rs. 
+          {% if user.settings.protect_product_valuation and user.settings.cancellation_password and not dashboard_unlocked %}
+            <span class="flex items-center gap-2 inline-flex">
+              <span id="dynamicGrandTotal" class="protected-value" data-secret="{{ grand_total_stock_value|floatformat:2 }}">******</span>
+              <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500 hover:text-indigo-600">
+                <i data-feather="eye" class="w-4 h-4"></i>
+              </button>
+            </span>
+          {% else %}
+            <span class="flex items-center gap-2 inline-flex">
+              <span id="dynamicGrandTotal">{{ grand_total_stock_value|floatformat:2 }}</span>
+              {% if dashboard_unlocked and user.settings.protect_product_valuation %}
+              <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+                <i data-feather="x" class="w-3.5 h-3.5"></i>
+              </button>
+              {% endif %}
+            </span>
+          {% endif %}
+        </span>
       </div>
     </div>
   </div>
@@ -215,9 +235,23 @@
             </span>
           </td>
           <td class="px-4 py-2 text-right bg-indigo-50/30">
-            <span class="font-bold text-indigo-700">
-              {{ p.total_stock_value|default:0|floatformat:2 }}
-            </span>
+            {% if user.settings.protect_product_valuation and user.settings.cancellation_password and not dashboard_unlocked %}
+              <div class="flex items-center justify-end gap-2">
+                <span class="font-bold text-indigo-700 protected-value" data-secret="{{ p.total_stock_value|default:0|floatformat:2 }}">******</span>
+                <button onclick="requestReveal(this)" class="p-1 px-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-indigo-600">
+                  <i data-feather="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+            {% else %}
+              <div class="flex items-center justify-end gap-2">
+                <span class="font-bold text-indigo-700">{{ p.total_stock_value|default:0|floatformat:2 }}</span>
+                {% if dashboard_unlocked and user.settings.protect_product_valuation %}
+                <button onclick="hideDashboardData()" class="p-0.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-colors" title="Lock immediately">
+                  <i data-feather="x" class="w-3.5 h-3.5"></i>
+                </button>
+                {% endif %}
+              </div>
+            {% endif %}
           </td>
           <td class="px-4 py-2 text-center">
             {% if p.barcode %}
@@ -297,6 +331,13 @@
       </button>
     </div>
   </div>
+  {% else %}
+  <div class="rounded-xl border border-blue-200 bg-blue-50 p-6 text-center mt-4">
+    <i data-feather="info" class="w-8 h-8 text-blue-500 mx-auto mb-2"></i>
+    <h3 class="text-lg font-medium text-blue-900 mb-1">Create Access Only</h3>
+    <p class="text-blue-700">You do not have permission to view Product catalog, but you can create new records using the button above.</p>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Print Barcode Modal -->
@@ -355,6 +396,37 @@
           class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
         >
           Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Security Password Modal -->
+<div id="security-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full mx-4 transform transition-all scale-100" style="max-width: 400px; width: 100%;">
+    <div class="text-center mb-6">
+      <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <i data-feather="lock" class="w-6 h-6 text-slate-600"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800">Security Check</h3>
+      <p class="text-sm text-slate-500">Enter your cancellation/security password to view this information.</p>
+    </div>
+    
+    <div class="space-y-4">
+      <div>
+        <input type="password" id="security-password-input" 
+          class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+          placeholder="Password">
+        <p id="security-error" class="hidden text-xs text-red-600 mt-2 font-medium bg-red-50 p-2 rounded"></p>
+      </div>
+      
+      <div class="flex gap-3">
+        <button onclick="closeSecurityModal()" class="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm transition-colors">
+          Cancel
+        </button>
+        <button onclick="submitSecurityPassword()" class="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-medium text-sm transition-colors shadow-sm">
+          Confirm
         </button>
       </div>
     </div>
@@ -594,6 +666,92 @@
       // Trigger download
       window.location.href = exportUrl;
     });
+
+    // Security Reveal Logic
+    let currentTargetBtn = null;
+    const securityModal = document.getElementById('security-modal');
+    const securityInput = document.getElementById('security-password-input');
+    const securityError = document.getElementById('security-error');
+
+    if(securityInput){
+        securityInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') submitSecurityPassword();
+        });
+    }
+
+    window.requestReveal = function(btn) {
+      if(!securityModal) return; 
+      currentTargetBtn = btn;
+      securityInput.value = '';
+      securityError.classList.add('hidden');
+      securityModal.classList.remove('hidden');
+      securityInput.focus();
+    };
+
+    window.closeSecurityModal = function() {
+      securityModal.classList.add('hidden');
+      currentTargetBtn = null;
+    };
+
+    window.submitSecurityPassword = async function() {
+      const pwd = securityInput.value;
+      if (!pwd) return;
+
+      try {
+        const response = await fetch("{% url 'check_security_password' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: JSON.stringify({ 
+            password: pwd,
+            action: 'dashboard_reveal' 
+          })
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          window.location.reload();
+        } else {
+          securityError.textContent = data.error || "Incorrect password";
+          securityError.classList.remove('hidden');
+          securityInput.select();
+        }
+      } catch (e) {
+        console.error(e);
+        securityError.textContent = "Connection error";
+        securityError.classList.remove('hidden');
+      }
+    };
+
+    window.hideDashboardData = async function() {
+      try {
+        const response = await fetch("{% url 'check_security_password' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+          },
+          body: JSON.stringify({ 
+            action: 'dashboard_hide' 
+          })
+        });
+        const data = await response.json();
+        if (data.ok) {
+          window.location.reload();
+        }
+      } catch (e) {
+        console.error("Error hiding data", e);
+      }
+    };
+
+    // Auto-hide logical session if dashboard is unlocked
+    {% if dashboard_unlocked and dashboard_lock_remaining_ms > 0 %}
+    setTimeout(() => {
+      window.location.reload();
+    }, {{ dashboard_lock_remaining_ms }});
+    {% endif %}
 
     // Print Barcode Modal
     const printModal = document.getElementById('printBarcodeModal');
