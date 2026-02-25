@@ -135,11 +135,20 @@ class OrderService:
     @staticmethod
     def _get_walkin_party(business):
         from barkat.models import Party
-        return Party.objects.filter(
-            default_business=business, 
+        party = Party.objects.filter(
             display_name__icontains="Walk-in", 
             is_deleted=False
         ).first()
+        if not party:
+            party, _ = Party.objects.get_or_create(
+                display_name="Walk-in-Customer",
+                default_business=business,
+                defaults={
+                    "type": Party.CUSTOMER,
+                    "is_active": True,
+                },
+            )
+        return party
 
     @staticmethod
     @transaction.atomic

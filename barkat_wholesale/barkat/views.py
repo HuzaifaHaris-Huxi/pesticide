@@ -3276,15 +3276,22 @@ def ensure_party_for_receipt(business, customer, customer_name, customer_phone):
         return customer
 
     phone = (customer_phone or "").strip()
-    party, _ = Party.objects.get_or_create(
-        display_name="Walk-in-Customer",
-        default_business=business,
-        defaults={
-            "type": "CUSTOMER",
-            "is_active": True,
-            "phone": phone,
-        },
-    )
+    
+    party = Party.objects.filter(
+        display_name__icontains="Walk-in", 
+        is_deleted=False
+    ).first()
+    
+    if not party:
+        party, _ = Party.objects.get_or_create(
+            display_name="Walk-in-Customer",
+            defaults={
+                "type": "CUSTOMER",
+                "is_active": True,
+                "phone": phone,
+                "default_business": business,
+            },
+        )
     if not party.phone and phone:
         party.phone = phone
         party.save(update_fields=["phone"])
