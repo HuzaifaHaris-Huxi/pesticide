@@ -1017,6 +1017,12 @@ class LedgerDetailView(View):
         if is_both:
             other_kind = "supplier" if kind == "customer" else "customer"
 
+        business = None
+        if not all_mode and business_param.isdigit():
+            business = get_object_or_404(Business, pk=business_param)
+        elif not all_mode:
+            all_mode = True
+
         # Use LedgerService for all row building and totalling
         from barkat.services.ledger_service import LedgerService
         base_rows, totals, _ = LedgerService.get_ledger_data(
